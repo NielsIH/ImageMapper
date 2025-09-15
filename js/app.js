@@ -1,5 +1,5 @@
 /**
- * Quarry Inventory PWA - Main Application
+ * Image Mapper PWA - Main Application
  * Phase 1A: Basic PWA Foundation
  */
 
@@ -7,7 +7,7 @@
         alert
         */
 
-class QuarryInventoryApp {
+class ImageMapperApp {
   constructor () {
     this.isOnline = navigator.onLine
     this.serviceWorkerReady = false
@@ -24,7 +24,7 @@ class QuarryInventoryApp {
      * Initialize the application
      */
   async init () {
-    console.log('Quarry Inventory App: Initializing...')
+    console.log('Image Mapper App: Initializing...')
 
     try {
       // Set up event listeners
@@ -39,9 +39,9 @@ class QuarryInventoryApp {
       // Initialize app state
       this.updateAppStatus('Ready')
 
-      console.log('Quarry Inventory App: Initialization complete')
+      console.log('Image Mapper App: Initialization complete')
     } catch (error) {
-      console.error('Quarry Inventory App: Initialization failed', error)
+      console.error('Image Mapper App: Initialization failed', error)
       this.updateAppStatus('Error: Initialization failed')
     }
   }
@@ -371,7 +371,7 @@ class QuarryInventoryApp {
 }
 
 // Initialize the app
-const app = new QuarryInventoryApp()
+const app = new ImageMapperApp()
 
 // Make app available globally for debugging
-window.quarryApp = app
+window.imageMapperApp = app

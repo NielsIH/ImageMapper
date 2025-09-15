@@ -1,7 +1,7 @@
 {
-  "name": "Quarry Inventory App",
-  "short_name": "Quarry Inventory",
-  "description": "Underground limestone quarry inventarisation application",
+  "name": "Image Mapper App",
+  "short_name": "Image Mapper",
+  "description": "Map photos and images to specific locations on any map or floor plan",
   "id": "/ImageMapper/",
   "start_url": "./",
   "display": "standalone",

@@ -1,6 +1,6 @@
-# Quarry Inventory PWA
+# Image Mapper PWA
 
-A Progressive Web App for underground limestone quarry inventarisation, designed to work offline and capture location-based data with photos and annotations.
+A Progressive Web App for mapping photos and images to specific locations on any map or floor plan. Perfect for construction sites, archaeological surveys, property inspections, event planning, and more. Designed to work offline for use in any environment.
 
 ## Phase 1A: PWA Foundation ✅
 
@@ -16,7 +16,7 @@ This phase establishes the basic PWA infrastructure and offline capabilities.
 
 ### Files Structure
 ```
-quarry-inventory/
+image-mapper/
 ├── index.html              # Main app HTML
 ├── manifest.json           # PWA configuration
 ├── service-worker.js       # Offline functionality
@@ -31,8 +31,7 @@ quarry-inventory/
 ## Getting Started
 
 ### 🚀 Live Demo
-Visit the deployed app: `https://YOURUSERNAME.github.io/quarry-inventory`
-*(Replace YOURUSERNAME with your GitHub username after deployment)*
+Visit the deployed app: `https://nielsih.github.io/ImageMapper`
 
 ### 📱 Install as PWA
 1. Visit the app URL on any device
@@ -116,9 +115,20 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - **Lightweight**: No external frameworks for core functionality
 - **Modular**: Clean separation between phases for iterative development
 
+## Use Cases
+
+**Image Mapper is perfect for:**
+- **Construction projects** - Map progress photos to floor plans and site layouts  
+- **Archaeological surveys** - Document findings with precise location mapping
+- **Property inspections** - Link inspection photos to property maps and floor plans
+- **Event planning** - Map photos and notes to venue layouts
+- **Facility management** - Track maintenance and asset photos by location
+- **Research projects** - Geolocate field photos and documentation
+- **Underground work** - Map photos in areas without GPS signal
+
 ## Contributing
 
-This is a focused project for underground quarry inventarisation. Future phases will build incrementally on this foundation.
+This project focuses on versatile photo-to-location mapping. Future phases will build incrementally on this foundation.
 
 ### Code Standards
 - Use ES6+ JavaScript features
@@ -128,4 +138,4 @@ This is a focused project for underground quarry inventarisation. Future phases 
 
 ## License
 
-This project is developed for specific quarry inventarisation use cases.
+This project is developed for versatile photo mapping and location documentation use cases.

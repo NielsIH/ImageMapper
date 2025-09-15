@@ -1,6 +1,6 @@
 /* global caches self */
 
-const CACHE_NAME = 'quarry-inventory-v1'
+const CACHE_NAME = 'image-mapper-v1'
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -132,16 +132,16 @@ function shouldCache (url) {
 self.addEventListener('sync', (event) => {
   console.log('Service Worker: Background sync triggered', event.tag)
 
-  if (event.tag === 'sync-inventory-data') {
+  if (event.tag === 'sync-image-data') {
     event.waitUntil(
-      syncInventoryData()
+      syncImageData()
     )
   }
 })
 
 // Placeholder for future sync functionality
-async function syncInventoryData () {
-  console.log('Service Worker: Syncing inventory data...')
+async function syncImageData () {
+  console.log('Service Worker: Syncing image data...')
   // This will be implemented in later phases when we add server sync
   try {
     // Future: Upload pending data to server
