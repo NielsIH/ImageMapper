@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Underground limestone quarry inventarisation app">
+    
+    <title>Quarry Inventory</title>
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Quarry Inventory">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="app-title">Quarry Inventory</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="btn-settings">
+                    ⚙️ Settings
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Welcome Screen (shown when no maps are loaded) -->
+            <div class="welcome-screen" id="welcome-screen">
+                <div class="welcome-content">
+                    <div class="welcome-icon">🗺️</div>
+                    <h2>Welcome to Quarry Inventory</h2>
+                    <p>Start by uploading a map of your quarry to begin inventarisation.</p>
+                    <button class="btn btn-primary btn-large" id="btn-add-first-map">
+                        📁 Upload First Map
+                    </button>
+                </div>
+            </div>
+
+            <!-- Map Display Area (hidden initially) -->
+            <div class="map-display hidden" id="map-display">
+                <div class="map-container" id="map-container">
+                    <canvas class="map-canvas" id="map-canvas"></canvas>
+                </div>
+                
+                <!-- Map Controls Overlay -->
+                <div class="map-controls">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+                        <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+                    </div>
+                    <button class="btn btn-secondary control-btn" id="btn-map-list" title="Map List">
+                        📋 Maps
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span class="app-status" id="app-status">Ready</span>
+                <span class="connection-status" id="connection-status">Offline Ready</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p class="loading-text" id="loading-text">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+
+    <!-- App Scripts -->
+    <script src="js/app.js"></script>
+</body>
+</html>

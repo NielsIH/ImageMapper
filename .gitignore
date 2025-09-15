@@ -1,0 +1,38 @@
+# Development files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (if you add build tools later)
+node_modules/
+npm-debug.log*
+
+# Local development
+.env
+.env.local
+
+# Build outputs (for future phases)
+dist/
+build/
+
+# Temporary files
+temp/
+tmp/
+
+# User uploaded content (maps and photos - these should not be in repo)
+uploads/
+user-data/
+maps/
+photos/
+
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Icon?
