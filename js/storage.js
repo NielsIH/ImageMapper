@@ -7,12 +7,15 @@
  * IndexedDB wrapper for managing map storage
  * Stores map metadata (not actual image files - those are referenced by File API)
  */
+
+/* global indexedDB */
 class MapStorage {
   constructor () {
     this.dbName = 'ImageMapperDB'
     this.version = 1
     this.db = null
     this.storeName = 'maps'
+    this.keyPath = 'id' // Define keyPath for clarity
   }
 
   /**
@@ -42,7 +45,7 @@ class MapStorage {
         // Create maps object store if it doesn't exist
         if (!db.objectStoreNames.contains(this.storeName)) {
           const store = db.createObjectStore(this.storeName, {
-            keyPath: 'id'
+            keyPath: this.keyPath
           })
 
           // Create indexes for efficient querying
@@ -73,6 +76,10 @@ class MapStorage {
     if (!this.db) {
       throw new Error('Storage not initialized')
     }
+    // Ensure mapData.imageData is a Blob if provided
+    if (mapData.imageData && !(mapData.imageData instanceof Blob)) {
+      throw new Error('MapStorage: imageData must be a Blob object if provided.')
+    }
 
     const map = {
       id: this.generateId(),
@@ -87,6 +94,10 @@ class MapStorage {
       createdDate: new Date(),
       lastModified: new Date(),
       isActive: mapData.isActive || false,
+
+      // This is crucial: Store the actual image Blob itself
+      imageData: mapData.imageData || null, // Ensure imageData (Blob) is stored
+
       // Additional metadata for future features
       markers: [], // Will be used in later phases
       settings: {
@@ -99,15 +110,17 @@ class MapStorage {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.storeName], 'readwrite')
       const store = transaction.objectStore(this.storeName)
-      const request = store.add(map)
+
+      // Use put instead of add to allow updating existing entries by ID
+      const request = store.put(map) // Changed from store.add to store.put
 
       request.onsuccess = () => {
-        console.log('MapStorage: Map added successfully', map.id)
+        console.log('MapStorage: Map added/updated successfully', map.id)
         resolve(map)
       }
 
       request.onerror = () => {
-        console.error('MapStorage: Failed to add map', request.error)
+        console.error('MapStorage: Failed to add/update map', request.error)
         reject(new Error(`Failed to save map: ${request.error}`))
       }
     })
@@ -115,7 +128,7 @@ class MapStorage {
 
   /**
    * Get all maps from storage
-   * @returns {Promise<Array>} - Array of all map objects
+   * @returns {Promise<Array>} - Array of all map objects (including imageData)
    */
   async getAllMaps () {
     if (!this.db) {
@@ -130,7 +143,7 @@ class MapStorage {
       request.onsuccess = () => {
         const maps = request.result || []
         console.log(`MapStorage: Retrieved ${maps.length} maps`)
-        resolve(maps)
+        resolve(maps) // This will now include the imageData Blob for each map
       }
 
       request.onerror = () => {
@@ -143,7 +156,7 @@ class MapStorage {
   /**
    * Get a specific map by ID
    * @param {string} id - Map ID
-   * @returns {Promise<Object|null>} - Map object or null if not found
+   * @returns {Promise<Object|null>} - Map object (including imageData) or null if not found
    */
   async getMap (id) {
     if (!this.db) {
@@ -158,7 +171,7 @@ class MapStorage {
       request.onsuccess = () => {
         const map = request.result
         console.log('MapStorage: Retrieved map', id, map ? 'found' : 'not found')
-        resolve(map || null)
+        resolve(map || null) // This will now include the imageData Blob if it exists
       }
 
       request.onerror = () => {

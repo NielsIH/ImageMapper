@@ -6,6 +6,9 @@
 /**
  * Modal manager for creating and managing modal dialogs
  */
+
+/* global document, window DOMParser requestAnimationFrame FileManager */
+
 class ModalManager {
   constructor () {
     this.activeModals = new Set()
@@ -22,6 +25,142 @@ class ModalManager {
         this.closeTopModal()
       }
     })
+  }
+
+  /**
+   * Creates a comprehensive Map Management Modal to display, select, add, and delete maps.
+   * @param {Array<Object>} maps - Array of map metadata objects (with thumbnailDataUrl).
+   * @param {string|null} activeMapId - ID of the currently active map.
+   * @param {Function} onMapSelected - Callback when a map is selected from the list.
+   * @param {Function} onMapDelete - Callback when a map's delete button is clicked.
+   * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button is clicked.
+   * @param {Function} onClose - Callback when the modal is closed.
+   * @param {Function} [onModalReady] - Optional callback when modal is fully displayed/ready.
+   * @returns {HTMLElement} - Modal element.
+   */
+  createMapManagementModal (maps, activeMapId, onMapSelected, onMapDelete, onAddNewMap, onClose, onModalReady) {
+    const modalHtml = `
+      <div class="modal" id="map-management-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Manage Your Maps</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="maps-management-container">
+              ${maps.length === 0
+                ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
+                : `
+                <ul class="maps-list">
+                  ${maps.map(map => `
+                    <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
+                      <div class="map-thumbnail-container">
+                        ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : '<div class="map-initials"></div>'}
+                      </div>
+                      <div class="map-info">
+                        <span class="map-name">${map.name}</span>
+                        <span class="map-dimensions">${map.width} × ${map.height} px</span>
+                      </div>
+                      <div class="map-item-actions">
+                        ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
+                        <button class="btn btn-danger btn-small delete-map-btn" data-map-id="${map.id}" title="Delete Map">🗑️</button>
+                      </div>
+                    </li>
+                  `).join('')}
+                </ul>
+              `}
+            </div>
+            <div class="map-actions-footer">
+                <button class="btn btn-primary btn-large add-new-map-btn" type="button">
+                    ➕ Add New Map
+                </button>
+            </div>
+          </div>
+          
+          <div class="modal-footer hidden">
+            <!-- No footer actions needed here, moved to map-actions-footer inside body -->
+          </div>
+        </div>
+      </div>
+    `
+
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create map management modal element.')
+      if (onClose) onClose() // Try to close silently or notify if creation failed
+      return null
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    // --- Event Listeners ---
+    const closeModal = () => {
+      this.closeModal(modal)
+      if (onClose) onClose()
+    }
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
+    // The previous maps-list-close-btn is now part of the general close logic or will be replaced.
+    // For now, modal footer is hidden, rely on modal-close or backdrop click.
+
+    // Select map (list item click)
+    modal.querySelectorAll('.map-list-item.clickable').forEach(item => {
+      item.addEventListener('click', (e) => {
+        // Prevent event from propagating to delete button if clicked
+        if (e.target.closest('.delete-map-btn')) return
+
+        const mapId = item.dataset.mapId
+        if (onMapSelected) {
+          onMapSelected(mapId)
+          // Modal will be re-opened by app.js (showMapManagementModal) to show new active state
+          this.closeModal(modal)
+        }
+      })
+    })
+
+    // Delete map button
+    modal.querySelectorAll('.delete-map-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent this click from triggering the parent li's click
+        const mapId = button.dataset.mapId
+        if (onMapDelete && confirm('Are you sure you want to delete this map? This cannot be undone.')) {
+          onMapDelete(mapId)
+          this.closeModal(modal) // Close modal and let app.js re-open to reflect change
+        }
+      })
+    })
+
+    // Add New Map button
+    modal.querySelector('.add-new-map-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      if (onAddNewMap) {
+        onAddNewMap()
+        this.closeModal(modal) // Close this modal to open the upload modal
+      }
+    })
+
+    // Populate map initials if no thumbnail
+    modal.querySelectorAll('.map-initials').forEach(initialsDiv => {
+      const mapId = initialsDiv.closest('.map-list-item')?.dataset.mapId
+      const map = maps.find(m => m.id === mapId)
+      if (map) {
+        initialsDiv.textContent = map.name.substring(0, 2).toUpperCase()
+      }
+    })
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show')
+      if (onModalReady) {
+        onModalReady()
+      }
+    })
+
+    return modal
   }
 
   /**

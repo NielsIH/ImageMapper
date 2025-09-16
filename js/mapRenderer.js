@@ -6,6 +6,8 @@
 /**
  * Map Renderer for displaying uploaded maps on canvas
  */
+
+/* global console, document, window, Image, URL */
 class MapRenderer {
   constructor (canvasId) {
     this.canvas = document.getElementById(canvasId)
@@ -17,9 +19,12 @@ class MapRenderer {
     this.offsetY = 0
     this.maxScale = 5
     this.minScale = 0.1
+    this.showDebugInfo = false // Ensure this is initialized
 
-    // Set up canvas
-    this.setupCanvas()
+    // Setup canvas immediately if container is visible
+    if (this.canvas.offsetParent !== null) {
+      this.setupCanvas()
+    }
     this.setupResizeHandler()
   }
 
@@ -31,22 +36,12 @@ class MapRenderer {
       console.error('MapRenderer: Canvas element not found')
       return
     }
-
-    console.log('MapRenderer: Setting up canvas...')
-
-    // Force a small delay to ensure DOM is ready
-    setTimeout(() => {
-      // Set initial canvas size
-      this.resizeCanvas()
-
-      // Enable image smoothing for better quality
-      if (this.ctx) {
-        this.ctx.imageSmoothingEnabled = true
-        this.ctx.imageSmoothingQuality = 'high'
-      }
-
-      console.log('MapRenderer: Canvas initialized')
-    }, 100)
+    // Only apply image smoothing here, actual resizing done in loadMap/resizeHandler
+    if (this.ctx) {
+      this.ctx.imageSmoothingEnabled = true
+      this.ctx.imageSmoothingQuality = 'high'
+    }
+    console.log('MapRenderer: Canvas basic context initialized.')
   }
 
   /**
@@ -70,97 +65,87 @@ class MapRenderer {
     if (!this.canvas) return
 
     const container = this.canvas.parentElement
+    if (!container || container.offsetParent === null) {
+      console.warn('MapRenderer: Container not visible, deferring canvas resize')
+      return false // Container not visible yet
+    }
+
     const rect = container.getBoundingClientRect()
 
-    // Ensure we have valid dimensions
-    const width = Math.max(rect.width, 100)
-    const height = Math.max(rect.height, 100)
+    console.log('MapRenderer: resizeCanvas - Parent container rect:', rect)
+    console.log(`  Initial canvas attributes: ${this.canvas.width}x${this.canvas.height}`)
+
+    // Use clientWidth/clientHeight as they represent the rendered size of the element
+    // Math.max to avoid 0 if container is still not laid out properly
+    const width = Math.max(container.clientWidth || rect.width, 100)
+    const height = Math.max(container.clientHeight || rect.height, 100)
+
+    // Only resize if dimensions have actually changed significantly
+    // Compare against the elements' actual current pixel size
+    if (this.canvas.width === width && this.canvas.height === height) {
+      console.log('MapRenderer: Canvas attributes unchanged.')
+      return // Avoid unnecessary redraws if size is the same
+    }
 
     // Set canvas size to container size
     this.canvas.width = width
     this.canvas.height = height
 
-    // Update canvas display size
+    // Update canvas display size (CSS sizing)
     this.canvas.style.width = width + 'px'
     this.canvas.style.height = height + 'px'
 
-    console.log(`MapRenderer: Canvas resized to ${this.canvas.width}x${this.canvas.height}`)
-    console.log('MapRenderer: Container rect:', rect)
+    console.log(`MapRenderer: Canvas attributes set to ${this.canvas.width}x${this.canvas.height}`)
+    return true // Successfully resized
   }
 
   /**
    * Load and display a map
    * @param {Object} mapData - Map metadata from storage
-   * @param {File|string} imageSource - File object or data URL
+   * @param {File|Blob} imageSource - File object or Blob
    */
-  async loadMap (mapData, imageSource) {
+  async loadMap (mapData, imageSource) { // imageSource can be File or Blob
     try {
       console.log('MapRenderer: Loading map:', mapData.name)
 
       this.currentMap = mapData
 
+      if (!(imageSource instanceof File) && !(imageSource instanceof Blob)) {
+        throw new Error('Invalid image source: must be File or Blob object.')
+      }
+
+      // If there was a previous image, revoke its URL to free memory
+      if (this.imageData && this.imageData.src && this.imageData.src.startsWith('blob:')) {
+        URL.revokeObjectURL(this.imageData.src)
+      }
+
       // Create image element
       const img = new Image()
 
       return new Promise((resolve, reject) => {
-        // Set image source first, then handlers
-        if (imageSource instanceof File) {
-          // Create object URL for file
-          const url = URL.createObjectURL(imageSource)
-          console.log('MapRenderer: Created object URL for file:', url)
+        const imageUrl = URL.createObjectURL(imageSource)
+        console.log('MapRenderer: Created object URL for imageSource:', imageUrl)
 
-          img.onload = () => {
-            console.log('MapRenderer: Image loaded successfully from file')
-            URL.revokeObjectURL(url)
-            this.imageData = img
+        img.onload = () => {
+          console.log('MapRenderer: Image loaded successfully into Image object')
+          URL.revokeObjectURL(imageUrl) // Clean up the object URL immediately after image is loaded
+          this.imageData = img
 
-            // Ensure canvas is properly sized
-            this.resizeCanvas()
+          // Ensure canvas is properly sized BEFORE fitting/rendering
+          this.resizeCanvas() // Important: make sure container CSS is applied
+          this.fitToScreen() // Important: recalculate scale and offset
+          this.render() // Draw the image
 
-            // Calculate initial scale and position to fit screen
-            this.fitToScreen()
-
-            // Render the map
-            this.render()
-
-            resolve()
-          }
-
-          img.onerror = () => {
-            console.error('MapRenderer: Failed to load image from file')
-            URL.revokeObjectURL(url)
-            reject(new Error('Failed to load map image'))
-          }
-
-          // Set the source after setting up handlers
-          img.src = url
-        } else if (typeof imageSource === 'string') {
-          // Use data URL or regular URL
-          img.onload = () => {
-            console.log('MapRenderer: Image loaded successfully from URL')
-            this.imageData = img
-
-            // Ensure canvas is properly sized
-            this.resizeCanvas()
-
-            // Calculate initial scale and position to fit screen
-            this.fitToScreen()
-
-            // Render the map
-            this.render()
-
-            resolve()
-          }
-
-          img.onerror = () => {
-            console.error('MapRenderer: Failed to load image from URL')
-            reject(new Error('Failed to load map image'))
-          }
-
-          img.src = imageSource
-        } else {
-          reject(new Error('Invalid image source'))
+          resolve()
         }
+
+        img.onerror = () => {
+          console.error('MapRenderer: Failed to load image from imageSource')
+          URL.revokeObjectURL(imageUrl) // Clean up on error too
+          reject(new Error('Failed to load map image'))
+        }
+
+        img.src = imageUrl
       })
     } catch (error) {
       console.error('MapRenderer: Error loading map:', error)
@@ -314,11 +299,11 @@ class MapRenderer {
     )
 
     // Draw file info
-    this.ctx.fillText(
-      `${this.currentMap.fileName} (${this.formatFileSize(this.currentMap.fileSize)})`,
-      centerX,
-      centerY + 65
-    )
+    // this.ctx.fillText(
+    //   `${this.currentMap.fileName} (${this.formatFileSize(this.currentMap.fileSize)})`,
+    //   centerX,
+    //   centerY + 65
+    // )
   }
 
   /**
@@ -510,7 +495,8 @@ class MapRenderer {
    * Clean up resources
    */
   dispose () {
-    // Clean up any object URLs or resources
+  // Clean up any object URLs or resources
+  // Check if imageData exists and if its src is a blob URL before revoking
     if (this.imageData && this.imageData.src && this.imageData.src.startsWith('blob:')) {
       URL.revokeObjectURL(this.imageData.src)
     }

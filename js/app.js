@@ -9,6 +9,8 @@
         FileManager
         ModalManager
         MapRenderer
+        ImageProcessor
+        Image
         */
 
 class ImageMapperApp {
@@ -25,6 +27,8 @@ class ImageMapperApp {
     this.mapsList = []
     this.isLoading = false
     this.uploadedFiles = new Map() // Store file references for rendering
+    this.thumbnailCache = new Map() // NEW: Cache for thumbnail Data URLs
+    this.imageProcessor = new ImageProcessor() // For future image processing
 
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
@@ -86,6 +90,12 @@ class ImageMapperApp {
 
     // Touch and mouse events for future map interaction
     this.setupMapInteractionListeners()
+
+    // NEW: Handle dynamic button for uploading new maps after initial setup
+    // const uploadNewMapBtn = document.getElementById('btn-upload-new-map')
+    // if (uploadNewMapBtn) {
+    //   uploadNewMapBtn.addEventListener('click', () => this.showUploadModal())
+    // }
   }
 
   /**
@@ -101,13 +111,13 @@ class ImageMapperApp {
     // Add first map button
     const addFirstMapBtn = document.getElementById('btn-add-first-map')
     if (addFirstMapBtn) {
-      addFirstMapBtn.addEventListener('click', () => this.addFirstMap())
+      addFirstMapBtn.addEventListener('click', () => this.showUploadModal()) // <<< Changed to call showUploadModal directly
     }
 
-    // Map list button
+    // Map list button (to open NEW consolidated Map Management Modal)
     const mapListBtn = document.getElementById('btn-map-list')
     if (mapListBtn) {
-      mapListBtn.addEventListener('click', () => this.showMapList())
+      mapListBtn.addEventListener('click', () => this.showMapManagementModal()) // << NEW call
     }
 
     // Zoom controls
@@ -228,10 +238,41 @@ class ImageMapperApp {
 
         // Listen for service worker updates
         registration.addEventListener('updatefound', () => {
-          console.log('Service Worker update found')
+          const newWorker = registration.installing
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // There's a new version available
+                console.log('Service Worker: New version available, reloading for update...')
+                this.updateAppStatus('Updating app to new version...')
+
+                // Send a message to the new service worker to skip waiting
+                // (though skipWaiting is already in sw.js install event, this is a redundant fallback)
+                newWorker.postMessage({ type: 'SKIP_WAITING' })
+
+                // Reload the page to apply the update
+                // Add a small delay to ensure the SW has taken control
+                setTimeout(() => {
+                  window.location.reload()
+                }, 1000)
+              }
+            })
+          }
+        })
+
+        // Listen for controllerchange event, which fires when a new SW takes control
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('Service Worker: Controller changed, possibly due to update.')
+          // If the page hasn't reloaded yet, this will ensure it reloads
+          if (!document.hidden) { // Only reload if the tab is visible
+            console.log('Reloading page to apply new service worker.')
+            window.location.reload()
+          } else {
+            console.log('Page not visible, not reloading yet. Update will apply on next visit.')
+          }
         })
       } catch (error) {
-        console.warn('Service Worker not available', error)
+        console.warn('Service Worker not available or failed to register', error)
       }
     }
   }
@@ -300,10 +341,139 @@ class ImageMapperApp {
     this.updateAppStatus('Loading maps...')
 
     try {
-      await this.displayMapsList()
+      // The old logic for directly calling createMapsListModal from here is removed.
+      // Instead, we just call the dedicated displayMapsList method.
+      await this.displayMapsListInternal() // <--- Call the new internal method
+      this.updateAppStatus('Maps list displayed')
     } catch (error) {
       console.error('Error showing map list:', error)
       this.showErrorMessage('Failed to load maps', error.message)
+    } finally {
+      this.hideLoading() // Ensure loading indicator is hidden
+    }
+  }
+
+  /**
+   * Orchestrates displaying the comprehensive Maps Management Modal.
+   * This includes fetching maps, generating thumbnails, and handling all map actions within the modal.
+   */
+  async showMapManagementModal () {
+    this.showLoading('Loading map management...', false) // Show loading spinner, don't auto-hide
+
+    try {
+      // Ensure maps list is up to date and includes imageData Blobs
+      await this.loadMaps()
+
+      // Process maps to generate or retrieve cached thumbnails
+      const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
+        let thumbnailDataUrl = this.thumbnailCache.get(map.id)
+
+        if (!thumbnailDataUrl && map.imageData && map.imageData instanceof Blob) {
+          try {
+            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100)
+            if (thumbnailDataUrl) {
+              this.thumbnailCache.set(map.id, thumbnailDataUrl)
+            }
+          } catch (thumbError) {
+            console.warn(`Failed to generate thumbnail for map ${map.id}:`, thumbError)
+            thumbnailDataUrl = null
+          }
+        } else if (!map.imageData) {
+          thumbnailDataUrl = null
+        }
+        return { ...map, thumbnailDataUrl }
+      }))
+
+      const currentActiveMapId = this.currentMap ? this.currentMap.id : null
+
+      this.modalManager.createMapManagementModal( // <<< Call to NEW modal function
+        mapsWithThumbnails,
+        currentActiveMapId,
+        // onMapSelected callback for 'Select' button/item click
+        async (mapId) => {
+          await this.switchToMap(mapId)
+          // After switching map, re-render the modal to update active state
+          this.showMapManagementModal() // Re-open modal to show new active map
+        },
+        // onMapDelete callback for 'Delete' button click
+        async (mapId) => {
+          await this.deleteMap(mapId) // New delete method to be implemented
+        },
+        // onAddNewMap callback for '+ Add New Map' button click
+        async () => {
+          this.showUploadModal() // Call existing upload modal
+        },
+        // onClose callback for modal close
+        () => {
+          this.updateAppStatus('Ready')
+        },
+        // onModalReady callback to hide loading spinner
+        () => {
+          this.hideLoading()
+        }
+      )
+
+      this.updateAppStatus('Map management displayed')
+    } catch (error) {
+      console.error('Error showing map management modal:', error)
+      this.showErrorMessage('Failed to open map management', error.message)
+      this.hideLoading() // Ensure loading is hidden on error
+    }
+  }
+
+  /**
+   * Delete a map from storage and update UI.
+   * @param {string} mapId - The ID of the map to delete.
+   */
+  async deleteMap (mapId) {
+    if (!mapId) {
+      console.error('deleteMap: No mapId provided.')
+      this.showErrorMessage('Error', 'No map selected for deletion.')
+      return
+    }
+
+    try {
+      this.showLoading('Deleting map...')
+
+      const wasActiveMap = this.currentMap && this.currentMap.id === mapId
+      const willBeEmpty = this.mapsList.length <= 1 // Check if this is the last map
+
+      await this.storage.deleteMap(mapId) // Delete from IndexedDB
+      this.thumbnailCache.delete(mapId) // Clear from thumbnail cache
+      this.uploadedFiles.delete(mapId) // Clear from uploaded files cache
+
+      await this.loadMaps() // Reload all maps from storage to get updated list
+
+      if (this.mapsList.length === 0) {
+        // If no maps left, reset currentMap and show welcome screen
+        this.currentMap = null
+        this.checkWelcomeScreen()
+        this.mapRenderer.dispose() // Clean up renderer resources
+        this.mapRenderer = new MapRenderer('map-canvas') // Re-initialize for empty state
+        this.showNotification('All maps deleted. Ready for new upload.', 'info')
+      } else if (wasActiveMap) {
+        // If the deleted map was active, activate the first available map
+        const firstMap = this.mapsList[0]
+        if (firstMap) {
+          await this.storage.setActiveMap(firstMap.id)
+          await this.displayMap(firstMap)
+          this.showNotification(`Active map changed to: ${firstMap.name}`, 'info')
+        } else {
+          // Fallback if somehow no other map is found (shouldn't happen with mapsList.length > 0)
+          this.currentMap = null
+          this.checkWelcomeScreen()
+          this.mapRenderer.dispose()
+          this.mapRenderer = new MapRenderer('map-canvas')
+        }
+      }
+      this.showNotification('Map deleted successfully.', 'success')
+      // Re-show map management modal to reflect changes
+      await this.showMapManagementModal() // Re-open modal to update map list
+    } catch (error) {
+      console.error('Error deleting map:', error)
+      this.showErrorMessage('Deletion Failed', `Failed to delete map: ${error.message}`)
+    } finally {
+      this.hideLoading()
     }
   }
 
@@ -451,7 +621,7 @@ class ImageMapperApp {
           console.log('Active map loaded:', activeMap.name)
 
           // Try to display the active map
-          await this.displayMap(activeMap)
+          // await this.displayMap(activeMap)
         }
       } catch (activeMapError) {
         console.warn('Could not load active map, continuing without:', activeMapError.message)
@@ -497,6 +667,30 @@ class ImageMapperApp {
         addFirstMapBtn.innerHTML = '📁 Upload New Map'
       }
     }
+    //  - ensure canvas setup when showing map display
+    if (this.mapsList.length > 0) {
+      welcomeScreen?.classList.add('hidden')
+      mapDisplay?.classList.remove('hidden')
+
+      // NOW display the map after container is visible
+      if (this.currentMap && !this.mapRenderer.imageData) {
+        setTimeout(async () => {
+          this.mapRenderer.resizeCanvas() // This will work now
+          await this.displayMap(this.currentMap)
+        }, 100) // Small delay for layout
+      }
+
+      // NEW: Ensure canvas is properly initialized when map display becomes visible
+      setTimeout(() => {
+        this.mapRenderer.setupCanvas()
+        this.mapRenderer.resizeCanvas()
+        if (this.currentMap) {
+          this.mapRenderer.render()
+        }
+      }, 50) // Small delay to ensure CSS layout is applied
+
+      this.updateAppStatus(`${this.mapsList.length} maps available`)
+    }
   }
 
   /**
@@ -539,34 +733,65 @@ class ImageMapperApp {
   }
 
   /**
-   * Display maps list (placeholder for full UI implementation)
+   * Display maps list (now uses a dedicated modal)
    */
   async displayMapsList () {
-    const stats = await this.storage.getStorageStats()
+    this.showLoading('Loading maps list...') // Added loading indicator
+    await this.loadMaps()
 
-    let message = `Maps in storage: ${stats.totalMaps}\n`
-    message += `Total file size: ${this.formatFileSize(stats.totalFileSize)}\n`
-    message += `Active map: ${stats.activeMapId || 'None'}\n\n`
+    // --- DEBUG START ---
+    console.log('DEBUG: Maps retrieved from storage:', this.mapsList)
+    this.mapsList.forEach(map => {
+      console.log(`  Map ID: ${map.id}, Name: ${map.name}, has imageData: ${!!map.imageData}, imageData type: ${map.imageData ? map.imageData.constructor.name : 'N/A'}`)
+    })
+    // --- DEBUG END ---
 
-    if (this.mapsList.length > 0) {
-      message += 'Maps list:\n'
-      this.mapsList.forEach((map, index) => {
-        const isActive = map.isActive ? ' [ACTIVE]' : ''
-        const hasFile = this.uploadedFiles.has(map.id) ? ' 🖼️' : ' 📄'
-        message += `${index + 1}. ${map.name}${isActive}${hasFile}\n`
-        message += `   Size: ${this.formatFileSize(map.fileSize)}\n`
-        message += `   Created: ${new Date(map.createdDate).toLocaleDateString()}\n\n`
-      })
+    // 1. Process maps to generate or retrieve thumbnails
+    const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
+      // Check if a thumbnail is already cached
+      let thumbnailDataUrl = this.thumbnailCache.get(map.id)
 
-      message += '\n🖼️ = Has image file, 📄 = Metadata only\n'
-      message += '\nDevelopment Commands:\n'
-      message += '- debugUtils.quickClear() - Clear all maps\n'
-      message += '- debugUtils.forceUploadNew() - Clear and upload new\n'
-      message += '- debugUtils.addDevButtons() - Add quick buttons to header'
+      if (!thumbnailDataUrl && map.imageData && map.imageData instanceof Blob) {
+        // If not cached and map has image data, generate a new thumbnail
+        try {
+          thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100) // Max dimension 100px
+          if (thumbnailDataUrl) {
+            this.thumbnailCache.set(map.id, thumbnailDataUrl) // Cache the generated thumbnail
+          }
+        } catch (thumbError) {
+          console.warn(`Failed to generate thumbnail for map ${map.id}:`, thumbError)
+          thumbnailDataUrl = null // Fallback to initials
+        }
+      } else if (!map.imageData) {
+        // If map has no image data, ensure no thumbnail is set (will use initials fallback)
+        thumbnailDataUrl = null
+      }
+
+      // Return a new map object with the thumbnail data URL
+      return { ...map, thumbnailDataUrl }
+    }))
+
+    const currentActiveMapId = this.currentMap ? this.currentMap.id : null
+
+    try {
+      this.modalManager.createMapsListModal(
+        mapsWithThumbnails, // Pass the enhanced map list
+        currentActiveMapId,
+        async (mapId) => {
+          // Callback when a map is selected from the list
+          await this.switchToMap(mapId)
+        },
+        () => {
+          // Callback when the modal is closed without selection
+          this.updateAppStatus('Ready')
+        }
+      )
+
+      this.updateAppStatus('Maps list displayed')
+    } catch (error) {
+      console.error('Error showing map list:', error)
+      this.showErrorMessage('Failed to load maps', error.message)
     }
-
-    alert(message)
-    this.updateAppStatus('Maps list displayed')
   }
 
   /**
@@ -619,39 +844,72 @@ class ImageMapperApp {
 
   /**
    * Handle map upload from the modal
-   * @param {Object} mapData - Processed map data from FileManager
-   * @param {File} file - Original file object
+   * @param {Object} mapData - Processed map metadata from FileManager (currently processed basic file info)
+   * @param {File} originalFile - Original file object (important, this will be the Blob from ImageProcessor now)
    */
-  async handleMapUpload (mapData, file) {
+  async handleMapUpload (mapData, originalFile) { // Renamed 'file' to 'originalFile' for clarity
     console.log('Handling map upload:', mapData.name)
 
     try {
-      this.updateAppStatus('Saving map...')
+      this.updateAppStatus('Processing and saving map image...')
+
+      // --- NEW STEP: Process the image for storage ---
+      const processedImageBlob = await this.imageProcessor.processImage(originalFile, {
+        maxWidth: 1920, // Max width for storing
+        maxHeight: 1920, // Max height for storing
+        quality: 0.8, // 80% JPEG quality
+        // You can consider 'image/webp' here if you want, but check browser compatibility for Canvas toBlob
+        outputFormat: originalFile.type.startsWith('image/') ? originalFile.type : 'image/jpeg'
+      })
+
+      console.log('Original size:', originalFile.size, 'Processed size:', processedImageBlob.size)
+
+      // We need to update mapData with the *new* dimensions and size of the processed image
+      // To get the new dimensions easily, we can load the blob back into an image temporarily
+      const processedImg = await new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(processedImageBlob)
+        const img = new Image()
+        img.onload = () => {
+          URL.revokeObjectURL(url)
+          resolve(img)
+        }
+        img.onerror = reject
+        img.src = url
+      })
+
+      // Update mapData with the processed image details
+      mapData.width = processedImg.width
+      mapData.height = processedImg.height
+      mapData.fileSize = processedImageBlob.size
+      mapData.fileType = processedImageBlob.type
+      // -----------------------------------------------
 
       // If this is set as active, deactivate other maps first
       if (mapData.isActive && this.mapsList.length > 0) {
         console.log('Setting as active map, deactivating others...')
       }
 
-      // Save to storage (without the originalFile and thumbnail for now)
+      // Save to storage (now including the processedImageBlob)
       const storageData = {
         name: mapData.name,
         description: mapData.description,
         fileName: mapData.fileName,
-        filePath: mapData.filePath,
-        width: mapData.width,
-        height: mapData.height,
-        fileSize: mapData.fileSize,
-        fileType: mapData.fileType,
+        filePath: mapData.filePath, // Consider if filePath is still relevant now it's a blob
+        width: mapData.width, // Updated with processed dimensions
+        height: mapData.height, // Updated with processed dimensions
+        fileSize: mapData.fileSize, // Updated with processed size
+        fileType: mapData.fileType, // Updated with processed type
         isActive: mapData.isActive,
-        settings: mapData.settings
+        settings: mapData.settings,
+        imageData: processedImageBlob // --- Store the actual BLOB data ---
       }
 
       const savedMap = await this.storage.addMap(storageData)
       console.log('Map saved successfully:', savedMap.id)
 
-      // Store file reference for rendering
-      this.uploadedFiles.set(savedMap.id, file)
+      // Store the *ORIGINAL* file reference (or the processed blob) for immediate rendering
+      // We will now store the processed blob for immediate rendering too
+      this.uploadedFiles.set(savedMap.id, processedImageBlob) // Changed from originalFile to processedImageBlob
 
       // Set as active if requested
       if (mapData.isActive) {
@@ -666,7 +924,7 @@ class ImageMapperApp {
 
       // Load and display the map if it's active
       if (mapData.isActive) {
-        await this.displayMap(savedMap)
+        await this.displayMap(savedMap) // savedMap now contains imageData
       }
 
       // Show success message
@@ -676,7 +934,10 @@ class ImageMapperApp {
       console.log('Map upload completed successfully')
     } catch (error) {
       console.error('Map upload failed:', error)
+      this.showErrorMessage('Map Upload Error', `Failed to save map: ${error.message}`)
       throw new Error(`Failed to save map: ${error.message}`)
+    } finally {
+      this.hideLoading() // Ensure loading indicator is hidden after processing
     }
   }
 
@@ -700,7 +961,7 @@ class ImageMapperApp {
 
   /**
    * Display a map on the canvas
-   * @param {Object} mapData - Map metadata from storage
+   * @param {Object} mapData - Map metadata from storage. Now includes imageData.
    */
   async displayMap (mapData) {
     if (!mapData) {
@@ -712,15 +973,23 @@ class ImageMapperApp {
       console.log('Displaying map:', mapData.name)
       this.updateAppStatus(`Loading map: ${mapData.name}`)
 
-      // Check if we have the file for this map
-      const file = this.uploadedFiles.get(mapData.id)
+      // Check if we have the file blob for this map in memory (from current session)
+      let imageBlob = this.uploadedFiles.get(mapData.id)
 
-      if (file) {
-        // Load from file
-        await this.mapRenderer.loadMap(mapData, file)
-        console.log('Map loaded from file successfully')
+      if (!imageBlob && mapData.imageData) {
+        // If not in memory, try to get it from mapData.imageData (loaded from IndexedDB)
+        imageBlob = mapData.imageData
+        console.log('Displaying map: Loaded image data from storage.')
+        // Optionally, store in uploadedFiles for current session's faster access
+        this.uploadedFiles.set(mapData.id, imageBlob)
+      }
+
+      if (imageBlob && imageBlob instanceof Blob) {
+        // Load from Blob
+        await this.mapRenderer.loadMap(mapData, imageBlob) // MapRenderer needs to handle Blob
+        console.log('Map loaded from Blob successfully')
       } else {
-        // Load placeholder for maps without file data
+        // Load placeholder for maps without *storable* image data
         await this.mapRenderer.loadPlaceholder(mapData)
         console.log('Map placeholder loaded')
       }
