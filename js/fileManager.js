@@ -187,62 +187,58 @@ class FileManager {
    * @returns {Promise<Object>} - Image metadata object
    */
   async getImageMetadata (file) {
-    // Check if this is an Android gallery file
+  // Check if this is an Android gallery file
     const isAndroidGallery = this._isAndroidGalleryFile(file)
 
+    this._showDebugMessage(`Processing file: ${file.name}`)
+    this._showDebugMessage(`Android gallery detected: ${isAndroidGallery}`)
+    this._showDebugMessage(`File size: ${Math.round(file.size / 1024)}KB`)
+
     if (isAndroidGallery) {
-      console.log('Detected Android gallery/camera file, using enhanced handling')
+      this._showDebugMessage('Using enhanced Android handling - 5 retries, 15s timeout')
 
       // First, ensure the file is accessible
       try {
         await this._prepareAndroidFile(file)
+        this._showDebugMessage('File accessibility check passed')
       } catch (error) {
+        this._showDebugMessage(`File accessibility check failed: ${error.message}`)
         throw new Error(`Android file access issue: ${error.message}. Try copying the image to your Downloads folder or wait a moment and try again.`)
       }
 
       // Use longer timeouts and more retries for gallery files
       this.maxRetries = 5
       this.baseTimeout = 15000 // 15 seconds
+    } else {
+      this._showDebugMessage('Using standard handling - 3 retries, 10s timeout')
     }
 
     let lastError
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        console.log(`Image metadata extraction attempt ${attempt}/${this.maxRetries}${isAndroidGallery ? ' (Android gallery/camera)' : ''}`)
+        this._showDebugMessage(`Attempt ${attempt}/${this.maxRetries} starting...`)
 
         if (isAndroidGallery && attempt > 1) {
-          // For Android gallery files, add extra delay between attempts
-          await this._createRetryDelay(attempt * 2) // Double the delay
+          this._showDebugMessage(`Waiting ${attempt * 2 * 500}ms before retry...`)
+          await this._createRetryDelay(attempt * 2)
         }
 
-        return await this._attemptImageMetadataExtraction(file)
+        const result = await this._attemptImageMetadataExtraction(file)
+        this._showDebugMessage('✅ Success! Metadata extracted')
+        return result
       } catch (error) {
         lastError = error
-        console.warn(`Image metadata extraction attempt ${attempt} failed:`, error.message)
+        this._showDebugMessage(`❌ Attempt ${attempt} failed: ${error.message}`)
 
         // Don't retry on dimension validation errors
         if (error.message.includes('too large') || error.message.includes('too small')) {
           throw error
         }
 
-        // For Android gallery files, provide specific guidance
-        if (isAndroidGallery && error.message.includes('Failed to load image')) {
-          console.log('Android gallery/camera file access issue detected. This often resolves with patience or by using Downloads folder.')
-        }
-
         // Wait before retry if not the last attempt
         if (attempt < this.maxRetries) {
           await this._createRetryDelay(attempt)
-
-          // Force garbage collection on mobile if available
-          if (this.isMobile && window.gc && typeof window.gc === 'function') {
-            try {
-              window.gc()
-            } catch (gcError) {
-              // Ignore GC errors
-            }
-          }
         }
       }
     }
@@ -251,7 +247,8 @@ class FileManager {
     this.maxRetries = this.isMobile ? 3 : 2
     this.baseTimeout = this.isMobile ? 10000 : 5000
 
-    // Provide Android-specific error message
+    this._showDebugMessage(`🔴 All attempts failed after ${this.maxRetries} tries`)
+
     const androidAdvice = isAndroidGallery
       ? ' Try copying the image to your Downloads folder first, or wait a moment for Android to finish indexing your photos.'
       : ''
@@ -599,6 +596,34 @@ class FileManager {
     input.style.display = 'none'
 
     return input
+  }
+
+  // Add this method to show visible status messages
+  _showDebugMessage (message) {
+  // Try to find an existing debug div or create one
+    let debugDiv = document.getElementById('debug-messages')
+    if (!debugDiv) {
+      debugDiv = document.createElement('div')
+      debugDiv.id = 'debug-messages'
+      debugDiv.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px;
+      font-size: 12px;
+      z-index: 10000;
+      max-height: 200px;
+      overflow-y: auto;
+    `
+      document.body.appendChild(debugDiv)
+    }
+
+    const timestamp = new Date().toLocaleTimeString()
+    debugDiv.innerHTML += `<div>${timestamp}: ${message}</div>`
+    debugDiv.scrollTop = debugDiv.scrollHeight
   }
 }
 
