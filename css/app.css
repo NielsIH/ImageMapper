@@ -1178,7 +1178,7 @@ textarea.form-control {
 
 /* --- Maps Management Modal Specific Styles --- */
 .maps-management-container {
-  flex-grow: 1; /* Allow content to fill space */
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
@@ -1187,30 +1187,38 @@ textarea.form-control {
   list-style: none;
   padding: 0;
   margin: 0;
-  flex-grow: 1; /* Allow list to grow and scroll if needed */
+  flex-grow: 1;
   max-height: 45vh; /* Limits height, so list scrolls if many maps */
   overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: var(--bg-primary);
-  box-shadow: var(--shadow);
+  /* Removed border from here as each item will be a card with its own border/shadow */
+  /* background-color: var(--bg-primary); */
+  /* box-shadow: var(--shadow); */
 }
 
 .map-list-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  /* gap: var(--spacing-md); */ /* Replaced with explicit padding/margin for finer control */
   padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--border-color);
-  transition: background-color 0.2s ease;
-  position: relative; /* Needed for absolute positioning of action buttons if desired */
-  /* If delete button is inline, this padding allows space for it */
-  padding-right: calc(var(--spacing-md) + var(--touch-target) + var(--spacing-sm)); /* Space for delete btn + gap */
+  margin-bottom: var(--spacing-sm); /* Spacing between cards */
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px; /* Rounded corners for card feel */
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  position: relative;
+  /* Removed padding-right as delete button will be positioned */
 }
 
 .map-list-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0; /* No margin after the last card */
+  border-bottom: 1px solid var(--border-color); /* Retain border for consistency if it's not the actual last item visually */
 }
+/* Re-add border-bottom for list items if you prefer a separator.
+   Or, since we're making them cards, `margin-bottom` is better for spacing.
+   I've chosen `margin-bottom` for a card-like appearance.
+*/
+
 
 .map-list-item.clickable {
   cursor: pointer;
@@ -1218,17 +1226,26 @@ textarea.form-control {
 
 .map-list-item.clickable:hover {
   background-color: var(--bg-secondary);
+  transform: translateY(-2px); /* Subtle lift on hover */
 }
 
 .map-list-item.active {
+  border: 2px solid var(--primary-color); /* Stronger active border */
+  padding: calc(var(--spacing-sm) - 1px) calc(var(--spacing-md) - 1px); /* Adjust padding for thicker border */
   background-color: var(--bg-secondary);
-  border-left: 4px solid var(--primary-color);
-  padding-left: calc(var(--spacing-md) - 4px); /* Adjust padding due to border */
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); /* Outer glow for active */
+}
+
+.map-card-content { /* New style for the content wrapper */
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  gap: var(--spacing-md);
 }
 
 .map-thumbnail-container {
-  width: 100px;
-  height: 100px;
+  width: 80px; /* Slightly smaller for mobile optimization */
+  height: 80px;
   flex-shrink: 0;
   background-color: var(--border-color);
   border-radius: 4px;
@@ -1236,7 +1253,7 @@ textarea.form-control {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: var(--shadow); /* Adjusted from shadow-lg for subtler effect */
+  box-shadow: var(--shadow);
 }
 
 .map-thumbnail {
@@ -1246,7 +1263,7 @@ textarea.form-control {
 }
 
 .map-initials {
-  font-size: 1.8rem;
+  font-size: 1.5rem; /* Adjusted for smaller container */
   font-weight: bold;
   color: var(--text-secondary);
 }
@@ -1260,10 +1277,11 @@ textarea.form-control {
 .map-name {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: 1rem; /* Slightly smaller font for better mobile fit */
+  margin-bottom: var(--spacing-xs); /* Space below name */
 }
 
-.map-dimensions {
+.map-details { /* Renamed from .map-dimensions for broader use */
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
@@ -1271,16 +1289,19 @@ textarea.form-control {
 .map-item-actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
   flex-shrink: 0;
-  margin-left: auto; /* Pushes actions to the right */
+  margin-left: var(--spacing-md); /* Add margin to separate from info */
 }
 
 .active-status {
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Slightly smaller */
   font-weight: 600;
   color: var(--primary-color);
-  padding: 0 var(--spacing-xs);
+  background-color: rgba(37, 99, 235, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 4px;
+  margin-top: var(--spacing-xs); /* Space below dimensions */
+  align-self: flex-start; /* Align with other text in column */
 }
 
 .delete-map-btn {
@@ -1293,44 +1314,41 @@ textarea.form-control {
   min-width: var(--touch-target); /* Ensure good touch target */
   min-height: var(--touch-target);
   line-height: 1;
-  border-radius: 6px; /* Rounded button for touch comfort */
+  border-radius: 6px;
   transition: background-color 0.2s ease, color 0.2s ease;
-  display: flex; /* For centering icon */
+  display: flex;
   align-items: center;
   justify-content: center;
-  -webkit-tap-highlight-color: transparent; /* Prevent default tap highlight */
+  -webkit-tap-highlight-color: transparent;
+  margin-right: -var(--spacing-xs); /* Pull button slightly right to align with card edge */
 }
 
 .delete-map-btn:hover {
-  background-color: var(--bg-secondary);
-  color: var(--danger-color); /* Keep color on hover */
+  background-color: rgba(220, 38, 38, 0.1); /* Light red background on hover */
+  color: var(--danger-color);
 }
 
 .map-actions-footer {
-  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm); /* Adjusted bottom padding */
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
   flex-shrink: 0;
   text-align: center;
+  margin-top: var(--spacing-sm); /* Space between map list and footer */
 }
 
 .add-new-map-btn {
-  width: 100%; /* Fully responsive width */
-  max-width: 300px; /* Limit width on larger screens */
-  margin: 0 auto; /* Center button */
-  font-size: 1rem;
+  width: 100%;
+  max-width: 400px; /* Increased max-width for better desktop feel */
+  margin: 0 auto;
+  font-size: 1.05rem; /* Slightly larger font */
   padding: var(--spacing-md) var(--spacing-lg);
-  min-height: var(--touch-target);
+  min-height: calc(var(--touch-target) + var(--spacing-sm)); /* Ensure it's very tappable */
 }
 
 /* --- Responsive Adjustments for Modals --- */
 @media (max-width: 768px) {
-  .modal-content {
-    width: 95vw;
-    max-height: 95vh;
-    margin: var(--spacing-sm);
-  }
-  
+  /* ... existing modal adjustments ... */
   .modal-header,
   .modal-body,
   .map-actions-footer {
@@ -1338,35 +1356,48 @@ textarea.form-control {
   }
 
   .maps-list {
-    max-height: 50vh; /* Adjust max-height for better fit on small screens */
+    max-height: 55vh; /* Increased max-height for better fit on small screens */
   }
 
   .map-list-item {
-    flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+    flex-wrap: nowrap; /* Prevent wrapping at this breakpoint */
     justify-content: space-between;
-    gap: var(--spacing-sm);
-    padding-left: var(--spacing-md); /* Reset padding for consistency */
-    padding-right: var(--spacing-md); /* Reset padding, as actions will wrap */
+    padding: var(--spacing-sm); /* Adjusted padding */
+    margin-bottom: var(--spacing-sm);
   }
   .map-list-item.active {
-    padding-left: calc(var(--spacing-md) - 4px); /* Re-apply border adjustment */
+    padding: calc(var(--spacing-sm) - 1px);
   }
+
   .map-thumbnail-container {
-    width: 80px;
-    height: 80px;
+    width: 60px; /* Smaller thumbnail on smaller screens */
+    height: 60px;
   }
   .map-initials {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
+
   .map-info {
-    flex-basis: calc(100% - 80px - var(--spacing-sm)); /* Adjust width for info when wrapped (thumbnail width + gap) */
-    flex-grow: 0;
+    flex-basis: auto; /* Let content dictate width more */
+    flex-grow: 1;
+    margin-right: var(--spacing-sm); /* Space between info and actions */
   }
+  .map-name {
+    font-size: 0.95rem;
+  }
+  .map-details {
+    font-size: 0.75rem;
+  }
+
   .map-item-actions {
-    width: 100%; /* Take full width on small screens */
-    justify-content: flex-end; /* Push to right */
-    margin-left: 0;
-    margin-top: var(--spacing-xs); /* Add some space above actions */
+    margin-left: 0; /* Reset margin */
+    margin-top: 0; /* Reset margin */
+  }
+  .delete-map-btn {
+    font-size: 1.2rem;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    margin-right: -var(--spacing-sm); /* Adjust for smaller screens */
   }
   .add-new-map-btn {
     max-width: 100%; /* Ensure it's full width for small screens */
@@ -1375,20 +1406,94 @@ textarea.form-control {
 
 @media (max-width: 480px) {
   /* Smaller adjustments for very small screens if needed */
+  .modal-content {
+    width: 98vw; /* Even tighter fit for very small screens */
+    max-height: 98vh;
+    margin: var(--spacing-xs);
+  }
+
+  .modal-header,
+  .modal-body,
+  .map-actions-footer {
+    padding: var(--spacing-sm); /* Reduced padding for very small screens */
+  }
+  
+  .maps-list {
+    max-height: 50vh; /* Re-adjust max-height for optimal viewing on very small phones */
+  }
+
+  .map-list-item {
+    padding: var(--spacing-xs); /* Even less padding */
+    margin-bottom: var(--spacing-xs);
+  }
+  .map-list-item.active {
+    padding: calc(var(--spacing-xs) - 1px);
+  }
+
   .map-thumbnail-container {
-    width: 70px;
-    height: 70px;
+    width: 50px; /* Smallest thumbnail size */
+    height: 50px;
   }
   .map-initials {
-    font-size: 1.3rem;
+    font-size: 1rem;
   }
+
   .map-info {
-    flex-basis: calc(100% - 70px - var(--spacing-sm));
+    /* flex-basis handled by flex-grow: 1, should be fine */
   }
+  .map-name {
+    font-size: 0.9rem;
+    margin-bottom: 0; /* Remove margin to save space */
+  }
+  .map-details {
+    font-size: 0.7rem;
+  }
+  .active-status {
+    font-size: 0.75rem;
+    padding: var(--spacing-xxs) var(--spacing-xs); /* Smaller badge */
+  }
+
   .delete-map-btn {
-    font-size: 1.1rem;
-    min-width: 40px;
-    min-height: 40px;
+    font-size: 1.1em;
+    min-width: calc(var(--touch-target) - 4px); /* Slightly smaller touch target but still decent */
+    min-height: calc(var(--touch-target) - 4px);
+    margin-right: -var(--spacing-xs);
+  }
+
+  .file-drop-zone {
+    padding: var(--spacing-md); /* Adjusted padding */
+  }
+  
+  .file-drop-icon {
+    font-size: 2.5rem;
+  }
+  
+  .file-drop-content h4 {
+    font-size: 1rem;
+ }
+  
+  .preview-image-container {
+    min-height: 80px;
+  }
+  
+  .preview-image-container img {
+    max-height: 80px;
+  }
+
+  .form-control {
+    padding: var(--spacing-xs);
+    font-size: 0.8rem;
+  }
+
+  .btn {
+    font-size: 0.85rem;
+    min-height: var(--touch-target); /* Ensure all buttons maintain good touch target */
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .btn-large {
+    font-size: 0.9rem;
+    padding: var(--spacing-sm) var(--spacing-md);
   }
 }
 

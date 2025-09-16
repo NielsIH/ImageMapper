@@ -26,6 +26,43 @@ class FileManager {
     // Image dimension limits
     this.maxDimension = 8192 // 8K max width/height
     this.minDimension = 100 // 100px min width/height
+
+    // Mobile optimization settings
+    this.isMobile = this._isMobile()
+    this.maxRetries = this.isMobile ? 3 : 2
+    this.baseTimeout = this.isMobile ? 10000 : 5000 // 10s mobile, 5s desktop
+  }
+
+  /**
+   * Check if running on mobile device
+   * @returns {boolean} - True if mobile device detected
+   */
+  _isMobile () {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  }
+
+  /**
+   * Check if device is experiencing memory pressure
+   * @returns {boolean} - True if low memory detected
+   */
+  _isLowMemory () {
+    // Use Performance API if available
+    if ('memory' in performance) {
+      const memInfo = performance.memory
+      const memoryPressure = memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit
+      return memoryPressure > 0.85 // 85% memory usage threshold
+    }
+    return false // Conservative fallback
+  }
+
+  /**
+   * Create a delay for retry attempts
+   * @param {number} attempt - Current attempt number
+   * @returns {Promise} - Promise that resolves after delay
+   */
+  _createRetryDelay (attempt) {
+    const delay = attempt * (this.isMobile ? 500 : 200)
+    return new Promise(resolve => setTimeout(resolve, delay))
   }
 
   /**
@@ -93,101 +130,233 @@ class FileManager {
   }
 
   /**
-   * Extract image dimensions and metadata
+   * Extract image dimensions and metadata with retry logic for mobile devices
    * @param {File} file - Image file to process
    * @returns {Promise<Object>} - Image metadata object
    */
   async getImageMetadata (file) {
+    let lastError
+
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        console.log(`Image metadata extraction attempt ${attempt}/${this.maxRetries}`)
+        return await this._attemptImageMetadataExtraction(file)
+      } catch (error) {
+        lastError = error
+        console.warn(`Image metadata extraction attempt ${attempt} failed:`, error.message)
+
+        // Don't retry on dimension validation errors
+        if (error.message.includes('too large') || error.message.includes('too small')) {
+          throw error
+        }
+
+        // Wait before retry if not the last attempt
+        if (attempt < this.maxRetries) {
+          await this._createRetryDelay(attempt)
+
+          // Force garbage collection on mobile if available
+          if (this.isMobile && window.gc && typeof window.gc === 'function') {
+            try {
+              window.gc()
+            } catch (gcError) {
+              // Ignore GC errors
+            }
+          }
+        }
+      }
+    }
+
+    throw new Error(`Failed to extract image metadata after ${this.maxRetries} attempts: ${lastError.message}`)
+  }
+
+  /**
+   * Single attempt at extracting image metadata
+   * @param {File} file - Image file to process
+   * @returns {Promise<Object>} - Image metadata object
+   */
+  _attemptImageMetadataExtraction (file) {
     return new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
+      let isResolved = false
+
+      // Add timeout for mobile devices
+      const timeout = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true
+          URL.revokeObjectURL(url)
+          reject(new Error('Image loading timed out - file may be corrupted or device is under memory pressure'))
+        }
+      }, this.baseTimeout)
 
       img.onload = () => {
-        const metadata = {
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-          aspectRatio: img.naturalWidth / img.naturalHeight,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          lastModified: new Date(file.lastModified)
+        if (isResolved) return
+        isResolved = true
+        clearTimeout(timeout)
+
+        try {
+          const metadata = {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            aspectRatio: img.naturalWidth / img.naturalHeight,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            lastModified: new Date(file.lastModified)
+          }
+
+          // Clean up object URL
+          URL.revokeObjectURL(url)
+
+          // Validate dimensions
+          if (metadata.width > this.maxDimension || metadata.height > this.maxDimension) {
+            reject(new Error(`Image too large: ${metadata.width}x${metadata.height}. Maximum dimension: ${this.maxDimension}px`))
+            return
+          }
+
+          if (metadata.width < this.minDimension || metadata.height < this.minDimension) {
+            reject(new Error(`Image too small: ${metadata.width}x${metadata.height}. Minimum dimension: ${this.minDimension}px`))
+            return
+          }
+
+          console.log('Image metadata extracted successfully:', metadata)
+          resolve(metadata)
+        } catch (processingError) {
+          URL.revokeObjectURL(url)
+          reject(new Error(`Error processing image metadata: ${processingError.message}`))
         }
-
-        // Clean up object URL
-        URL.revokeObjectURL(url)
-
-        // Validate dimensions
-        if (metadata.width > this.maxDimension || metadata.height > this.maxDimension) {
-          reject(new Error(`Image too large: ${metadata.width}x${metadata.height}. Maximum dimension: ${this.maxDimension}px`))
-          return
-        }
-
-        if (metadata.width < this.minDimension || metadata.height < this.minDimension) {
-          reject(new Error(`Image too small: ${metadata.width}x${metadata.height}. Minimum dimension: ${this.minDimension}px`))
-          return
-        }
-
-        console.log('Image metadata extracted:', metadata)
-        resolve(metadata)
       }
 
-      img.onerror = () => {
+      img.onerror = (error) => {
+        if (isResolved) return
+        isResolved = true
+        clearTimeout(timeout)
         URL.revokeObjectURL(url)
-        reject(new Error('Failed to load image. File may be corrupted or invalid.'))
+
+        // Provide more specific error messages
+        const errorMsg = error && error.message
+          ? `Failed to load image: ${error.message}`
+          : 'Failed to load image. File may be corrupted, invalid, or device is under memory pressure.'
+
+        reject(new Error(errorMsg))
       }
 
-      img.src = url
+      // Set source after all handlers are attached
+      try {
+        img.src = url
+      } catch (srcError) {
+        if (!isResolved) {
+          isResolved = true
+          clearTimeout(timeout)
+          URL.revokeObjectURL(url)
+          reject(new Error(`Failed to set image source: ${srcError.message}`))
+        }
+      }
     })
   }
 
   /**
-   * Create a thumbnail/preview of the image
+   * Create a thumbnail/preview of the image with retry logic
    * @param {File} file - Image file
    * @param {number} maxSize - Maximum thumbnail size (default 200px)
    * @returns {Promise<string>} - Data URL of thumbnail
    */
   async createThumbnail (file, maxSize = 200) {
+    // Reduce thumbnail size on mobile with low memory
+    if (this.isMobile && this._isLowMemory()) {
+      maxSize = Math.min(maxSize, 150)
+    }
+
+    let lastError
+
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        console.log(`Thumbnail creation attempt ${attempt}/${this.maxRetries}`)
+        return await this._attemptThumbnailCreation(file, maxSize)
+      } catch (error) {
+        lastError = error
+        console.warn(`Thumbnail creation attempt ${attempt} failed:`, error.message)
+
+        if (attempt < this.maxRetries) {
+          await this._createRetryDelay(attempt)
+        }
+      }
+    }
+
+    throw new Error(`Failed to create thumbnail after ${this.maxRetries} attempts: ${lastError.message}`)
+  }
+
+  /**
+   * Single attempt at creating a thumbnail
+   * @param {File} file - Image file
+   * @param {number} maxSize - Maximum thumbnail size
+   * @returns {Promise<string>} - Data URL of thumbnail
+   */
+  _attemptThumbnailCreation (file, maxSize) {
     return new Promise((resolve, reject) => {
       const img = new Image()
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
       const url = URL.createObjectURL(file)
+      let isResolved = false
+
+      const timeout = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true
+          URL.revokeObjectURL(url)
+          reject(new Error('Thumbnail creation timed out'))
+        }
+      }, this.baseTimeout)
 
       img.onload = () => {
-        // Calculate thumbnail dimensions
-        let { width, height } = img
+        if (isResolved) return
+        isResolved = true
+        clearTimeout(timeout)
 
-        if (width > height) {
-          if (width > maxSize) {
-            height = (height * maxSize) / width
-            width = maxSize
+        try {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+
+          // Calculate thumbnail dimensions
+          let { width, height } = img
+
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width
+              width = maxSize
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height
+              height = maxSize
+            }
           }
-        } else {
-          if (height > maxSize) {
-            width = (width * maxSize) / height
-            height = maxSize
-          }
+
+          // Set canvas size
+          canvas.width = width
+          canvas.height = height
+
+          // Draw thumbnail
+          ctx.drawImage(img, 0, 0, width, height)
+
+          // Get data URL with mobile-optimized quality
+          const quality = this.isMobile ? 0.7 : 0.8
+          const thumbnailDataUrl = canvas.toDataURL('image/jpeg', quality)
+
+          // Clean up
+          URL.revokeObjectURL(url)
+
+          resolve(thumbnailDataUrl)
+        } catch (canvasError) {
+          URL.revokeObjectURL(url)
+          reject(new Error(`Canvas processing failed: ${canvasError.message}`))
         }
-
-        // Set canvas size
-        canvas.width = width
-        canvas.height = height
-
-        // Draw thumbnail
-        ctx.drawImage(img, 0, 0, width, height)
-
-        // Get data URL
-        const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8)
-
-        // Clean up
-        URL.revokeObjectURL(url)
-
-        resolve(thumbnailDataUrl)
       }
 
-      img.onerror = () => {
+      img.onerror = (error) => {
+        if (isResolved) return
+        isResolved = true
+        clearTimeout(timeout)
         URL.revokeObjectURL(url)
-        reject(new Error('Failed to create thumbnail'))
+        reject(new Error(`Failed to load image for thumbnail: ${error.message || 'Unknown error'}`))
       }
 
       img.src = url
@@ -202,7 +371,7 @@ class FileManager {
    */
   async processFileUpload (file, mapDetails = {}) {
     try {
-      console.log('Processing file upload:', file.name)
+      console.log('Processing file upload:', file.name, `(Mobile: ${this.isMobile})`)
 
       // Validate file
       const validation = this.validateFile(file)
@@ -210,10 +379,10 @@ class FileManager {
         throw new Error('File validation failed: ' + validation.errors.join(', '))
       }
 
-      // Extract image metadata
+      // Extract image metadata with retry logic
       const metadata = await this.getImageMetadata(file)
 
-      // Create thumbnail (optional for future use)
+      // Create thumbnail with retry logic
       const thumbnail = await this.createThumbnail(file)
 
       // Prepare map data
@@ -237,13 +406,15 @@ class FileManager {
         }
       }
 
-      console.log('File processing completed:', mapData.name)
+      console.log('File processing completed successfully:', mapData.name)
       return mapData
     } catch (error) {
       console.error('File processing failed:', error)
       throw error
     }
   }
+
+  // ... existing code continues unchanged ...
 
   /**
    * Generate a default map name from filename

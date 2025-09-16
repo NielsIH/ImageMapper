@@ -40,50 +40,52 @@ class ModalManager {
    */
   createMapManagementModal (maps, activeMapId, onMapSelected, onMapDelete, onAddNewMap, onClose, onModalReady) {
     const modalHtml = `
-      <div class="modal" id="map-management-modal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Manage Your Maps</h3>
-            <button class="modal-close" type="button" aria-label="Close">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="maps-management-container">
-              ${maps.length === 0
-                ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
-                : `
-                <ul class="maps-list">
-                  ${maps.map(map => `
-                    <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
-                      <div class="map-thumbnail-container">
-                        ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : '<div class="map-initials"></div>'}
-                      </div>
-                      <div class="map-info">
-                        <span class="map-name">${map.name}</span>
-                        <span class="map-dimensions">${map.width} × ${map.height} px</span>
-                      </div>
-                      <div class="map-item-actions">
-                        ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
-                        <button class="btn btn-danger btn-small delete-map-btn" data-map-id="${map.id}" title="Delete Map">🗑️</button>
-                      </div>
-                    </li>
-                  `).join('')}
-                </ul>
-              `}
-            </div>
-            <div class="map-actions-footer">
-                <button class="btn btn-primary btn-large add-new-map-btn" type="button">
-                    ➕ Add New Map
-                </button>
-            </div>
-          </div>
-          
-          <div class="modal-footer hidden">
-            <!-- No footer actions needed here, moved to map-actions-footer inside body -->
-          </div>
+  <div class="modal" id="map-management-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Manage Your Maps</h3>
+        <button class="modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="maps-management-container">
+          ${maps.length === 0
+            ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
+            : `
+            <ul class="maps-list">
+              ${maps.map(map => `
+                <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
+                  <div class="map-card-content">
+                    <div class="map-thumbnail-container">
+                      ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`}
+                    </div>
+                    <div class="map-info">
+                      <span class="map-name">${map.name}</span>
+                      <span class="map-details">${map.width} × ${map.height} px</span>
+                      ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
+                    </div>
+                  </div>
+                  <div class="map-item-actions">
+                    <button class="btn btn-danger btn-small delete-map-btn" data-map-id="${map.id}" title="Delete Map">🗑️</button>
+                  </div>
+                </li>
+              `).join('')}
+            </ul>
+          `}
+        </div>
+        <div class="map-actions-footer">
+            <button class="btn btn-primary btn-large add-new-map-btn" type="button">
+                ➕ Add New Map
+            </button>
         </div>
       </div>
-    `
+      
+      <div class="modal-footer hidden">
+        <!-- No footer actions needed here, moved to map-actions-footer inside body -->
+      </div>
+    </div>
+  </div>
+`
 
     const parser = new DOMParser()
     const modalDoc = parser.parseFromString(modalHtml, 'text/html')
