@@ -229,6 +229,9 @@ class ImageMapperApp {
   /**
      * Check service worker status
      */
+  /**
+ * Check service worker status
+ */
   async checkServiceWorker () {
     if ('serviceWorker' in navigator) {
       try {
@@ -236,22 +239,31 @@ class ImageMapperApp {
         this.serviceWorkerReady = true
         console.log('Service Worker ready')
 
+        // ADD THIS NEW CODE HERE - Listen for service worker messages
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'SW_UPDATED') {
+            console.log('Service worker updated, reloading...', event.data.version)
+            this.updateAppStatus('App updated - reloading...')
+            setTimeout(() => {
+              window.location.reload()
+            }, 1000) // Small delay to show the message
+          }
+        })
+
         // Listen for service worker updates
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // There's a new version available
+              // There's a new version available
                 console.log('Service Worker: New version available, reloading for update...')
                 this.updateAppStatus('Updating app to new version...')
 
                 // Send a message to the new service worker to skip waiting
-                // (though skipWaiting is already in sw.js install event, this is a redundant fallback)
                 newWorker.postMessage({ type: 'SKIP_WAITING' })
 
                 // Reload the page to apply the update
-                // Add a small delay to ensure the SW has taken control
                 setTimeout(() => {
                   window.location.reload()
                 }, 1000)
@@ -260,11 +272,10 @@ class ImageMapperApp {
           }
         })
 
-        // Listen for controllerchange event, which fires when a new SW takes control
+        // Listen for controllerchange event
         navigator.serviceWorker.addEventListener('controllerchange', () => {
           console.log('Service Worker: Controller changed, possibly due to update.')
-          // If the page hasn't reloaded yet, this will ensure it reloads
-          if (!document.hidden) { // Only reload if the tab is visible
+          if (!document.hidden) {
             console.log('Reloading page to apply new service worker.')
             window.location.reload()
           } else {

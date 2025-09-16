@@ -3,7 +3,8 @@
 // 🚨 IMPORTANT: You MUST update this version string whenever you deploy new changes!
 // This will force the service worker to update and clear old caches.
 // A good pattern is to use a date-based version like 'v2024-12-20-1'
-const CACHE_NAME = 'image-mapper-v2025-09-16-9' // 🚨 UPDATE THIS FOR NEW DEPLOYMENTS 🚨
+// Change the cache name AND fix the typo
+const CACHE_NAME = 'image-mapper-v2025-09-16-10' // Updated version
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -11,15 +12,14 @@ const STATIC_ASSETS = [
   './css/app.css',
   './js/app.js',
   './js/storage.js',
-  '.js/ui/modals.js',
+  './js/ui/modals.js', // ✅ Fixed the typo - was '.js/ui/modals.js'
   './js/fileManager.js',
   './js/mapRenderer.js',
   './js/imageProcessor.js',
   './js/debug.js'
-  // Note: Map images and photos will be cached dynamically
 ]
 
-// Install event - cache static assets
+// Add more aggressive installation and debugging
 self.addEventListener('install', (event) => {
   console.log(`Service Worker (${CACHE_NAME}): Installing...`)
 
@@ -27,43 +27,60 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log(`Service Worker (${CACHE_NAME}): Caching static assets`)
-        return cache.addAll(STATIC_ASSETS)
+        // Try to cache each asset individually to identify which one fails
+        return Promise.all(
+          STATIC_ASSETS.map(async (asset) => {
+            try {
+              await cache.add(asset)
+              console.log(`✅ Cached: ${asset}`)
+            } catch (error) {
+              console.error(`❌ Failed to cache: ${asset}`, error)
+              throw error // This will prevent installation
+            }
+          })
+        )
       })
       .then(() => {
-        console.log(`Service Worker (${CACHE_NAME}): Installation complete`)
-        // Force the waiting service worker to become the active service worker
+        console.log(`Service Worker (${CACHE_NAME}): Installation complete - FORCING SKIP WAITING`)
         return self.skipWaiting()
       })
       .catch((error) => {
         console.error(`Service Worker (${CACHE_NAME}): Installation failed`, error)
+        throw error
       })
   )
 })
 
-// Activate event - clean up old caches
+// More aggressive activation
 self.addEventListener('activate', (event) => {
   console.log(`Service Worker (${CACHE_NAME}): Activating...`)
 
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
+    Promise.all([
+      // Clear ALL caches
+      caches.keys().then((cacheNames) => {
+        console.log('Found caches:', cacheNames)
         return Promise.all(
           cacheNames.map((cacheName) => {
-            // Delete any cache that does NOT match the current CACHE_NAME
             if (cacheName !== CACHE_NAME) {
-              console.log(`Service Worker (${CACHE_NAME}): Deleting old cache: ${cacheName}`)
+              console.log(`🗑️ Deleting old cache: ${cacheName}`)
               return caches.delete(cacheName)
             }
-            return null
           })
-            .filter(Boolean) // Remove null entries
         )
+      }),
+      // Take control immediately
+      self.clients.claim()
+    ]).then(() => {
+      console.log(`✅ Service Worker (${CACHE_NAME}): Activation complete - TAKING CONTROL`)
+      // Force reload all clients
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          console.log('Sending reload message to client')
+          client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME })
+        })
       })
-      .then(() => {
-        console.log(`Service Worker (${CACHE_NAME}): Activation complete`)
-        // Ensure the service worker takes control immediately of all clients
-        return self.clients.claim()
-      })
+    })
   )
 })
 
