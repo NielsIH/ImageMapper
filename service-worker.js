@@ -4,7 +4,7 @@
 // This will force the service worker to update and clear old caches.
 // A good pattern is to use a date-based version like 'v2024-12-20-1'
 // Change the cache name AND fix the typo
-const CACHE_NAME = 'image-mapper-v2025-09-16-10' // Updated version
+const CACHE_NAME = 'image-mapper-v2025-09-16-11' // Updated version
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   './js/imageProcessor.js',
   './js/debug.js'
 ]
+console.log('🚀 SERVICE WORKER SCRIPT LOADED - VERSION:', CACHE_NAME)
 
 // Add more aggressive installation and debugging
 self.addEventListener('install', (event) => {

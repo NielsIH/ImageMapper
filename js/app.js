@@ -232,59 +232,112 @@ class ImageMapperApp {
   /**
  * Check service worker status
  */
+  /**
+ * Check service worker status
+ */
   async checkServiceWorker () {
+    console.log('🔍 Starting service worker check...')
+
     if ('serviceWorker' in navigator) {
       try {
+      // IMMEDIATE logging of current state
+        console.log('✅ Service Worker API available')
+
+        // Check current controller
+        if (navigator.serviceWorker.controller) {
+          console.log('🔧 Service Worker is currently active')
+          console.log('   Script URL:', navigator.serviceWorker.controller.scriptURL)
+
+          // Get current version immediately
+          const messageChannel = new MessageChannel()
+          messageChannel.port1.onmessage = (event) => {
+            console.log('📦 CURRENT SERVICE WORKER VERSION:', event.data.version)
+          }
+
+          navigator.serviceWorker.controller.postMessage(
+            { type: 'GET_VERSION' },
+            [messageChannel.port2]
+          )
+        } else {
+          console.log('❌ No active service worker controller')
+        }
+
+        // Get all registrations
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        console.log('📋 Service Worker registrations found:', registrations.length)
+        registrations.forEach((reg, index) => {
+          console.log(`   Registration ${index}:`)
+          console.log('     Scope:', reg.scope)
+          console.log('     Active:', reg.active?.scriptURL || 'None')
+          console.log('     Installing:', reg.installing?.scriptURL || 'None')
+          console.log('     Waiting:', reg.waiting?.scriptURL || 'None')
+        })
+
+        // Wait for service worker to be ready
         const registration = await navigator.serviceWorker.ready
         this.serviceWorkerReady = true
-        console.log('Service Worker ready')
+        console.log('✅ Service Worker ready')
 
-        // ADD THIS NEW CODE HERE - Listen for service worker messages
+        // Listen for service worker messages (for forced updates)
         navigator.serviceWorker.addEventListener('message', (event) => {
+          console.log('📨 Message from service worker:', event.data)
           if (event.data && event.data.type === 'SW_UPDATED') {
-            console.log('Service worker updated, reloading...', event.data.version)
+            console.log('🔄 Service worker updated, reloading...', event.data.version)
             this.updateAppStatus('App updated - reloading...')
             setTimeout(() => {
               window.location.reload()
-            }, 1000) // Small delay to show the message
+            }, 1000)
           }
         })
 
         // Listen for service worker updates
         registration.addEventListener('updatefound', () => {
+          console.log('🆕 Service Worker update found!')
           const newWorker = registration.installing
           if (newWorker) {
+            console.log('📥 New service worker installing:', newWorker.scriptURL)
+
             newWorker.addEventListener('statechange', () => {
+              console.log('🔄 New service worker state changed to:', newWorker.state)
+
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // There's a new version available
-                console.log('Service Worker: New version available, reloading for update...')
+                console.log('✅ New service worker installed - updating app')
                 this.updateAppStatus('Updating app to new version...')
 
-                // Send a message to the new service worker to skip waiting
+                // Send skip waiting message
                 newWorker.postMessage({ type: 'SKIP_WAITING' })
 
-                // Reload the page to apply the update
+                // Reload after delay
                 setTimeout(() => {
+                  console.log('🔄 Reloading page to apply update')
                   window.location.reload()
                 }, 1000)
+              } else if (newWorker.state === 'activated') {
+                console.log('🎉 New service worker activated')
               }
             })
           }
         })
 
-        // Listen for controllerchange event
+        // Listen for controller changes
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('Service Worker: Controller changed, possibly due to update.')
+          console.log('🔄 Service Worker controller changed')
           if (!document.hidden) {
-            console.log('Reloading page to apply new service worker.')
+            console.log('🔄 Page visible - reloading to apply new service worker')
             window.location.reload()
           } else {
-            console.log('Page not visible, not reloading yet. Update will apply on next visit.')
+            console.log('👁️ Page hidden - will reload on next visit')
           }
         })
+
+        // Log final status
+        console.log('✅ Service worker setup complete')
       } catch (error) {
+        console.error('❌ Service Worker setup failed:', error)
         console.warn('Service Worker not available or failed to register', error)
       }
+    } else {
+      console.log('❌ Service Workers not supported in this browser')
     }
   }
 
