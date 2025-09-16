@@ -56,6 +56,58 @@ class FileManager {
   }
 
   /**
+   * Check if file is likely from Android gallery/camera vs downloads
+   * @param {File} file - File to check
+   * @returns {boolean} - True if likely from gallery/camera
+   */
+  _isAndroidGalleryFile (file) {
+    // Android gallery files often have specific characteristics
+    if (!this.isMobile) return false
+
+    // Check for Android-specific file paths or patterns
+    const hasAndroidPath = file.name && (
+      file.name.includes('IMG_') ||
+      file.name.includes('DCIM') ||
+      file.name.includes('Camera') ||
+      file.name.startsWith('IMG') ||
+      file.name.startsWith('DSC') ||
+      (file.webkitRelativePath && file.webkitRelativePath.includes('DCIM'))
+    )
+
+    // Gallery/camera files are often larger and have specific MIME types
+    const isPhotoFile = file.type && file.type.startsWith('image/') &&
+                       file.size > (500 * 1024) // > 500KB likely a photo
+
+    return hasAndroidPath || isPhotoFile
+  }
+
+  /**
+   * Android-specific file preparation
+   * @param {File} file - Original file
+   * @returns {Promise<File>} - Prepared file
+   */
+  async _prepareAndroidFile (file) {
+    // For Android gallery files, we need to ensure the file is fully accessible
+    return new Promise((resolve, reject) => {
+      // Create a FileReader to ensure the file is actually readable
+      const reader = new FileReader()
+
+      reader.onload = () => {
+        // File is readable, return original
+        resolve(file)
+      }
+
+      reader.onerror = () => {
+        reject(new Error('File is not accessible - Android may be indexing or mounting storage'))
+      }
+
+      // Try to read just the first few bytes to test accessibility
+      const testBlob = file.slice(0, 1024) // First 1KB
+      reader.readAsArrayBuffer(testBlob)
+    })
+  }
+
+  /**
    * Create a delay for retry attempts
    * @param {number} attempt - Current attempt number
    * @returns {Promise} - Promise that resolves after delay
@@ -135,11 +187,35 @@ class FileManager {
    * @returns {Promise<Object>} - Image metadata object
    */
   async getImageMetadata (file) {
+    // Check if this is an Android gallery file
+    const isAndroidGallery = this._isAndroidGalleryFile(file)
+
+    if (isAndroidGallery) {
+      console.log('Detected Android gallery/camera file, using enhanced handling')
+
+      // First, ensure the file is accessible
+      try {
+        await this._prepareAndroidFile(file)
+      } catch (error) {
+        throw new Error(`Android file access issue: ${error.message}. Try copying the image to your Downloads folder or wait a moment and try again.`)
+      }
+
+      // Use longer timeouts and more retries for gallery files
+      this.maxRetries = 5
+      this.baseTimeout = 15000 // 15 seconds
+    }
+
     let lastError
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        console.log(`Image metadata extraction attempt ${attempt}/${this.maxRetries}`)
+        console.log(`Image metadata extraction attempt ${attempt}/${this.maxRetries}${isAndroidGallery ? ' (Android gallery/camera)' : ''}`)
+
+        if (isAndroidGallery && attempt > 1) {
+          // For Android gallery files, add extra delay between attempts
+          await this._createRetryDelay(attempt * 2) // Double the delay
+        }
+
         return await this._attemptImageMetadataExtraction(file)
       } catch (error) {
         lastError = error
@@ -148,6 +224,11 @@ class FileManager {
         // Don't retry on dimension validation errors
         if (error.message.includes('too large') || error.message.includes('too small')) {
           throw error
+        }
+
+        // For Android gallery files, provide specific guidance
+        if (isAndroidGallery && error.message.includes('Failed to load image')) {
+          console.log('Android gallery/camera file access issue detected. This often resolves with patience or by using Downloads folder.')
         }
 
         // Wait before retry if not the last attempt
@@ -166,7 +247,16 @@ class FileManager {
       }
     }
 
-    throw new Error(`Failed to extract image metadata after ${this.maxRetries} attempts: ${lastError.message}`)
+    // Reset retry settings
+    this.maxRetries = this.isMobile ? 3 : 2
+    this.baseTimeout = this.isMobile ? 10000 : 5000
+
+    // Provide Android-specific error message
+    const androidAdvice = isAndroidGallery
+      ? ' Try copying the image to your Downloads folder first, or wait a moment for Android to finish indexing your photos.'
+      : ''
+
+    throw new Error(`Failed to extract image metadata after ${this.maxRetries} attempts: ${lastError.message}.${androidAdvice}`)
   }
 
   /**
@@ -177,15 +267,23 @@ class FileManager {
   _attemptImageMetadataExtraction (file) {
     return new Promise((resolve, reject) => {
       const img = new Image()
-      const url = URL.createObjectURL(file)
+      let url
       let isResolved = false
+
+      try {
+        // For some Android files, we might need to handle them differently
+        url = URL.createObjectURL(file)
+      } catch (urlError) {
+        reject(new Error(`Failed to create object URL: ${urlError.message}. This can happen with Android gallery files that aren't fully mounted.`))
+        return
+      }
 
       // Add timeout for mobile devices
       const timeout = setTimeout(() => {
         if (!isResolved) {
           isResolved = true
-          URL.revokeObjectURL(url)
-          reject(new Error('Image loading timed out - file may be corrupted or device is under memory pressure'))
+          if (url) URL.revokeObjectURL(url)
+          reject(new Error('Image loading timed out - Android may be indexing storage or file is temporarily inaccessible'))
         }
       }, this.baseTimeout)
 
@@ -231,12 +329,21 @@ class FileManager {
         if (isResolved) return
         isResolved = true
         clearTimeout(timeout)
-        URL.revokeObjectURL(url)
+        if (url) URL.revokeObjectURL(url)
 
-        // Provide more specific error messages
-        const errorMsg = error && error.message
-          ? `Failed to load image: ${error.message}`
-          : 'Failed to load image. File may be corrupted, invalid, or device is under memory pressure.'
+        // Provide Android-specific error messages
+        const isAndroidGallery = this._isAndroidGalleryFile(file)
+        let errorMsg = 'Failed to load image'
+
+        if (isAndroidGallery) {
+          errorMsg += ' from Android gallery/camera. This often happens when Android is indexing photos or storage is temporarily mounted. Try waiting a moment or copying the image to Downloads folder.'
+        } else {
+          errorMsg += '. File may be corrupted, invalid, or device is under memory pressure.'
+        }
+
+        if (error && error.message) {
+          errorMsg += ` Details: ${error.message}`
+        }
 
         reject(new Error(errorMsg))
       }
@@ -248,8 +355,8 @@ class FileManager {
         if (!isResolved) {
           isResolved = true
           clearTimeout(timeout)
-          URL.revokeObjectURL(url)
-          reject(new Error(`Failed to set image source: ${srcError.message}`))
+          if (url) URL.revokeObjectURL(url)
+          reject(new Error(`Failed to set image source: ${srcError.message}. This can happen with Android gallery files.`))
         }
       }
     })
@@ -413,8 +520,6 @@ class FileManager {
       throw error
     }
   }
-
-  // ... existing code continues unchanged ...
 
   /**
    * Generate a default map name from filename
