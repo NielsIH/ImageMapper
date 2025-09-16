@@ -61,24 +61,11 @@ class FileManager {
    * @returns {boolean} - True if likely from gallery/camera
    */
   _isAndroidGalleryFile (file) {
-    // Android gallery files often have specific characteristics
-    if (!this.isMobile) return false
+    const isAndroid = /Android/i.test(navigator.userAgent)
+    this._showDebugMessage(`Is Android: ${isAndroid}, User Agent: ${navigator.userAgent.substring(0, 50)}...`)
 
-    // Check for Android-specific file paths or patterns
-    const hasAndroidPath = file.name && (
-      file.name.includes('IMG_') ||
-      file.name.includes('DCIM') ||
-      file.name.includes('Camera') ||
-      file.name.startsWith('IMG') ||
-      file.name.startsWith('DSC') ||
-      (file.webkitRelativePath && file.webkitRelativePath.includes('DCIM'))
-    )
-
-    // Gallery/camera files are often larger and have specific MIME types
-    const isPhotoFile = file.type && file.type.startsWith('image/') &&
-                       file.size > (500 * 1024) // > 500KB likely a photo
-
-    return hasAndroidPath || isPhotoFile
+    // For now, treat ALL image files on Android as gallery files
+    return isAndroid && file.type && file.type.startsWith('image/')
   }
 
   /**
