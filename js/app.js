@@ -30,6 +30,14 @@ class ImageMapperApp {
     this.thumbnailCache = new Map() // NEW: Cache for thumbnail Data URLs
     this.imageProcessor = new ImageProcessor() // For future image processing
 
+    // New properties for map interaction (Phase 1C)
+    this.isDragging = false // Flag to indicate if map is being dragged
+    this.lastX = 0 // Last X coordinate of mouse/touch for panning
+    this.lastY = 0 // Last Y coordinate of mouse/touch for panning
+    this.initialPinchDistance = 0 // Distance between two touches for pinch-zoom
+    this.lastScale = 1 // Scale at the start of a pinch gesture
+    this.activeTouches = new Map() // Stores active touch points for multi-touch
+
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init())
@@ -162,8 +170,8 @@ class ImageMapperApp {
   }
 
   /**
-     * Set up map interaction listeners (for future phases)
-     */
+   * Set up map interaction listeners (for future phases)
+   */
   setupMapInteractionListeners () {
     const mapContainer = document.getElementById('map-container')
     if (!mapContainer) return
@@ -172,12 +180,14 @@ class ImageMapperApp {
     mapContainer.addEventListener('mousedown', (event) => this.handleMapMouseDown(event))
     mapContainer.addEventListener('mousemove', (event) => this.handleMapMouseMove(event))
     mapContainer.addEventListener('mouseup', (event) => this.handleMapMouseUp(event))
+    mapContainer.addEventListener('mouseleave', (event) => this.handleMapMouseUp(event)) // Stop dragging if mouse leaves container
     mapContainer.addEventListener('wheel', (event) => this.handleMapWheel(event))
 
     // Touch events
     mapContainer.addEventListener('touchstart', (event) => this.handleMapTouchStart(event))
     mapContainer.addEventListener('touchmove', (event) => this.handleMapTouchMove(event))
     mapContainer.addEventListener('touchend', (event) => this.handleMapTouchEnd(event))
+    mapContainer.addEventListener('touchcancel', (event) => this.handleMapTouchEnd(event)) // Handle touch interruptions
 
     // Prevent context menu on map
     mapContainer.addEventListener('contextmenu', (event) => event.preventDefault())
@@ -542,11 +552,14 @@ class ImageMapperApp {
   }
 
   /**
-     * Zoom in on map
-     */
+   * Zoom in on map
+   */
   zoomIn () {
     if (this.mapRenderer && this.currentMap) {
-      this.mapRenderer.zoom(1.2)
+      // Use the center of the canvas as the zoom center for button clicks
+      const centerX = this.mapRenderer.canvas.width / 2
+      const centerY = this.mapRenderer.canvas.height / 2
+      this.mapRenderer.zoom(1.2, centerX, centerY) // Zoom by 20%
       console.log('Zoomed in')
       this.updateAppStatus('Zoomed in')
     } else {
@@ -556,11 +569,14 @@ class ImageMapperApp {
   }
 
   /**
-     * Zoom out on map
-     */
+   * Zoom out on map
+   */
   zoomOut () {
     if (this.mapRenderer && this.currentMap) {
-      this.mapRenderer.zoom(0.8)
+      // Use the center of the canvas as the zoom center for button clicks
+      const centerX = this.mapRenderer.canvas.width / 2
+      const centerY = this.mapRenderer.canvas.height / 2
+      this.mapRenderer.zoom(0.8, centerX, centerY) // Zoom out by 20%
       console.log('Zoomed out')
       this.updateAppStatus('Zoomed out')
     } else {
@@ -578,40 +594,199 @@ class ImageMapperApp {
   }
 
   // ========================================
-  // Map Interaction Handlers (Placeholder)
+  // Map Interaction Handlers Phase 1C
   // ========================================
 
+  /**
+   * Handle mouse down event on the map container for panning.
+   */
   handleMapMouseDown (event) {
-    // Placeholder for mouse-based map panning (Phase 1C)
-    console.log('Map mouse down - to be implemented in Phase 1C')
+    if (!this.currentMap || event.button !== 0) return // Only left click and if map is loaded
+
+    this.isDragging = true
+    this.lastX = event.clientX
+    this.lastY = event.clientY
+    // Prevent text selection during drag
+    const mapContainer = document.getElementById('map-container')
+    if (mapContainer) {
+      mapContainer.style.cursor = 'grabbing'
+      mapContainer.style.userSelect = 'none'
+    }
+    console.log('Map mouse down - dragging started')
   }
 
+  /**
+   * Handle mouse move event on the map container for panning.
+   */
   handleMapMouseMove (event) {
-    // Placeholder for mouse-based map panning (Phase 1C)
+    if (!this.isDragging || !this.currentMap) return
+
+    const deltaX = event.clientX - this.lastX
+    const deltaY = event.clientY - this.lastY
+    this.mapRenderer.pan(deltaX, deltaY)
+    this.lastX = event.clientX
+    this.lastY = event.clientY
   }
 
+  /**
+   * Handle mouse up event on the map container to stop panning.
+   */
   handleMapMouseUp (event) {
-    // Placeholder for mouse-based map panning (Phase 1C)
+    this.isDragging = false
+    this.initialPinchDistance = 0 // Reset pinch state
+    this.lastScale = 1 // Reset pinch state
+    const mapContainer = document.getElementById('map-container')
+    if (mapContainer) {
+      mapContainer.style.cursor = 'grab'
+      mapContainer.style.userSelect = 'auto'
+    }
+    console.log('Map mouse up - dragging stopped')
   }
 
+  /**
+   * Handle mouse wheel event for zooming.
+   */
   handleMapWheel (event) {
-    // Placeholder for mouse wheel zoom (Phase 1C)
-    event.preventDefault()
-    console.log('Map wheel - zoom to be implemented in Phase 1C')
+    if (!this.currentMap) return
+
+    event.preventDefault() // Prevent page scrolling
+
+    const mapRect = this.mapRenderer.canvas.getBoundingClientRect()
+    const mouseX = event.clientX - mapRect.left
+    const mouseY = event.clientY - mapRect.top
+
+    let zoomFactor = 1.1 // Zoom in
+    if (event.deltaY > 0) { // Scrolling down, zoom out
+      zoomFactor = 1 / zoomFactor
+    }
+
+    this.mapRenderer.zoom(zoomFactor, mouseX, mouseY)
+    console.log('Map wheel - zoomed')
   }
 
+  /**
+   * Handle touch start event for panning and pinch-zoom.
+   */
   handleMapTouchStart (event) {
-    // Placeholder for touch-based map interaction (Phase 1C)
-    console.log('Map touch start - to be implemented in Phase 1C')
+    if (!this.currentMap) return
+
+    event.preventDefault() // Prevent default touch behavior (e.g., scrolling)
+
+    // Store all active touches
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i]
+      this.activeTouches.set(touch.identifier, {
+        x: touch.clientX,
+        y: touch.clientY,
+        initialX: touch.clientX,
+        initialY: touch.clientY
+      })
+    }
+
+    if (this.activeTouches.size === 1) { // Single touch for panning
+      const touch = event.changedTouches[0]
+      this.isDragging = true
+      this.lastX = touch.clientX
+      this.lastY = touch.clientY
+      console.log('Touch start - single touch for panning')
+    } else if (this.activeTouches.size === 2) { // Two touches for pinch-zoom
+      const touches = Array.from(this.activeTouches.values())
+      const dist = this.getDistance(touches[0], touches[1])
+      this.initialPinchDistance = dist
+      this.lastScale = this.mapRenderer.scale // Store current scale
+      this.isDragging = false // Disable dragging during pinch
+      console.log('Touch start - two touches for pinch-zoom')
+    }
   }
 
+  /**
+   * Handle touch move event for panning and pinch-zoom.
+   */
+  /**
+   * Handle touch move event for panning and pinch-zoom.
+   */
   handleMapTouchMove (event) {
-    // Placeholder for touch-based map panning and pinch zoom (Phase 1C)
-    event.preventDefault() // Prevent default scrolling
+    if (!this.currentMap) return
+
+    event.preventDefault()
+
+    // Update active touches' current positions
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i]
+      if (this.activeTouches.has(touch.identifier)) {
+        const storedTouch = this.activeTouches.get(touch.identifier)
+        storedTouch.x = touch.clientX
+        storedTouch.y = touch.clientY
+      }
+    }
+
+    if (this.activeTouches.size === 2) { // Pinch-zoom
+      const touches = Array.from(this.activeTouches.values())
+      const currentDistance = this.getDistance(touches[0], touches[1])
+
+      if (this.initialPinchDistance === 0) {
+        this.initialPinchDistance = currentDistance
+        this.lastScale = this.mapRenderer.scale
+        return // Avoid division by zero or incorrect initial zoom
+      }
+
+      const scaleFactor = currentDistance / this.initialPinchDistance
+      const newScale = this.lastScale * scaleFactor
+
+      // Calculate center of the two touches for zoom point
+      const centerX = (touches[0].x + touches[1].x) / 2
+      const centerY = (touches[0].y + touches[1].y) / 2
+
+      // Call the modified zoom method with the newScaleValue
+      this.mapRenderer.zoom(null, centerX, centerY, newScale) // Pass null for factor, and newScale for newScaleValue
+      console.log('Touch move - pinch-zoom')
+    } else if (this.activeTouches.size === 1 && this.isDragging) { // Single touch panning
+      const touch = event.changedTouches[0] // Only one touch for dragging
+      const deltaX = touch.clientX - this.lastX
+      const deltaY = touch.clientY - this.lastY
+      this.mapRenderer.pan(deltaX, deltaY)
+      this.lastX = touch.clientX
+      this.lastY = touch.clientY
+      console.log('Touch move - single touch panning')
+    }
   }
 
+  /**
+   * Handle touch end event to stop panning or pinch-zoom.
+   */
   handleMapTouchEnd (event) {
-    // Placeholder for touch-based map interaction (Phase 1C)
+    if (!this.currentMap) return
+
+    // Remove ended touches from activeTouches map
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i]
+      this.activeTouches.delete(touch.identifier)
+    }
+
+    if (this.activeTouches.size < 2) { // Reset pinch state if less than 2 touches remain
+      this.initialPinchDistance = 0
+      this.lastScale = 1
+    }
+
+    if (this.activeTouches.size === 0) { // If no touches remain, stop dragging
+      this.isDragging = false
+      console.log('Touch end - all touches lifted, dragging stopped')
+    } else if (this.activeTouches.size === 1) { // If one touch remains, resume single-touch panning with that touch
+      const remainingTouch = Array.from(this.activeTouches.values())[0]
+      this.isDragging = true
+      this.lastX = remainingTouch.x
+      this.lastY = remainingTouch.y
+      console.log('Touch end - one touch remaining, resume panning')
+    }
+  }
+
+  /**
+   * Helper function to calculate distance between two touch points.
+   */
+  getDistance (touch1, touch2) {
+    const dx = touch1.x - touch2.x
+    const dy = touch1.y - touch2.y
+    return Math.sqrt(dx * dx + dy * dy)
   }
 
   // ========================================

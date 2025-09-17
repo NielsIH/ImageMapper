@@ -344,11 +344,11 @@ class ModalManager {
     // File manager instance
     const fileManager = new FileManager()
 
-    // Debug overlay for mobile testing
     // Debug overlay for mobile testing (only in debug mode)
     const showDebugMessage = (message) => {
-      const showDebug = window.location.hostname.includes('localhost') ||
-                   window.location.search.includes('debug')
+      // const showDebug = window.location.hostname.includes('localhost') ||
+      //              window.location.search.includes('debug')
+      const showDebug = window.location.search.includes('debug')
 
       if (!showDebug) return // Don't show debug in production
 

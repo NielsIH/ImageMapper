@@ -399,16 +399,26 @@ class MapRenderer {
   }
 
   /**
-   * Zoom in/out by a factor
-   * @param {number} factor - Zoom factor (e.g., 1.2 for 20% zoom in)
+   * Zoom in/out by a factor or to a specific scale.
+   * @param {number} factor - Zoom factor (e.g., 1.2 for 20% zoom in) OR
+   *                          If newScaleValue is provided, this acts as the factor to multiply current scale by.
    * @param {number} centerX - Zoom center X (optional)
    * @param {number} centerY - Zoom center Y (optional)
+   * @param {number} [newScaleValue] - Optional. If provided, zoom directly to this scale.
    */
-  zoom (factor, centerX = null, centerY = null) {
+  zoom (factor, centerX = null, centerY = null, newScaleValue = null) {
     if (!this.imageData) return
 
     const oldScale = this.scale
-    const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * factor))
+    let newScale
+
+    if (newScaleValue !== null) {
+      newScale = newScaleValue
+    } else {
+      newScale = this.scale * factor
+    }
+
+    newScale = Math.max(this.minScale, Math.min(this.maxScale, newScale))
 
     if (newScale === this.scale) return // No change
 
