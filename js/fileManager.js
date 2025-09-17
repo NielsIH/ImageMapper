@@ -40,15 +40,17 @@ class FileManager {
   }
 
   /**
-   * Open file picker and select an image file
-   * Uses different strategies to force file browser on Android
-   * @param {string} strategy - Picker strategy to use
-   * @returns {Promise<File|null>} - Selected file or null if cancelled
-   */
-  async selectFile (strategy = 'default') {
-    // Try modern File System Access API first (Chrome 86+)
-    if (strategy === 'modern' && 'showOpenFilePicker' in window) {
+ * Open file picker and select an image file
+ * Uses Modern File System Access API with fallback
+ * @param {boolean} showDebug - Show debug overlay for testing
+ * @returns {Promise<File|null>} - Selected file or null if cancelled
+ */
+  async selectFile (showDebug = false) {
+  // Try modern File System Access API first (Chrome 86+)
+    if ('showOpenFilePicker' in window) {
       try {
+        if (showDebug) console.log('Using Modern File System Access API')
+
         const [fileHandle] = await window.showOpenFilePicker({
           types: [{
             description: 'Images',
@@ -61,40 +63,21 @@ class FileManager {
         return await fileHandle.getFile()
       } catch (error) {
         if (error.name !== 'AbortError') {
-          console.warn('Modern file picker failed, falling back:', error)
+          if (showDebug) console.warn('Modern file picker failed, falling back:', error)
         }
         return null
       }
     }
 
-    // Fallback to traditional input with different accept strategies
+    // Fallback to traditional input with file extensions (works best on mobile)
+    if (showDebug) console.log('Using fallback file input with extensions')
+
     return new Promise((resolve) => {
       const input = document.createElement('input')
       input.type = 'file'
       input.multiple = false
-
-      // Different accept attribute strategies to force file browser
-      switch (strategy) {
-        case 'generic':
-          // Force file browser by using generic file type
-          input.accept = '*/*'
-          break
-        case 'mixed':
-          // Confuse photo picker with mixed types
-          input.accept = 'image/*,application/pdf,text/plain'
-          break
-        case 'explicit':
-          // Use explicit extensions instead of MIME types
-          input.accept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg'
-          break
-        case 'default':
-        default:
-          // Standard image picker (may trigger photo picker on Android)
-          input.accept = this.supportedFormats.join(',')
-          break
-      }
-
-      console.log(`Using file picker strategy: ${strategy}, accept: ${input.accept}`)
+      // Use explicit extensions - this often forces file browser on Android
+      input.accept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg'
 
       input.onchange = (event) => {
         const file = event.target.files[0]
@@ -105,33 +88,8 @@ class FileManager {
         resolve(null)
       }
 
-      // Trigger file picker
       input.click()
     })
-  }
-
-  /**
-   * Try multiple picker strategies in sequence
-   * @returns {Promise<File|null>} - Selected file or null if cancelled
-   */
-  async selectFileWithFallback () {
-    const strategies = ['modern', 'explicit', 'generic', 'mixed', 'default']
-
-    for (const strategy of strategies) {
-      try {
-        console.log(`Trying file picker strategy: ${strategy}`)
-        const file = await this.selectFile(strategy)
-        if (file) {
-          console.log(`✅ File selected using ${strategy} strategy:`, file.name)
-          return file
-        }
-      } catch (error) {
-        console.warn(`Strategy ${strategy} failed:`, error)
-        continue
-      }
-    }
-
-    return null
   }
 
   /**
