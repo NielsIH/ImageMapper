@@ -745,6 +745,90 @@ class ModalManager {
       this.closeModal(modal)
     })
   }
+
+  /**
+   * Creates and displays a modal for marker details.
+   * @param {Object} markerData - Marker data to display (id, description, coords, photoCount).
+   * @param {Function} onAddPhotos - Callback for 'Add Photos' button.
+   * @param {Function} onEditMarker - Callback for 'Edit Marker' button.
+   * @param {Function} onDeleteMarker - Callback for 'Delete Marker' button.
+   * @param {Function} onClose - Callback when the modal is closed.
+   * @returns {HTMLElement} - The created modal element.
+   */
+  createMarkerDetailsModal (markerData, onAddPhotos, onEditMarker, onDeleteMarker, onClose) {
+    const modalHtml = `
+      <div class="modal" id="marker-details-modal" data-marker-id="${markerData.id}">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Marker Details</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="marker-info-section">
+              <p><strong>ID:</strong> ${markerData.id}</p>
+              <p><strong>Coordinates:</strong> ${markerData.coords}</p>
+              <p><strong>Description:</strong> <span class="marker-description-text">${markerData.description || 'No description'}</span></p>
+              <p><strong>Photos:</strong> <span class="marker-photo-count">${markerData.photoCount}</span> associated</p>
+            </div>
+
+            <div class="photo-list-section">
+              <h4>Associated Photos</h4>
+              <div class="photo-thumbnails-container" id="marker-photo-thumbnails">
+                <p class="text-secondary text-center">No photos yet. Click "Add Photos" to add some!</p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="modal-actions">
+              <button class="btn btn-secondary" id="btn-edit-marker" type="button">✏️ Edit Marker</button>
+              <button class="btn btn-primary" id="btn-add-photos" type="button">📸 Add Photos</button>
+              <button class="btn btn-danger" id="btn-delete-marker" type="button">🗑️ Delete Marker</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create marker details modal element.')
+      if (onClose) onClose()
+      return null
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    const closeModal = () => {
+      this.closeModal(modal)
+      if (onClose) onClose()
+    }
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
+
+    // Action button listeners
+    modal.querySelector('#btn-add-photos')?.addEventListener('click', () => {
+      if (onAddPhotos) onAddPhotos(markerData.id)
+    })
+    modal.querySelector('#btn-edit-marker')?.addEventListener('click', () => {
+      if (onEditMarker) onEditMarker(markerData.id)
+    })
+    modal.querySelector('#btn-delete-marker')?.addEventListener('click', () => {
+      if (onDeleteMarker && confirm('Are you sure you want to delete this marker and all its associated photos? This cannot be undone.')) {
+        onDeleteMarker(markerData.id)
+      }
+    })
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show')
+    })
+
+    return modal
+  }
 }
 
 // Export for use in other modules

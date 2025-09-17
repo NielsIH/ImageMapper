@@ -46,6 +46,8 @@ class ImageMapperApp {
     this.dragStartMapY = 0 // Marker's map Y at start of drag
     this.initialMouseX = 0 // Mouse X at start of drag
     this.initialMouseY = 0 // Mouse Y at start of drag
+    // NEW: State to track the type of interaction
+    this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
@@ -700,26 +702,24 @@ class ImageMapperApp {
   handleMapMouseDown (event) {
     if (!this.currentMap || event.button !== 0) return // Only left click and if map is loaded
 
+    this.initialDownX = event.clientX
+    this.initialDownY = event.clientY
+
     const clickedMarker = this.getMarkerAtPoint(event.clientX, event.clientY)
 
     if (clickedMarker) {
+      this.interactionType = 'marker_drag'
       this.isDraggingMarker = true
       this.draggedMarkerId = clickedMarker.id
       this.dragStartMapX = clickedMarker.x
       this.dragStartMapY = clickedMarker.y
-      this.initialMouseX = event.clientX
-      this.initialMouseY = event.clientY
-
-      // Prevent map panning from starting if a marker is being dragged
-      this.isDragging = false
-
-      console.log('Marker drag started for:', clickedMarker.id)
+      console.log('Interaction start: Marker drag detected for:', clickedMarker.id)
     } else {
+      this.interactionType = 'map_pan'
       this.isDragging = true
       this.lastX = event.clientX
       this.lastY = event.clientY
-      this.isDraggingMarker = false // Ensure marker dragging is off
-      console.log('Map pan started')
+      console.log('Interaction start: Map pan detected.')
     }
 
     // Prevent text selection during drag
@@ -736,24 +736,21 @@ class ImageMapperApp {
   async handleMapMouseMove (event) {
     event.preventDefault() // Prevent default behavior like text selection if mouse is down
 
-    if (this.isDraggingMarker && this.draggedMarkerId) {
-      // Calculate new position based on initial mouse down and current mouse position
-      const deltaX = event.clientX - this.initialMouseX
-      const deltaY = event.clientY - this.initialMouseY
+    if (this.interactionType === 'marker_drag' && this.draggedMarkerId) {
+      const deltaX = event.clientX - this.initialDownX
+      const deltaY = event.clientY - this.initialDownY
 
-      // Convert delta to map coordinates relative to where marker dragging started
       const currentMarkerMapX = this.dragStartMapX + (deltaX / this.mapRenderer.scale)
       const currentMarkerMapY = this.dragStartMapY + (deltaY / this.mapRenderer.scale)
 
-      // Find the marker in the local array and update its position
       const markerIndex = this.markers.findIndex(m => m.id === this.draggedMarkerId)
       if (markerIndex !== -1) {
         this.markers[markerIndex].x = currentMarkerMapX
         this.markers[markerIndex].y = currentMarkerMapY
-        this.mapRenderer.setMarkers(this.markers) // Update mapRenderer's markers
-        this.mapRenderer.render() // Re-render to show marker in new position
+        this.mapRenderer.setMarkers(this.markers)
+        this.mapRenderer.render()
       }
-    } else if (this.isDragging && !this.isDraggingMarker) { // Only pan if not dragging a marker
+    } else if (this.interactionType === 'map_pan') {
       const deltaX = event.clientX - this.lastX
       const deltaY = event.clientY - this.lastY
       this.mapRenderer.pan(deltaX, deltaY)
@@ -763,7 +760,7 @@ class ImageMapperApp {
   }
 
   /**
-   * Handle mouse up event on the map container to stop panning OR marker dragging.
+   * Handle mouse up event on the map container to finalize interaction.
    */
   async handleMapMouseUp (event) {
     const mapContainer = document.getElementById('map-container')
@@ -772,31 +769,66 @@ class ImageMapperApp {
       mapContainer.style.userSelect = 'auto'
     }
 
-    if (this.isDraggingMarker && this.draggedMarkerId) {
-      // Save the new position of the dragged marker to storage
+    const mouseUpX = event.clientX
+    const mouseUpY = event.clientY
+
+    const CLICK_THRESHOLD = 5 // Pixels
+    const distanceMoved = Math.sqrt(
+      Math.pow(mouseUpX - this.initialDownX, 2) +
+      Math.pow(mouseUpY - this.initialDownY, 2)
+    )
+
+    if (this.interactionType === 'marker_drag' && this.draggedMarkerId) {
+      // Interaction started as a marker drag
       const markerToSave = this.markers.find(m => m.id === this.draggedMarkerId)
       if (markerToSave) {
-        try {
-          await this.storage.updateMarker(markerToSave.id, {
-            x: markerToSave.x,
-            y: markerToSave.y,
-            lastModified: new Date()
-          })
-          console.log(`Marker ${markerToSave.id} position saved.`)
-          this.showNotification('Marker moved and saved.', 'success')
-        } catch (error) {
-          console.error('Failed to save dragged marker position:', error)
-          this.showErrorMessage('Save Error', 'Failed to save marker position.')
+        if (distanceMoved < CLICK_THRESHOLD) {
+          // It was a short drag, treat as a click to open details
+          console.log('Marker clicked (via short drag):', markerToSave.id)
+          this.showMarkerDetails(markerToSave.id)
+        } else {
+          // It was an actual drag, save its new position
+          try {
+            await this.storage.updateMarker(markerToSave.id, {
+              x: markerToSave.x,
+              y: markerToSave.y,
+              lastModified: new Date()
+            })
+            console.log(`Marker ${markerToSave.id} position saved after drag.`)
+            this.showNotification('Marker moved and saved.', 'success')
+          } catch (error) {
+            console.error('Failed to save dragged marker position:', error)
+            this.showErrorMessage('Save Error', 'Failed to save marker position.')
+          }
         }
       }
-      this.isDraggingMarker = false
-      this.draggedMarkerId = null
+    } else if (this.interactionType === 'map_pan') {
+      // Interaction started as a map pan
+      if (distanceMoved < CLICK_THRESHOLD) {
+        // It was a very short pan, potentially a click on empty space or a marker
+        const clickedMarker = this.getMarkerAtPoint(mouseUpX, mouseUpY)
+        if (clickedMarker) {
+          console.log('Marker clicked (via short map pan interaction):', clickedMarker.id)
+            this.showMarkerDetails(clickedMarker.id)
+        } else {
+          console.log('Map or empty space clicked (via short map pan interaction).')
+        }
+      } else {
+        console.log('Map pan ended.')
+      }
     }
+    // No 'else' here. If interactionType was 'none' or 'pinch_zoom' and it's mouseup,
+    // we don't treat it as a click/drag, as those interactions are handled by specific branches
+    // or simply reset below. 'pinch_zoom' is solely a touch event.
 
-    this.isDragging = false // Always reset map dragging
-    this.initialPinchDistance = 0 // Reset pinch state
-    this.lastScale = 1 // Reset pinch state for touch
-    console.log('Interaction ended.')
+    // Reset interaction state
+    this.interactionType = 'none'
+    this.isDragging = false
+    this.isDraggingMarker = false
+    this.draggedMarkerId = null
+    this.initialPinchDistance = 0
+    this.lastScale = 1
+    console.log('Interaction state reset.')
   }
 
   /**
@@ -805,14 +837,14 @@ class ImageMapperApp {
   handleMapWheel (event) {
     if (!this.currentMap) return
 
-    event.preventDefault() // Prevent page scrolling
+    event.preventDefault()
 
     const mapRect = this.mapRenderer.canvas.getBoundingClientRect()
     const mouseX = event.clientX - mapRect.left
     const mouseY = event.clientY - mapRect.top
 
-    let zoomFactor = 1.1 // Zoom in
-    if (event.deltaY > 0) { // Scrolling down, zoom out
+    let zoomFactor = 1.1
+    if (event.deltaY > 0) {
       zoomFactor = 1 / zoomFactor
     }
 
@@ -826,7 +858,10 @@ class ImageMapperApp {
   handleMapTouchStart (event) {
     if (!this.currentMap) return
 
-    event.preventDefault() // Prevent default touch behavior (e.g., scrolling)
+    event.preventDefault()
+
+    this.initialDownX = event.touches[0] ? event.touches[0].clientX : 0
+    this.initialDownY = event.touches[0] ? event.touches[0].clientY : 0
 
     // Store all active touches
     for (let i = 0; i < event.changedTouches.length; i++) {
@@ -834,7 +869,7 @@ class ImageMapperApp {
       this.activeTouches.set(touch.identifier, {
         x: touch.clientX,
         y: touch.clientY,
-        initialX: touch.clientX,
+        initialX: touch.clientX, // Keep initial position for distance calculation for each touch
         initialY: touch.clientY
       })
     }
@@ -844,35 +879,31 @@ class ImageMapperApp {
       const touchedMarker = this.getMarkerAtPoint(touch.clientX, touch.clientY)
 
       if (touchedMarker) {
+        this.interactionType = 'marker_drag'
         this.isDraggingMarker = true
         this.draggedMarkerId = touchedMarker.id
         this.dragStartMapX = touchedMarker.x
         this.dragStartMapY = touchedMarker.y
-        this.initialMouseX = touch.clientX
-        this.initialMouseY = touch.clientY
-
-        this.isDragging = false // Disable map panning if a marker is being dragged
-        console.log('Touch start - marker drag started for:', touchedMarker.id)
+        console.log('Interaction start: Touch marker drag detected for:', touchedMarker.id)
       } else {
+        this.interactionType = 'map_pan'
         this.isDragging = true
         this.lastX = touch.clientX
         this.lastY = touch.clientY
-        this.isDraggingMarker = false // Ensure marker dragging is off
-        console.log('Touch start - single touch for map panning')
+        console.log('Interaction start: Touch map pan detected.')
       }
     } else if (this.activeTouches.size === 2) { // Two touches for pinch-zoom
+      this.interactionType = 'pinch_zoom'
       const touches = Array.from(this.activeTouches.values())
       const dist = this.getDistance(touches[0], touches[1])
       this.initialPinchDistance = dist
-      this.lastScale = this.mapRenderer.scale // Store current scale
-      this.isDragging = false // Disable map panning during pinch
-      this.isDraggingMarker = false // Disable marker dragging during pinch
-      console.log('Touch start - two touches for pinch-zoom')
+      this.lastScale = this.mapRenderer.scale
+      console.log('Interaction start: Pinch zoom detected.')
     }
   }
 
   /**
-   * Handle touch move event for panning OR marker dragging OR pinch-zoom.
+   * Handle touch move event forPanning OR marker dragging OR pinch-zoom.
    */
   async handleMapTouchMove (event) {
     if (!this.currentMap) return
@@ -889,11 +920,24 @@ class ImageMapperApp {
       }
     }
 
-    if (this.activeTouches.size === 2) { // Pinch-zoom
+    // --- Dynamic interaction type adjustment for multi-touch (e.g., pan to pinch-zoom) ---
+    if (this.activeTouches.size === 2 && this.interactionType !== 'pinch_zoom') {
+      // If a second touch just came in while we were panning or dragging a marker
+      this.interactionType = 'pinch_zoom'
+      const touches = Array.from(this.activeTouches.values())
+      this.initialPinchDistance = this.getDistance(touches[0], touches[1])
+      this.lastScale = this.mapRenderer.scale
+      this.isDragging = false // Stop map panning
+      this.isDraggingMarker = false // Stop marker dragging
+      console.log('Interaction type changed to: Pinch zoom.')
+      return // Skip further processing until next move event
+    }
+
+    if (this.interactionType === 'pinch_zoom' && this.activeTouches.size === 2) {
       const touches = Array.from(this.activeTouches.values())
       const currentDistance = this.getDistance(touches[0], touches[1])
 
-      if (this.initialPinchDistance === 0) { // Safety check; should be set in touchStart
+      if (this.initialPinchDistance === 0) { // Safety check; should be set in touchStart or above
         this.initialPinchDistance = currentDistance
         this.lastScale = this.mapRenderer.scale
         return
@@ -902,94 +946,142 @@ class ImageMapperApp {
       const scaleFactor = currentDistance / this.initialPinchDistance
       const newScale = this.lastScale * scaleFactor
 
-      // Calculate center of the two touches for zoom point
       const centerX = (touches[0].x + touches[1].x) / 2
       const centerY = (touches[0].y + touches[1].y) / 2
 
       this.mapRenderer.zoom(null, centerX, centerY, newScale)
       console.log('Touch move - pinch-zoom')
-    } else if (this.activeTouches.size === 1) { // Single touch: handle panning or marker dragging
-      const touch = Array.from(this.activeTouches.values())[0] // Get the remaining active touch
+    } else if (this.interactionType === 'marker_drag' && this.draggedMarkerId && this.activeTouches.size === 1) {
+      const touch = Array.from(this.activeTouches.values())[0]
 
-      if (this.isDraggingMarker && this.draggedMarkerId) {
-        // Calculate new position based on initial touch down and current touch position
-        const deltaX = touch.x - this.initialMouseX
-        const deltaY = touch.y - this.initialMouseY
+      const deltaX = touch.x - this.initialDownX
+      const deltaY = touch.y - this.initialDownY
 
-        const currentMarkerMapX = this.dragStartMapX + (deltaX / this.mapRenderer.scale)
-        const currentMarkerMapY = this.dragStartMapY + (deltaY / this.mapRenderer.scale)
+      const currentMarkerMapX = this.dragStartMapX + (deltaX / this.mapRenderer.scale)
+      const currentMarkerMapY = this.dragStartMapY + (deltaY / this.mapRenderer.scale)
 
-        const markerIndex = this.markers.findIndex(m => m.id === this.draggedMarkerId)
-        if (markerIndex !== -1) {
-          this.markers[markerIndex].x = currentMarkerMapX
-          this.markers[markerIndex].y = currentMarkerMapY
-          this.mapRenderer.setMarkers(this.markers)
-          this.mapRenderer.render()
-        }
-        console.log('Touch move - marker dragging')
-      } else if (this.isDragging) { // Map panning
-        const deltaX = touch.x - this.lastX
-        const deltaY = touch.y - this.lastY
-        this.mapRenderer.pan(deltaX, deltaY)
-        this.lastX = touch.x
-        this.lastY = touch.y
-        console.log('Touch move - map panning')
+      const markerIndex = this.markers.findIndex(m => m.id === this.draggedMarkerId)
+      if (markerIndex !== -1) {
+        this.markers[markerIndex].x = currentMarkerMapX
+        this.markers[markerIndex].y = currentMarkerMapY
+        this.mapRenderer.setMarkers(this.markers)
+        this.mapRenderer.render()
       }
+      console.log('Touch move - marker dragging')
+    } else if (this.interactionType === 'map_pan' && this.activeTouches.size === 1) {
+      const touch = Array.from(this.activeTouches.values())[0]
+
+      const deltaX = touch.x - this.lastX
+      const deltaY = touch.y - this.lastY
+      this.mapRenderer.pan(deltaX, deltaY)
+      this.lastX = touch.x
+      this.lastY = touch.y
+      console.log('Touch move - map panning')
     }
   }
 
   /**
-   * Handle touch end event to stop panning OR marker dragging OR pinch-zoom.
+   * Handle touch end event to finalize interaction.
    */
   async handleMapTouchEnd (event) {
     if (!this.currentMap) return
 
-    // Store references to potentially dragged marker before clearing activeTouches
-    const wasDraggingMarker = this.isDraggingMarker
-    const draggedMarkerIdOnEnd = this.draggedMarkerId
+    const currentInteractionType = this.interactionType
+    const currentDraggedMarkerId = this.draggedMarkerId
+
+    // Get the touch that ended for potential tap detection
+    const endedTouch = event.changedTouches[0]
+    const touchEndX = endedTouch ? endedTouch.clientX : 0
+    const touchEndY = endedTouch ? endedTouch.clientY : 0
+
+    const CLICK_THRESHOLD = 10 // Pixels for touch
+
+    // Calculate distance moved from initial touch start for the *specific* touch that ended
+    let distanceMoved = Infinity
+    if (endedTouch) {
+      const initialTouchDataForEndedTouch = Array.from(this.activeTouches.values()).find(t => t.identifier === endedTouch.identifier) || { initialX: this.initialDownX, initialY: this.initialDownY }
+        distanceMoved = Math.sqrt(
+        Math.pow(endedTouch.clientX - initialTouchDataForEndedTouch.initialX, 2) +
+            Math.pow(endedTouch.clientY - initialTouchDataForEndedTouch.initialY, 2)
+      )
+    }
 
     // Remove ended touches from activeTouches map
     for (let i = 0; i < event.changedTouches.length; i++) {
-      const touch = event.changedTouches[i]
-      this.activeTouches.delete(touch.identifier)
+      this.activeTouches.delete(event.changedTouches[i].identifier)
     }
 
-    if (wasDraggingMarker && draggedMarkerIdOnEnd) {
-      const markerToSave = this.markers.find(m => m.id === draggedMarkerIdOnEnd)
+    if (currentInteractionType === 'marker_drag' && currentDraggedMarkerId) {
+      // Interaction started as a marker drag
+      const markerToSave = this.markers.find(m => m.id === currentDraggedMarkerId)
       if (markerToSave) {
-        try {
-          await this.storage.updateMarker(markerToSave.id, {
-            x: markerToSave.x,
-            y: markerToSave.y,
-            lastModified: new Date()
-          })
-          console.log(`Marker ${markerToSave.id} position saved after touch drag.`)
-          this.showNotification('Marker moved and saved.', 'success')
-        } catch (error) {
-          console.error('Failed to save dragged marker position:', error)
-          this.showErrorMessage('Save Error', 'Failed to save marker position.')
+        if (distanceMoved < CLICK_THRESHOLD) {
+          // It was a short drag, treat as a tap to open details
+          console.log('Marker tapped (via short touch drag):', markerToSave.id)
+          this.showMarkerDetails(markerToSave.id)
+        } else {
+          // It was an actual drag, save its new position
+          try {
+            await this.storage.updateMarker(markerToSave.id, {
+              x: markerToSave.x,
+              y: markerToSave.y,
+              lastModified: new Date()
+            })
+            console.log(`Marker ${markerToSave.id} position saved after touch drag.`)
+            this.showNotification('Marker moved and saved.', 'success')
+          } catch (error) {
+            console.error('Failed to save dragged marker position:', error)
+            this.showErrorMessage('Save Error', 'Failed to save marker position.')
+          }
         }
       }
+    } else if (currentInteractionType === 'map_pan') {
+      // Interaction started as a map pan
+      if (distanceMoved < CLICK_THRESHOLD) {
+        // It was a very short pan, potentially a click on empty map space
+        const clickedMarker = this.getMarkerAtPoint(touchEndX, touchEndY)
+        if (clickedMarker) {
+          console.log('Marker tapped (via short map pan interaction):', clickedMarker.id)
+            this.showMarkerDetails(clickedMarker.id)
+        } else {
+          console.log('Map or empty space tapped (via short map pan interaction).')
+        }
+      } else {
+        console.log('Map pan ended.')
+      }
+    } // No 'else' here. Pure taps (interactionType 'none') and pinch_zoom are handled by specific flow.
+
+    // Reset interaction state if all touches are gone or only one remains after pinch
+    if (this.activeTouches.size === 0) {
+      this.interactionType = 'none'
+      this.isDragging = false // Reset these intermediate flags
       this.isDraggingMarker = false
       this.draggedMarkerId = null
-    }
-
-    if (this.activeTouches.size < 2) { // Reset pinch state if less than 2 touches remain
       this.initialPinchDistance = 0
       this.lastScale = 1
-    }
-
-    if (this.activeTouches.size === 0) { // If no touches remain, stop map dragging AND marker dragging
-      this.isDragging = false
-      // Marker dragging would have been reset by now if it was active
-      console.log('Touch end - all touches lifted, interaction stopped')
-    } else if (this.activeTouches.size === 1) { // If one touch remains, resume single-touch panning with that touch
+      console.log('Interaction state reset.')
+    } else if (this.activeTouches.size === 1 && currentInteractionType === 'pinch_zoom') {
+      // If we were pinch-zooming and one finger lifted, the remaining one can start a pan
+      this.interactionType = 'map_pan'
+      this.isDragging = true
+      this.isDraggingMarker = false // Ensure marker dragging is off
       const remainingTouch = Array.from(this.activeTouches.values())[0]
-      this.isDragging = true // Assuming the remaining touch is for panning
       this.lastX = remainingTouch.x
       this.lastY = remainingTouch.y
-      this.isDraggingMarker = false // Ensure we're not marker dragging with one touch
-      console.log('Touch end - one touch remaining, resume map panning')
+      // Reset pinch specific flags
+      this.initialPinchDistance = 0
+      this.lastScale = 1
+      console.log('Switched from pinch_zoom to map_pan with remaining touch.')
+    } else {
+      // For any other multi-touch scenario where touches remain (e.g., 2 remaining after 3 began, or 2 remaining because one lifted from pinch_zoom)
+      // The state remains as determined by the active touches. We simply clean up the now-lifted touch.
+      // This path shouldn't lead to opening the modal again.
+      this.isDragging = false
+      this.isDraggingMarker = false
+      this.draggedMarkerId = null
+      this.initialPinchDistance = 0 // If some touches lifted, existing pinch might be invalid
+      this.lastScale = 1
+      console.log('Multi-touch interaction ongoing or unexpected state after a touch ended.')
     }
   }
 
@@ -1510,6 +1602,55 @@ class ImageMapperApp {
     if (this.mapRenderer) {
       this.mapRenderer.resetView()
       this.updateAppStatus('Map view reset')
+    }
+  }
+
+  // ========================================
+  // Marker Details and Interactions (Phase 1D)
+  // ========================================
+
+  /**
+   * Shows the details modal for a specific marker.
+   * @param {string} markerId - The ID of the marker to display.
+   */
+  async showMarkerDetails (markerId) {
+    this.showLoading('Loading marker details...')
+    try {
+      const marker = await this.storage.getMarker(markerId)
+      if (!marker) {
+        throw new Error('Marker not found.')
+      }
+
+      // Fetch associated photos (only metadata for now, not image data)
+      const photos = await this.storage.getPhotosForMarker(markerId)
+      console.log('Photos for marker:', photos)
+
+      // Convert map coords to friendly display (e.g., rounded)
+      const displayX = marker.x.toFixed(0)
+      const displayY = marker.y.toFixed(0)
+
+      this.modalManager.createMarkerDetailsModal(
+        {
+          id: marker.id,
+          description: marker.description,
+          coords: `X: ${displayX}, Y: ${displayY}`,
+          photoCount: photos.length
+        },
+        // Callbacks for modal actions (to be implemented later)
+        async () => { console.log('Add photos button clicked for marker', marker.id) /* Add photo logic */ },
+        async () => { console.log('Delete marker button clicked', marker.id) /* Delete marker logic */ },
+        async () => { console.log('Edit marker button clicked', marker.id) /* Edit marker logic */ },
+        () => {
+          console.log('Marker details modal closed.')
+          this.updateAppStatus('Ready')
+        }
+      )
+      this.updateAppStatus(`Viewing marker: ${marker.id}`)
+    } catch (error) {
+      console.error('Failed to show marker details:', error)
+      this.showErrorMessage('Marker Error', `Failed to open marker details: ${error.message}`)
+    } finally {
+      this.hideLoading()
     }
   }
 
