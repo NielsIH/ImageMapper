@@ -42,27 +42,28 @@ class FileManager {
   }
 
   /**
- * Open file picker and select an image file
- * Uses Modern File System Access API with fallback
- * @param {boolean} showDebug - Show debug overlay for testing
- * @returns {Promise<File|null>} - Selected file or null if cancelled
- */
-  async selectFile (showDebug = false) {
-  // Try modern File System Access API first (Chrome 86+)
+   * Open file picker and select one or more image files.
+   * Uses Modern File System Access API with fallback.
+   * @param {boolean} showDebug - Show debug overlay for testing.
+   * @param {boolean} multiple - Allow selection of multiple files.
+   * @returns {Promise<File[]|null>} - Array of selected files or null if cancelled.
+   */
+  async selectFiles (showDebug = false, multiple = false) { // Changed name and added 'multiple' parameter
+    // Try modern File System Access API first (Chrome 86+)
     if ('showOpenFilePicker' in window) {
       try {
         if (showDebug) console.log('Using Modern File System Access API')
 
-        const [fileHandle] = await window.showOpenFilePicker({
+        const fileHandles = await window.showOpenFilePicker({ // Changed to plural handle
           types: [{
             description: 'Images',
             accept: {
               'image/*': ['.png', '.gif', '.jpeg', '.jpg', '.webp', '.bmp', '.svg']
             }
           }],
-          multiple: false
+          multiple // Use the 'multiple' parameter here
         })
-        return await fileHandle.getFile()
+        return Promise.all(fileHandles.map(handle => handle.getFile())) // Return array of File objects
       } catch (error) {
         if (error.name !== 'AbortError') {
           if (showDebug) console.warn('Modern file picker failed, falling back:', error)
@@ -71,19 +72,18 @@ class FileManager {
       }
     }
 
-    // Fallback to traditional input with file extensions (works best on mobile)
+    // Fallback to traditional input with file extensions
     if (showDebug) console.log('Using fallback file input with extensions')
 
     return new Promise((resolve) => {
       const input = document.createElement('input')
       input.type = 'file'
-      input.multiple = false
-      // Use explicit extensions - this often forces file browser on Android
+      input.multiple = multiple // Use the 'multiple' parameter here
       input.accept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg'
 
       input.onchange = (event) => {
-        const file = event.target.files[0]
-        resolve(file || null)
+        const files = Array.from(event.target.files) // Convert FileList to Array
+        resolve(files.length > 0 ? files : null) // Return array or null
       }
 
       input.oncancel = () => {
@@ -93,6 +93,11 @@ class FileManager {
       input.click()
     })
   }
+
+  // Note: The previous selectFile method (which you were calling from createUploadModal)
+  // will now implicitly use selectFiles(..., false) for single file selection.
+  // For the upload modal you call `fileManager.selectFile(showDebug)` in browseBtn event listener.
+  // We need to change this in app.js as well to `fileManager.selectFiles(showDebug, false)`
 
   /**
    * Validate a selected file

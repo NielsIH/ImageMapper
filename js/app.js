@@ -809,7 +809,7 @@ class ImageMapperApp {
         const clickedMarker = this.getMarkerAtPoint(mouseUpX, mouseUpY)
         if (clickedMarker) {
           console.log('Marker clicked (via short map pan interaction):', clickedMarker.id)
-            this.showMarkerDetails(clickedMarker.id)
+          this.showMarkerDetails(clickedMarker.id)
         } else {
           console.log('Map or empty space clicked (via short map pan interaction).')
         }
@@ -1000,7 +1000,7 @@ class ImageMapperApp {
     let distanceMoved = Infinity
     if (endedTouch) {
       const initialTouchDataForEndedTouch = Array.from(this.activeTouches.values()).find(t => t.identifier === endedTouch.identifier) || { initialX: this.initialDownX, initialY: this.initialDownY }
-        distanceMoved = Math.sqrt(
+      distanceMoved = Math.sqrt(
         Math.pow(endedTouch.clientX - initialTouchDataForEndedTouch.initialX, 2) +
             Math.pow(endedTouch.clientY - initialTouchDataForEndedTouch.initialY, 2)
       )
@@ -1042,7 +1042,7 @@ class ImageMapperApp {
         const clickedMarker = this.getMarkerAtPoint(touchEndX, touchEndY)
         if (clickedMarker) {
           console.log('Marker tapped (via short map pan interaction):', clickedMarker.id)
-            this.showMarkerDetails(clickedMarker.id)
+          this.showMarkerDetails(clickedMarker.id)
         } else {
           console.log('Map or empty space tapped (via short map pan interaction).')
         }
@@ -1621,7 +1621,7 @@ class ImageMapperApp {
         throw new Error('Marker not found.')
       }
 
-      // Fetch associated photos (only metadata for now, not image data)
+      // Fetch
       const photos = await this.storage.getPhotosForMarker(markerId)
       console.log('Photos for marker:', photos)
 
@@ -1634,12 +1634,22 @@ class ImageMapperApp {
           id: marker.id,
           description: marker.description,
           coords: `X: ${displayX}, Y: ${displayY}`,
-          photoCount: photos.length
+          photoCount: photos.length,
+          photos // Pass photo data to the modal
         },
-        // Callbacks for modal actions (to be implemented later)
-        async () => { console.log('Add photos button clicked for marker', marker.id) /* Add photo logic */ },
-        async () => { console.log('Delete marker button clicked', marker.id) /* Delete marker logic */ },
+        // Callbacks for modal actions
+        // onAddPhotos callback
+        async () => {
+          console.log('Add photos button clicked for marker', marker.id)
+          await this.setupAddPhotosForMarker(marker.id)
+          // After adding photos, refresh the modal to show them
+          await this.showMarkerDetails(marker.id) // Re-open modal with updated data
+        },
+        // onEditMarker callback (placeholder)
         async () => { console.log('Edit marker button clicked', marker.id) /* Edit marker logic */ },
+        // onDeleteMarker callback (placeholder) - will be implemented soon
+        async () => { console.log('Delete marker button clicked', marker.id) /* Delete marker logic */ },
+        // onClose callback
         () => {
           console.log('Marker details modal closed.')
           this.updateAppStatus('Ready')
@@ -1649,6 +1659,70 @@ class ImageMapperApp {
     } catch (error) {
       console.error('Failed to show marker details:', error)
       this.showErrorMessage('Marker Error', `Failed to open marker details: ${error.message}`)
+    } finally {
+      // Need to hide loading, but modal manager loading is separate from app loading.
+      // If modal opens immediately, this hideLoading might cause a flicker.
+      // Assuming modalManager handles its own loading states where relevant.
+      this.hideLoading()
+    }
+  }
+
+  /**
+   * Sets up the process for adding photos to a specific marker.
+   * @param {string} markerId - The ID of the marker to add photos to.
+   */
+  async setupAddPhotosForMarker (markerId) {
+    this.showLoading('Adding photos...')
+    try {
+      // Use FileManager.selectFiles to select one or more image files
+      const selectedFiles = await this.fileManager.selectFiles(true, true) // Pass true for debug, true for multiple
+
+      if (!selectedFiles || selectedFiles.length === 0) {
+        this.showNotification('Photo selection cancelled.', 'info')
+        return
+      }
+
+      const photoIdsToAdd = []
+
+      for (const file of selectedFiles) {
+        this.updateAppStatus(`Processing photo: ${file.name}...`)
+
+        // Process the image for storage (resize, compress)
+        const processedImageBlob = await this.imageProcessor.processImage(file, {
+          maxWidth: 1024, // Smaller max width for associated photos to save space
+          maxHeight: 1024,
+          quality: 0.7, // Lower quality for associated photos
+          outputFormat: file.type.startsWith('image/') ? file.type : 'image/jpeg'
+        })
+
+        // Also generate a small thumbnail for display in the modal
+        const thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(processedImageBlob, 100)
+
+        const photoData = {
+          markerId,
+          imageData: processedImageBlob,
+          thumbnailData: thumbnailDataUrl,
+          fileName: file.name,
+          fileType: processedImageBlob.type,
+          fileSize: processedImageBlob.size
+        }
+        const savedPhoto = await this.storage.addPhoto(photoData)
+        photoIdsToAdd.push(savedPhoto.id)
+      }
+
+      // Update the marker with the new photo IDs
+      if (photoIdsToAdd.length > 0) {
+        const marker = await this.storage.getMarker(markerId)
+        if (marker) {
+          // Ensure photoIds array is initialized and add new unique IDs
+          const updatedPhotoIds = [...new Set([...(marker.photoIds || []), ...photoIdsToAdd])]
+          await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
+          this.showNotification(`${photoIdsToAdd.length} photo(s) added to marker.`, 'success')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add photos to marker:', error)
+      this.showErrorMessage('Photo Error', `Failed to add photos: ${error.message}`)
     } finally {
       this.hideLoading()
     }

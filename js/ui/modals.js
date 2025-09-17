@@ -436,30 +436,28 @@ class ModalManager {
       }
     }
 
-    // Enhanced browse button - now clean with optional debug
+    // Enhanced browse button
     browseBtn.addEventListener('click', async () => {
-      // Check for debug mode (localhost or ?debug in URL)
       const showDebug = window.location.hostname.includes('localhost') ||
                    window.location.search.includes('debug')
 
       if (showDebug) {
         clearDebugMessages()
         showDebugMessage('🔍 Starting file selection...')
-
         const isAndroid = /Android/i.test(navigator.userAgent)
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
         showDebugMessage(`📱 Device: ${isAndroid ? 'Android' : isIOS ? 'iOS' : 'Desktop'}`)
       }
 
       try {
-        const file = await fileManager.selectFile(showDebug)
+        const files = await fileManager.selectFiles(showDebug, false) // <-- CHANGED HERE: selectFiles, multiple: false
+        const file = files && files.length > 0 ? files[0] : null // Get the first file if any
 
         if (file) {
           if (showDebug) {
             showDebugMessage(`✅ File selected: ${file.name}`)
             showDebugMessage(`📊 Size: ${Math.round(file.size / 1024)}KB, Type: ${file.type}`)
           }
-
           await handleFileSelect(file)
         } else {
           if (showDebug) {
@@ -748,16 +746,27 @@ class ModalManager {
 
   /**
    * Creates and displays a modal for marker details.
-   * @param {Object} markerData - Marker data to display (id, description, coords, photoCount).
+   * @param {Object} markerDetails - Marker data to display (id, description, coords, photoCount, photos[]).
    * @param {Function} onAddPhotos - Callback for 'Add Photos' button.
    * @param {Function} onEditMarker - Callback for 'Edit Marker' button.
    * @param {Function} onDeleteMarker - Callback for 'Delete Marker' button.
    * @param {Function} onClose - Callback when the modal is closed.
    * @returns {HTMLElement} - The created modal element.
    */
-  createMarkerDetailsModal (markerData, onAddPhotos, onEditMarker, onDeleteMarker, onClose) {
+  createMarkerDetailsModal (markerDetails, onAddPhotos, onEditMarker, onDeleteMarker, onClose) {
+    // Generate photo thumbnails HTML
+    const photoThumbnailsHtml = markerDetails.photos && markerDetails.photos.length > 0
+      ? markerDetails.photos.map(photo => `
+          <div class="photo-thumbnail-item" data-photo-id="${photo.id}">
+            <img src="${photo.thumbnailData}" alt="${photo.fileName}" class="photo-thumbnail" />
+            <span class="photo-name">${photo.fileName}</span>
+            <button class="btn btn-tiny btn-danger delete-photo-btn" data-photo-id="${photo.id}">×</button>
+          </div>
+        `).join('')
+      : '<p class="text-secondary text-center">No photos yet. Click "Add Photos" to add some!</p>'
+
     const modalHtml = `
-      <div class="modal" id="marker-details-modal" data-marker-id="${markerData.id}">
+      <div class="modal" id="marker-details-modal" data-marker-id="${markerDetails.id}">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
           <div class="modal-header">
@@ -766,16 +775,16 @@ class ModalManager {
           </div>
           <div class="modal-body">
             <div class="marker-info-section">
-              <p><strong>ID:</strong> ${markerData.id}</p>
-              <p><strong>Coordinates:</strong> ${markerData.coords}</p>
-              <p><strong>Description:</strong> <span class="marker-description-text">${markerData.description || 'No description'}</span></p>
-              <p><strong>Photos:</strong> <span class="marker-photo-count">${markerData.photoCount}</span> associated</p>
+              <p><strong>ID:</strong> <span class="text-xs text-secondary">${markerDetails.id}</span></p>
+              <p><strong>Coordinates:</strong> ${markerDetails.coords}</p>
+              <p><strong>Description:</strong> <span class="marker-description-text">${markerDetails.description || 'No description'}</span></p>
+              <p><strong>Photos:</strong> <span class="marker-photo-count">${markerDetails.photoCount}</span> associated</p>
             </div>
 
             <div class="photo-list-section">
               <h4>Associated Photos</h4>
               <div class="photo-thumbnails-container" id="marker-photo-thumbnails">
-                <p class="text-secondary text-center">No photos yet. Click "Add Photos" to add some!</p>
+                ${photoThumbnailsHtml}
               </div>
             </div>
           </div>
@@ -812,16 +821,18 @@ class ModalManager {
 
     // Action button listeners
     modal.querySelector('#btn-add-photos')?.addEventListener('click', () => {
-      if (onAddPhotos) onAddPhotos(markerData.id)
+      if (onAddPhotos) onAddPhotos(markerDetails.id)
     })
     modal.querySelector('#btn-edit-marker')?.addEventListener('click', () => {
-      if (onEditMarker) onEditMarker(markerData.id)
+      if (onEditMarker) onEditMarker(markerDetails.id)
     })
     modal.querySelector('#btn-delete-marker')?.addEventListener('click', () => {
       if (onDeleteMarker && confirm('Are you sure you want to delete this marker and all its associated photos? This cannot be undone.')) {
-        onDeleteMarker(markerData.id)
+        onDeleteMarker(markerDetails.id)
       }
     })
+
+    // TODO: Add event listeners for delete photo buttons if any
 
     requestAnimationFrame(() => {
       modal.classList.add('show')
