@@ -7,7 +7,7 @@
  * Modal manager for creating and managing modal dialogs
  */
 
-/* global document, window DOMParser requestAnimationFrame FileManager */
+/* global document, window DOMParser requestAnimationFrame FileManager confirm */
 
 class ModalManager {
   constructor () {
@@ -682,7 +682,7 @@ class ModalManager {
     const form = modal.querySelector('#map-details-form')
     if (form) {
       const inputs = form.querySelectorAll('input, textarea, button')
-      inputs.forEach(input => input.disabled = true)
+      inputs.forEach(input => { input.disabled = true })
     }
 
     // Update button text
@@ -702,7 +702,7 @@ class ModalManager {
     const form = modal.querySelector('#map-details-form')
     if (form) {
       const inputs = form.querySelectorAll('input, textarea, button')
-      inputs.forEach(input => input.disabled = false)
+      inputs.forEach(input => { input.disabled = false })
     }
 
     // Restore button text

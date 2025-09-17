@@ -19,7 +19,8 @@ class MapRenderer {
     this.offsetY = 0
     this.maxScale = 5
     this.minScale = 0.1
-    this.showDebugInfo = false // Ensure this is initialized
+    this.showDebugInfo = false
+    this.markers = [] // NEW: Array to hold marker data
 
     // Setup canvas immediately if container is visible
     if (this.canvas.offsetParent !== null) {
@@ -75,23 +76,17 @@ class MapRenderer {
     console.log('MapRenderer: resizeCanvas - Parent container rect:', rect)
     console.log(`  Initial canvas attributes: ${this.canvas.width}x${this.canvas.height}`)
 
-    // Use clientWidth/clientHeight as they represent the rendered size of the element
-    // Math.max to avoid 0 if container is still not laid out properly
     const width = Math.max(container.clientWidth || rect.width, 100)
     const height = Math.max(container.clientHeight || rect.height, 100)
 
-    // Only resize if dimensions have actually changed significantly
-    // Compare against the elements' actual current pixel size
     if (this.canvas.width === width && this.canvas.height === height) {
       console.log('MapRenderer: Canvas attributes unchanged.')
       return // Avoid unnecessary redraws if size is the same
     }
 
-    // Set canvas size to container size
     this.canvas.width = width
     this.canvas.height = height
 
-    // Update canvas display size (CSS sizing)
     this.canvas.style.width = width + 'px'
     this.canvas.style.height = height + 'px'
 
@@ -104,7 +99,7 @@ class MapRenderer {
    * @param {Object} mapData - Map metadata from storage
    * @param {File|Blob} imageSource - File object or Blob
    */
-  async loadMap (mapData, imageSource) { // imageSource can be File or Blob
+  async loadMap (mapData, imageSource) {
     try {
       console.log('MapRenderer: Loading map:', mapData.name)
 
@@ -114,12 +109,10 @@ class MapRenderer {
         throw new Error('Invalid image source: must be File or Blob object.')
       }
 
-      // If there was a previous image, revoke its URL to free memory
       if (this.imageData && this.imageData.src && this.imageData.src.startsWith('blob:')) {
         URL.revokeObjectURL(this.imageData.src)
       }
 
-      // Create image element
       const img = new Image()
 
       return new Promise((resolve, reject) => {
@@ -128,20 +121,19 @@ class MapRenderer {
 
         img.onload = () => {
           console.log('MapRenderer: Image loaded successfully into Image object')
-          URL.revokeObjectURL(imageUrl) // Clean up the object URL immediately after image is loaded
+          URL.revokeObjectURL(imageUrl)
           this.imageData = img
 
-          // Ensure canvas is properly sized BEFORE fitting/rendering
-          this.resizeCanvas() // Important: make sure container CSS is applied
-          this.fitToScreen() // Important: recalculate scale and offset
-          this.render() // Draw the image
+          this.resizeCanvas()
+          this.fitToScreen()
+          this.render()
 
           resolve()
         }
 
         img.onerror = () => {
           console.error('MapRenderer: Failed to load image from imageSource')
-          URL.revokeObjectURL(imageUrl) // Clean up on error too
+          URL.revokeObjectURL(imageUrl)
           reject(new Error('Failed to load map image'))
         }
 
@@ -163,9 +155,9 @@ class MapRenderer {
 
       this.currentMap = mapData
       this.imageData = null
+      this.markers = [] // Clear markers for placeholder
 
-      // Render placeholder
-      this.renderPlaceholder()
+      this.render()
     } catch (error) {
       console.error('MapRenderer: Error loading placeholder:', error)
       throw error
@@ -190,7 +182,6 @@ class MapRenderer {
     console.log(`  Canvas: ${canvasWidth}x${canvasHeight}`)
     console.log(`  Image: ${imageWidth}x${imageHeight}`)
 
-    // Validate dimensions
     if (canvasWidth <= 0 || canvasHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
       console.error('MapRenderer: Invalid dimensions for fit calculation')
       this.scale = 1
@@ -199,15 +190,12 @@ class MapRenderer {
       return
     }
 
-    // Calculate scale to fit image in canvas
     const scaleX = canvasWidth / imageWidth
     const scaleY = canvasHeight / imageHeight
-    this.scale = Math.min(scaleX, scaleY, 1) // Don't scale up beyond 100%
+    this.scale = Math.min(scaleX, scaleY, 1)
 
-    // Ensure minimum scale
     this.scale = Math.max(this.scale, 0.01)
 
-    // Center the image
     this.offsetX = (canvasWidth - imageWidth * this.scale) / 2
     this.offsetY = (canvasHeight - imageHeight * this.scale) / 2
 
@@ -224,14 +212,17 @@ class MapRenderer {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
     if (this.imageData) {
-      // Render the map image
       this.renderImage()
+      // NEW: Render markers if they exist
+      this.renderMarkers()
     } else if (this.currentMap) {
-      // Render placeholder
       this.renderPlaceholder()
     } else {
-      // Render empty state
       this.renderEmptyState()
+    }
+    // Draw debug info (optional), always last to be on top
+    if (this.showDebugInfo) {
+      this.renderDebugInfo()
     }
   }
 
@@ -244,7 +235,6 @@ class MapRenderer {
     const imageWidth = this.imageData.naturalWidth * this.scale
     const imageHeight = this.imageData.naturalHeight * this.scale
 
-    // Draw image
     this.ctx.drawImage(
       this.imageData,
       this.offsetX,
@@ -252,11 +242,6 @@ class MapRenderer {
       imageWidth,
       imageHeight
     )
-
-    // Draw debug info (optional)
-    if (this.showDebugInfo) {
-      this.renderDebugInfo()
-    }
   }
 
   /**
@@ -266,30 +251,25 @@ class MapRenderer {
     const centerX = this.canvas.width / 2
     const centerY = this.canvas.height / 2
 
-    // Draw background
     this.ctx.fillStyle = '#f8fafc'
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
 
-    // Draw border
     this.ctx.strokeStyle = '#e2e8f0'
     this.ctx.lineWidth = 2
     this.ctx.setLineDash([10, 10])
     this.ctx.strokeRect(20, 20, this.canvas.width - 40, this.canvas.height - 40)
     this.ctx.setLineDash([])
 
-    // Draw icon
     this.ctx.font = '48px sans-serif'
     this.ctx.fillStyle = '#64748b'
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
     this.ctx.fillText('🗺️', centerX, centerY - 40)
 
-    // Draw map name
     this.ctx.font = '20px sans-serif'
     this.ctx.fillStyle = '#0f172a'
     this.ctx.fillText(this.currentMap.name, centerX, centerY + 20)
 
-    // Draw dimensions
     this.ctx.font = '14px sans-serif'
     this.ctx.fillStyle = '#64748b'
     this.ctx.fillText(
@@ -297,13 +277,6 @@ class MapRenderer {
       centerX,
       centerY + 45
     )
-
-    // Draw file info
-    // this.ctx.fillText(
-    //   `${this.currentMap.fileName} (${this.formatFileSize(this.currentMap.fileSize)})`,
-    //   centerX,
-    //   centerY + 65
-    // )
   }
 
   /**
@@ -313,11 +286,9 @@ class MapRenderer {
     const centerX = this.canvas.width / 2
     const centerY = this.canvas.height / 2
 
-    // Draw background
     this.ctx.fillStyle = '#f0f0f0'
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
 
-    // Draw message
     this.ctx.font = '18px sans-serif'
     this.ctx.fillStyle = '#64748b'
     this.ctx.textAlign = 'center'
@@ -342,10 +313,15 @@ class MapRenderer {
     const info = [
       `Scale: ${this.scale.toFixed(3)}`,
       `Offset: ${this.offsetX.toFixed(0)}, ${this.offsetY.toFixed(0)}`,
-      `Canvas: ${this.canvas.width}×${this.canvas.height}`,
-      `Image: ${this.imageData.naturalWidth}×${this.imageData.naturalHeight}`,
-      `Rendered: ${(this.imageData.naturalWidth * this.scale).toFixed(0)}×${(this.imageData.naturalHeight * this.scale).toFixed(0)}`
+      `Canvas: ${this.canvas.width}×${this.canvas.height}`
     ]
+    if (this.imageData) {
+      info.push(
+        `Image: ${this.imageData.naturalWidth}×${this.imageData.naturalHeight}`,
+        `Rendered: ${(this.imageData.naturalWidth * this.scale).toFixed(0)}×${(this.imageData.naturalHeight * this.scale).toFixed(0)}`
+      )
+    }
+    info.push(`Markers: ${this.markers.length}`)
 
     info.forEach(line => {
       this.ctx.fillText(line, padding, y)
@@ -480,6 +456,73 @@ class MapRenderer {
   }
 
   /**
+   * NEW: Set the markers to be rendered.
+   * @param {Array} markersArray - An array of marker objects.
+   */
+  setMarkers (markersArray) {
+    this.markers = markersArray || []
+    // No immediate render call here, as app.js will call render after setting markers.
+    // This avoids redundant renders if multiple state changes happen together.
+  }
+
+  /**
+   * NEW: Render all current markers on the canvas.
+   */
+  renderMarkers () {
+    if (!this.markers || this.markers.length === 0) return
+
+    this.markers.forEach((marker, index) => {
+      // Convert map (image) coordinates to screen (canvas) coordinates
+      const screenCoords = this.mapToScreen(marker.x, marker.y)
+      if (screenCoords) {
+        this.drawMarker(screenCoords.x, screenCoords.y, index + 1) // Pass index + 1 for numbering
+      }
+    })
+  }
+
+  /**
+   * NEW: Draw a single marker on the canvas.
+   * @param {number} x - Screen X coordinate of the marker center.
+   * @param {number} y - Screen Y coordinate of the marker center.
+   * @param {number} number - Optional number to display on the marker.
+   */
+  drawMarker (x, y, number) {
+    const radius = 12 // Marker circle radius
+    const borderWidth = 2
+    const borderColor = '#dc2626' // Red-600
+    const fillColor = '#ef4444' // Red-500
+    const textColor = '#ffffff' // White
+
+    this.ctx.save()
+
+    // Draw the marker circle body
+    this.ctx.beginPath()
+    this.ctx.arc(x, y, radius, 0, Math.PI * 2, false)
+    this.ctx.fillStyle = fillColor
+    this.ctx.fill()
+    this.ctx.lineWidth = borderWidth
+    this.ctx.strokeStyle = borderColor
+    this.ctx.stroke()
+
+    // Draw the marker "tail" (optional, for a pin look)
+    // this.ctx.beginPath();
+    // this.ctx.moveTo(x, y + radius);
+    // this.ctx.lineTo(x, y + radius + 10); // Extend 10px downwards
+    // this.ctx.lineWidth = borderWidth;
+    // this.ctx.strokeStyle = borderColor;
+    // this.ctx.stroke();
+
+    // Draw the number inside the marker
+    this.ctx.font = `${radius}px Arial, sans-serif`
+    this.ctx.textAlign = 'center'
+    this.ctx.textBaseline = 'middle'
+    this.ctx.fillStyle = textColor
+    this.ctx.fillText(String(number), x, y)
+
+    this.ctx.restore()
+  }
+
+  /**
    * Toggle debug info display
    */
   toggleDebugInfo () {
@@ -513,6 +556,7 @@ class MapRenderer {
 
     this.imageData = null
     this.currentMap = null
+    this.markers = [] // Clear markers on dispose
 
     console.log('MapRenderer: Resources cleaned up')
   }

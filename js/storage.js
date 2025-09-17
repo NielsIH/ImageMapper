@@ -1,21 +1,23 @@
 /**
  * Image Mapper PWA - Storage System
- * Phase 1B: IndexedDB wrapper for map metadata storage
+ * Phase 1C: IndexedDB wrapper for map metadata, markers, and photos
  */
 
 /**
  * IndexedDB wrapper for managing map storage
- * Stores map metadata (not actual image files - those are referenced by File API)
+ * Stores map metadata, marker data, and photo data (blobs)
  */
 
 /* global indexedDB */
 class MapStorage {
   constructor () {
     this.dbName = 'ImageMapperDB'
-    this.version = 1
+    this.version = 2 // Increment the database version for schema changes!
     this.db = null
-    this.storeName = 'maps'
-    this.keyPath = 'id' // Define keyPath for clarity
+    this.mapStoreName = 'maps' // Renamed for clarity
+    this.markerStoreName = 'markers' // New store name
+    this.photoStoreName = 'photos' // New store name
+    this.keyPath = 'id' // Common keyPath for all stores
   }
 
   /**
@@ -39,32 +41,67 @@ class MapStorage {
       }
 
       request.onupgradeneeded = (event) => {
-        console.log('MapStorage: Creating/upgrading database schema...')
+        console.log('MapStorage: Creating/upgrading database schema... Current version:', event.oldVersion, 'New version:', event.newVersion)
         const db = event.target.result
+        const transaction = event.target.transaction // Get the transaction for this upgrade
 
-        // Create maps object store if it doesn't exist
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, {
+        // Add event listeners to the upgrade transaction for better debugging
+        transaction.oncomplete = () => {
+          console.log('MapStorage: Upgrade transaction completed successfully.')
+        }
+        transaction.onerror = (e) => {
+          console.error('MapStorage: Upgrade transaction ERROR:', e.target.error)
+        }
+        transaction.onabort = (e) => {
+          console.error('MapStorage: Upgrade transaction ABORTED:', e.target.error)
+        }
+
+        // Create or upgrade maps object store
+        if (!db.objectStoreNames.contains(this.mapStoreName)) {
+          const mapStore = db.createObjectStore(this.mapStoreName, {
             keyPath: this.keyPath
           })
+          mapStore.createIndex('name', 'name', { unique: false })
+          mapStore.createIndex('createdDate', 'createdDate', { unique: false })
+          mapStore.createIndex('lastModified', 'lastModified', { unique: false })
+          mapStore.createIndex('isActive', 'isActive', { unique: false })
+          console.log('MapStorage: Maps object store created/upgraded with indexes')
+        } else {
+          // If already exists, ensure previous indexes are still valid or add new ones if needed
+          // For now, assume existing indexes are fine, but in future, you might check/add specific indexes here,
+          // e.g., if (mapStore.indexNames.contains('newIndex')) { ... }
+        }
 
-          // Create indexes for efficient querying
-          store.createIndex('name', 'name', { unique: false })
-          store.createIndex('createdDate', 'createdDate', { unique: false })
-          store.createIndex('lastModified', 'lastModified', { unique: false })
-          store.createIndex('isActive', 'isActive', { unique: false })
+        // --- NEW: Create markers object store ---
+        if (!db.objectStoreNames.contains(this.markerStoreName)) {
+          const markerStore = db.createObjectStore(this.markerStoreName, {
+            keyPath: this.keyPath
+          })
+          markerStore.createIndex('mapId', 'mapId', { unique: false }) // Index to quickly find markers for a map
+          markerStore.createIndex('createdDate', 'createdDate', { unique: false })
+          console.log('MapStorage: Markers object store created/upgraded with indexes')
+        }
 
-          console.log('MapStorage: Maps object store created with indexes')
+        // --- NEW: Create photos object store ---
+        if (!db.objectStoreNames.contains(this.photoStoreName)) {
+          const photoStore = db.createObjectStore(this.photoStoreName, {
+            keyPath: this.keyPath
+          })
+          photoStore.createIndex('markerId', 'markerId', { unique: false }) // Index to quickly find photos for a marker
+          photoStore.createIndex('createdDate', 'createdDate', { unique: false })
+          console.log('MapStorage: Photos object store created/upgraded with indexes')
         }
       }
     })
   }
 
   /**
-   * Generate a unique ID for new maps
+   * Generate a unique ID for new items
+   * @param {string} prefix - Prefix for the ID (e.g., 'map', 'marker', 'photo')
+   * @returns {string} - Unique ID
    */
-  generateId () {
-    return `map_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  generateId (prefix) {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
   /**
@@ -82,7 +119,7 @@ class MapStorage {
     }
 
     const map = {
-      id: this.generateId(),
+      id: this.generateId('map'), // Use generateId with prefix
       name: mapData.name || 'Untitled Map',
       description: mapData.description || '',
       fileName: mapData.fileName || '',
@@ -94,12 +131,7 @@ class MapStorage {
       createdDate: new Date(),
       lastModified: new Date(),
       isActive: mapData.isActive || false,
-
-      // This is crucial: Store the actual image Blob itself
-      imageData: mapData.imageData || null, // Ensure imageData (Blob) is stored
-
-      // Additional metadata for future features
-      markers: [], // Will be used in later phases
+      imageData: mapData.imageData || null,
       settings: {
         defaultZoom: 1,
         allowMarkers: true,
@@ -108,11 +140,10 @@ class MapStorage {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite')
-      const store = transaction.objectStore(this.storeName)
+      const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
+      const store = transaction.objectStore(this.mapStoreName)
 
-      // Use put instead of add to allow updating existing entries by ID
-      const request = store.put(map) // Changed from store.add to store.put
+      const request = store.put(map)
 
       request.onsuccess = () => {
         console.log('MapStorage: Map added/updated successfully', map.id)
@@ -136,14 +167,14 @@ class MapStorage {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readonly')
-      const store = transaction.objectStore(this.storeName)
+      const transaction = this.db.transaction([this.mapStoreName], 'readonly')
+      const store = transaction.objectStore(this.mapStoreName)
       const request = store.getAll()
 
       request.onsuccess = () => {
         const maps = request.result || []
         console.log(`MapStorage: Retrieved ${maps.length} maps`)
-        resolve(maps) // This will now include the imageData Blob for each map
+        resolve(maps)
       }
 
       request.onerror = () => {
@@ -164,14 +195,14 @@ class MapStorage {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readonly')
-      const store = transaction.objectStore(this.storeName)
+      const transaction = this.db.transaction([this.mapStoreName], 'readonly')
+      const store = transaction.objectStore(this.mapStoreName)
       const request = store.get(id)
 
       request.onsuccess = () => {
         const map = request.result
         console.log('MapStorage: Retrieved map', id, map ? 'found' : 'not found')
-        resolve(map || null) // This will now include the imageData Blob if it exists
+        resolve(map || null)
       }
 
       request.onerror = () => {
@@ -192,44 +223,45 @@ class MapStorage {
       throw new Error('Storage not initialized')
     }
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        // First get the existing map
-        const existingMap = await this.getMap(id)
-        if (!existingMap) {
-          reject(new Error(`Map not found: ${id}`))
-          return
-        }
+    return new Promise((resolve, reject) => {
+      const update = async () => {
+        try {
+          const existingMap = await this.getMap(id)
+          if (!existingMap) {
+            reject(new Error(`Map not found: ${id}`))
+            return
+          }
 
-        // Merge updates with existing data
-        const updatedMap = {
-          ...existingMap,
-          ...updates,
-          id, // Ensure ID cannot be changed
-          lastModified: new Date() // Always update modification time
-        }
+          const updatedMap = {
+            ...existingMap,
+            ...updates,
+            id,
+            lastModified: new Date()
+          }
 
-        const transaction = this.db.transaction([this.storeName], 'readwrite')
-        const store = transaction.objectStore(this.storeName)
-        const request = store.put(updatedMap)
+          const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
+          const store = transaction.objectStore(this.mapStoreName)
+          const request = store.put(updatedMap)
 
-        request.onsuccess = () => {
-          console.log('MapStorage: Map updated successfully', id)
-          resolve(updatedMap)
-        }
+          request.onsuccess = () => {
+            console.log('MapStorage: Map updated successfully', id)
+            resolve(updatedMap)
+          }
 
-        request.onerror = () => {
-          console.error('MapStorage: Failed to update map', request.error)
-          reject(new Error(`Failed to update map: ${request.error}`))
+          request.onerror = () => {
+            console.error('MapStorage: Failed to update map', request.error)
+            reject(new Error(`Failed to update map: ${request.error}`))
+          }
+        } catch (error) {
+          reject(error)
         }
-      } catch (error) {
-        reject(error)
       }
+      update()
     })
   }
 
   /**
-   * Delete a map from storage
+   * Delete a map from storage (and all associated markers and photos)
    * @param {string} id - Map ID
    * @returns {Promise<boolean>} - Success status
    */
@@ -238,21 +270,83 @@ class MapStorage {
       throw new Error('Storage not initialized')
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite')
-      const store = transaction.objectStore(this.storeName)
-      const request = store.delete(id)
+    return new Promise(async (resolve, reject) => {
+      const transaction = this.db.transaction([this.mapStoreName, this.markerStoreName, this.photoStoreName], 'readwrite')
+      const mapStore = transaction.objectStore(this.mapStoreName)
+      const markerStore = transaction.objectStore(this.markerStoreName)
+      const photoStore = transaction.objectStore(this.photoStoreName)
 
-      request.onsuccess = () => {
-        console.log('MapStorage: Map deleted successfully', id)
-        resolve(true)
-      }
+      try {
+        // Delete associated markers and their photos
+        const markers = await this.getMarkersForMap(id, transaction) // Pass transaction
+        const markerDeletePromises = markers.map(marker => this._deleteMarkerInternal(marker.id, transaction))
+        await Promise.all(markerDeletePromises)
 
-      request.onerror = () => {
-        console.error('MapStorage: Failed to delete map', request.error)
-        reject(new Error(`Failed to delete map: ${request.error}`))
+        // Delete the map itself
+        const deleteMapRequest = mapStore.delete(id)
+        deleteMapRequest.onsuccess = () => {
+          console.log('MapStorage: Map deleted successfully', id)
+        }
+        deleteMapRequest.onerror = (event) => {
+          console.error('MapStorage: Failed to delete map', event.target.error)
+          reject(new Error(`Failed to delete map: ${event.target.error}`))
+        }
+
+        transaction.oncomplete = () => resolve(true)
+        transaction.onerror = (event) => reject(new Error(`Transaction failed: ${event.target.error}`))
+        transaction.onabort = (event) => reject(new Error(`Transaction aborted: ${event.target.error}`))
+      } catch (error) {
+        reject(error)
       }
     })
+  }
+
+  /**
+   * Internal helper to delete a marker and its associated photos within an existing transaction.
+   * @param {string} markerId
+   * @param {IDBTransaction} [transaction] - Optional existing transaction
+   * @private
+   */
+  async _deleteMarkerInternal (markerId, transaction = null) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    let t
+    if (transaction) {
+      t = transaction
+    } else {
+      t = this.db.transaction([this.markerStoreName, this.photoStoreName], 'readwrite')
+    }
+
+    const markerStore = t.objectStore(this.markerStoreName)
+    const photoStore = t.objectStore(this.photoStoreName)
+
+    // Delete associated photos
+    const photos = await this.getPhotosForMarker(markerId, t) // Pass transaction
+    const photoDeletePromises = photos.map(photo => {
+      return new Promise((resolve, reject) => {
+        const req = photoStore.delete(photo.id)
+        req.onsuccess = () => resolve()
+        req.onerror = (e) => reject(e)
+      })
+    })
+    await Promise.all(photoDeletePromises)
+
+    // Delete the marker itself
+    await new Promise((resolve, reject) => {
+      const req = markerStore.delete(markerId)
+      req.onsuccess = () => resolve()
+      req.onerror = (e) => reject(e)
+    })
+
+    if (!transaction) { // Only complete if transaction was created here
+      return new Promise((resolve, reject) => {
+        t.oncomplete = () => resolve()
+        t.onerror = (e) => reject(e)
+        t.onabort = (e) => reject(e)
+      })
+    }
   }
 
   /**
@@ -266,10 +360,9 @@ class MapStorage {
     }
 
     try {
-      // First, deactivate all maps
       const allMaps = await this.getAllMaps()
       const updatePromises = allMaps.map(map => {
-        if (map.isActive) {
+        if (map.isActive && map.id !== id) {
           return this.updateMap(map.id, { isActive: false })
         }
         return Promise.resolve()
@@ -277,7 +370,6 @@ class MapStorage {
 
       await Promise.all(updatePromises)
 
-      // Then activate the selected map
       const activeMap = await this.updateMap(id, { isActive: true })
       console.log('MapStorage: Active map set to', id)
       return activeMap
@@ -297,7 +389,6 @@ class MapStorage {
     }
 
     try {
-      // Instead of using index, get all maps and find the active one
       const allMaps = await this.getAllMaps()
       const activeMap = allMaps.find(map => map.isActive === true)
 
@@ -331,6 +422,376 @@ class MapStorage {
       map.description.toLowerCase().includes(term)
     )
   }
+  // ========================================\n
+  // NEW: Marker Storage Methods\n
+  // ========================================\n
+
+  /**
+   * Add a new marker to storage
+   * @param {Object} markerData - Marker data object (x, y, mapId, etc.)
+   * @returns {Promise<Object>} - The saved marker object
+   */
+  async addMarker (markerData) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    const marker = {
+      id: this.generateId('marker'),
+      mapId: markerData.mapId,
+      x: markerData.x, // Map X coordinate (image pixel)
+      y: markerData.y, // Map Y coordinate (image pixel)
+      createdDate: new Date(),
+      lastModified: new Date(),
+      description: markerData.description || '',
+      photoIds: [] // Array of photo IDs linked to this marker
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerStoreName], 'readwrite')
+      const store = transaction.objectStore(this.markerStoreName)
+      const request = store.add(marker)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Marker added successfully', marker.id)
+        resolve(marker)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to add marker', request.error)
+        reject(new Error(`Failed to save marker: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all markers for a specific map
+   * @param {string} mapId - The ID of the map
+   * @param {IDBTransaction} [transaction] - Optional existing transaction
+   * @returns {Promise<Array>} - Array of marker objects
+   */
+  async getMarkersForMap (mapId, transaction = null) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      let t = transaction
+      if (!t) {
+        t = this.db.transaction([this.markerStoreName], 'readonly')
+      }
+      const store = t.objectStore(this.markerStoreName)
+      const index = store.index('mapId')
+      const request = index.getAll(mapId)
+
+      request.onsuccess = () => {
+        const markers = request.result || []
+        console.log(`MapStorage: Retrieved ${markers.length} markers for map ${mapId}`)
+        resolve(markers)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get markers for map', request.error)
+        reject(new Error(`Failed to load markers: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get a specific marker by ID
+   * @param {string} markerId - The ID of the marker
+   * @returns {Promise<Object|null>} - Marker object or null if not found
+   */
+  async getMarker (markerId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerStoreName], 'readonly')
+      const store = transaction.objectStore(this.markerStoreName)
+      const request = store.get(markerId)
+
+      request.onsuccess = () => {
+        const marker = request.result
+        console.log('MapStorage: Retrieved marker', markerId, marker ? 'found' : 'not found')
+        resolve(marker || null)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get marker', request.error)
+        reject(new Error(`Failed to load marker: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Update an existing marker
+   * @param {string} markerId - Marker ID
+   * @param {Object} updates - Object with properties to update
+   * @returns {Promise<Object>} - Updated marker object
+   */
+  async updateMarker (markerId, updates) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const update = async () => {
+        try {
+          const existingMarker = await this.getMarker(markerId)
+          if (!existingMarker) {
+            reject(new Error(`Marker not found: ${markerId}`))
+            return
+          }
+
+          const updatedMarker = {
+            ...existingMarker,
+            ...updates,
+            id: markerId,
+            lastModified: new Date()
+          }
+
+          const transaction = this.db.transaction([this.markerStoreName], 'readwrite')
+          const store = transaction.objectStore(this.markerStoreName)
+          const request = store.put(updatedMarker)
+
+          request.onsuccess = () => {
+            console.log('MapStorage: Marker updated successfully', markerId)
+            resolve(updatedMarker)
+          }
+
+          request.onerror = () => {
+            console.error('MapStorage: Failed to update marker', request.error)
+            reject(new Error(`Failed to update marker: ${request.error}`))
+          }
+        } catch (error) {
+          reject(error)
+        }
+      }
+      update()
+    })
+  }
+
+  /**
+   * Delete a marker (and its associated photos)
+   * @param {string} markerId - The ID of the marker to delete
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deleteMarker (markerId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    return this._deleteMarkerInternal(markerId) // Use the internal helper
+  }
+
+  /**
+   * Get all markers across all maps
+   * @returns {Promise<Array>} - Array of all marker objects
+   */
+  async getAllMarkers () {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerStoreName], 'readonly')
+      const store = transaction.objectStore(this.markerStoreName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        const markers = request.result || []
+        console.log(`MapStorage: Retrieved ${markers.length} total markers`)
+        resolve(markers)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get all markers', request.error)
+        reject(new Error(`Failed to load all markers: ${request.error}`))
+      }
+    })
+  }
+  // ========================================\n
+  // NEW: Photo Storage Methods\n
+  // ========================================\n
+
+  /**
+   * Add a new photo to storage
+   * @param {Object} photoData - Photo data object (imageData, markerId, etc.)
+   * @returns {Promise<Object>} - The saved photo object
+   */
+  async addPhoto (photoData) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    if (!(photoData.imageData instanceof Blob)) {
+      throw new Error('PhotoStorage: imageData must be a Blob object.')
+    }
+    const photo = {
+      id: this.generateId('photo'),
+      markerId: photoData.markerId,
+      imageData: photoData.imageData, // The actual image Blob
+      thumbnailData: photoData.thumbnailData || null, // Optional thumbnail Blob or Data URL
+      fileName: photoData.fileName || 'Untitled Photo',
+      fileType: photoData.fileType || 'image/jpeg',
+      fileSize: photoData.fileSize || 0,
+      createdDate: new Date(),
+      description: photoData.description || ''
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.photoStoreName], 'readwrite')
+      const store = transaction.objectStore(this.photoStoreName)
+      const request = store.add(photo)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Photo added successfully', photo.id)
+        resolve(photo)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to add photo', request.error)
+        reject(new Error(`Failed to save photo: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all photos for a specific marker
+   * @param {string} markerId - The ID of the marker
+   * @param {IDBTransaction} [transaction] - Optional existing transaction
+   * @returns {Promise<Array>} - Array of photo objects
+   */
+  async getPhotosForMarker (markerId, transaction = null) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      let t = transaction
+      if (!t) {
+        t = this.db.transaction([this.photoStoreName], 'readonly')
+      }
+      const store = t.objectStore(this.photoStoreName)
+      const index = store.index('markerId')
+      const request = index.getAll(markerId)
+
+      request.onsuccess = () => {
+        const photos = request.result || []
+        console.log(`MapStorage: Retrieved ${photos.length} photos for marker ${markerId}`)
+        resolve(photos)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get photos for marker', request.error)
+        reject(new Error(`Failed to load photos: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get a specific photo by ID
+   * @param {string} photoId - The ID of the photo
+   * @returns {Promise<Object|null>} - Photo object or null if not found
+   */
+  async getPhoto (photoId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.photoStoreName], 'readonly')
+      const store = transaction.objectStore(this.photoStoreName)
+      const request = store.get(photoId)
+
+      request.onsuccess = () => {
+        const photo = request.result
+        console.log('MapStorage: Retrieved photo', photoId, photo ? 'found' : 'not found')
+        resolve(photo || null)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get photo', request.error)
+        reject(new Error(`Failed to load photo: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete a photo by ID
+   * @param {string} photoId - The ID of the photo to delete
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deletePhoto (photoId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      // Need to also update the marker that references this photo
+      // For now, simple delete. Later, we'll implement this more robustly
+      // to remove photoId from marker.photoIds array.
+
+      const transaction = this.db.transaction([this.photoStoreName, this.markerStoreName], 'readwrite')
+      const photoStore = transaction.objectStore(this.photoStoreName)
+      const markerStore = transaction.objectStore(this.markerStoreName)
+
+      photoStore.get(photoId).onsuccess = (event) => {
+        const photoToDelete = event.target.result
+        if (photoToDelete && photoToDelete.markerId) {
+          markerStore.get(photoToDelete.markerId).onsuccess = (e) => {
+            const marker = e.target.result
+            if (marker) {
+              marker.photoIds = marker.photoIds.filter(id => id !== photoId)
+              markerStore.put(marker) // Update marker
+            }
+          }
+        }
+      }
+
+      const request = photoStore.delete(photoId)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Photo deleted successfully', photoId)
+        resolve(true)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to delete photo', request.error)
+        reject(new Error(`Failed to delete photo: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all photos across all maps and markers
+   * @returns {Promise<Array>} - Array of all photo objects
+   */
+  async getAllPhotos () {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.photoStoreName], 'readonly')
+      const store = transaction.objectStore(this.photoStoreName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        const photos = request.result || []
+        console.log(`MapStorage: Retrieved ${photos.length} total photos`)
+        resolve(photos)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get all photos', request.error)
+        reject(new Error(`Failed to load all photos: ${request.error}`))
+      }
+    })
+  }
+
+  // ========================================\n
+  // Remaining Utility Methods\n
+  // ========================================\n
 
   /**
    * Get storage statistics
@@ -338,10 +799,17 @@ class MapStorage {
    */
   async getStorageStats () {
     try {
-      const maps = await this.getAllMaps()
+      const maps = await this.getAllMaps() // Changed to this.mapStoreName
       const totalMaps = maps.length
       const totalFileSize = maps.reduce((sum, map) => sum + (map.fileSize || 0), 0)
       const activeMap = maps.find(map => map.isActive)
+
+      const markers = await this.getAllMarkers() // Uses new marker functions
+      const photos = await this.getAllPhotos() // Uses new photo functions
+      const totalMarkers = markers.length
+      const totalPhotos = photos.length
+      // Be careful about photo.imageData being very large, ensure file size is stored
+      const totalPhotoSize = photos.reduce((sum, photo) => sum + (photo.fileSize || 0), 0)
 
       return {
         totalMaps,
@@ -357,7 +825,10 @@ class MapStorage {
           ? maps.reduce((newest, map) =>
             new Date(map.createdDate) > new Date(newest.createdDate) ? map : newest
           )
-          : null
+          : null,
+        totalMarkers,
+        totalPhotos,
+        totalPhotoSize
       }
     } catch (error) {
       console.error('MapStorage: Failed to get storage stats', error)
@@ -367,13 +838,16 @@ class MapStorage {
         averageFileSize: 0,
         activeMapId: null,
         oldestMap: null,
-        newestMap: null
+        newestMap: null,
+        totalMarkers: 0,
+        totalPhotos: 0,
+        totalPhotoSize: 0
       }
     }
   }
 
   /**
-   * Clear all maps from storage (with confirmation)
+   * Clear all maps from storage (with confirmation) - NOW CLEARS ALL OBJECT STORES
    * @returns {Promise<boolean>} - Success status
    */
   async clearAllMaps () {
@@ -382,18 +856,38 @@ class MapStorage {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite')
-      const store = transaction.objectStore(this.storeName)
-      const request = store.clear()
+      // Clear all three object stores
+      const transaction = this.db.transaction([this.mapStoreName, this.markerStoreName, this.photoStoreName], 'readwrite')
+      const mapStore = transaction.objectStore(this.mapStoreName)
+      const markerStore = transaction.objectStore(this.markerStoreName)
+      const photoStore = transaction.objectStore(this.photoStoreName)
 
-      request.onsuccess = () => {
-        console.log('MapStorage: All maps cleared successfully')
-        resolve(true)
+      const reqMapClear = mapStore.clear()
+      const reqMarkerClear = markerStore.clear()
+      const reqPhotoClear = photoStore.clear()
+
+      let clearedCount = 0
+      const totalStores = 3
+
+      const checkCompletion = () => {
+        clearedCount++
+        if (clearedCount === totalStores) {
+          console.log('MapStorage: All object stores cleared successfully')
+          resolve(true)
+        }
       }
 
-      request.onerror = () => {
-        console.error('MapStorage: Failed to clear maps', request.error)
-        reject(new Error(`Failed to clear maps: ${request.error}`))
+      reqMapClear.onsuccess = checkCompletion
+      reqMarkerClear.onsuccess = checkCompletion
+      reqPhotoClear.onsuccess = checkCompletion
+
+      reqMapClear.onerror = (e) => reject(new Error(`Failed to clear maps: ${e.target.error}`))
+      reqMarkerClear.onerror = (e) => reject(new Error(`Failed to clear markers: ${e.target.error}`))
+      reqPhotoClear.onerror = (e) => reject(new Error(`Failed to clear photos: ${e.target.error}`))
+
+      transaction.onerror = (event) => {
+        console.error('MapStorage: Transaction failed to clear all stores', event.target.error)
+        reject(new Error(`Failed to clear all stores: ${event.target.error}`))
       }
     })
   }
@@ -410,11 +904,14 @@ class MapStorage {
   }
 
   /**
-   * Check if storage is available and initialized
+   * Check if storage is available and initialized, including new stores
    * @returns {boolean} - Storage availability status
    */
   isAvailable () {
-    return !!this.db && this.db.objectStoreNames.contains(this.storeName)
+    return !!this.db &&
+           this.db.objectStoreNames.contains(this.mapStoreName) &&
+           this.db.objectStoreNames.contains(this.markerStoreName) &&
+           this.db.objectStoreNames.contains(this.photoStoreName)
   }
 }
 

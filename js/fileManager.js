@@ -6,6 +6,8 @@
 /**
  * File Manager for handling image uploads and processing
  */
+
+/* global document, window, Image */
 class FileManager {
   constructor () {
     // Supported file formats

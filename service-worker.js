@@ -3,7 +3,7 @@
 // 🚨 IMPORTANT: You MUST update this version string whenever you deploy new changes!
 // This will force the service worker to update and clear old caches.
 // A good pattern is to use a date-based version like 'v2024-12-20-1'
-const CACHE_NAME = 'image-mapper-v2025-09-16-14' // Updated version
+const CACHE_NAME = 'image-mapper-v2025-09-16-16' // Updated version
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -66,6 +66,7 @@ self.addEventListener('activate', (event) => {
               console.log(`🗑️ Deleting old cache: ${cacheName}`)
               return caches.delete(cacheName)
             }
+            return undefined
           })
         )
       }),
