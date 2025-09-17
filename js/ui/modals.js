@@ -107,8 +107,6 @@ class ModalManager {
 
     modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
     modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
-    // The previous maps-list-close-btn is now part of the general close logic or will be replaced.
-    // For now, modal footer is hidden, rely on modal-close or backdrop click.
 
     // Select map (list item click)
     modal.querySelectorAll('.map-list-item.clickable').forEach(item => {
@@ -306,7 +304,7 @@ class ModalManager {
   }
 
   /**
-   * Set up upload modal functionality
+   * Set up upload modal functionality with file picker strategy testing
    * @param {HTMLElement} modal - Modal element
    * @param {Function} onUpload - Upload callback
    * @param {Function} onCancel - Cancel callback
@@ -346,8 +344,57 @@ class ModalManager {
     // File manager instance
     const fileManager = new FileManager()
 
+    // Debug overlay for mobile testing
+    const showDebugMessage = (message) => {
+      let debugDiv = document.getElementById('picker-debug')
+      if (!debugDiv) {
+        debugDiv = document.createElement('div')
+        debugDiv.id = 'picker-debug'
+        debugDiv.style.cssText = `
+          position: fixed;
+          top: 10px;
+          left: 10px;
+          right: 10px;
+          background: rgba(0,0,0,0.9);
+          color: white;
+          padding: 10px;
+          font-size: 12px;
+          z-index: 10001;
+          max-height: 150px;
+          overflow-y: auto;
+          border-radius: 5px;
+          font-family: monospace;
+        `
+        document.body.appendChild(debugDiv)
+      }
+
+      const timestamp = new Date().toLocaleTimeString()
+      debugDiv.innerHTML += `<div>${timestamp}: ${message}</div>`
+      debugDiv.scrollTop = debugDiv.scrollHeight
+
+      // Auto-clear after 30 seconds to prevent overflow
+      setTimeout(() => {
+        if (debugDiv.children.length > 20) {
+          debugDiv.innerHTML = debugDiv.innerHTML.split('<div>').slice(-10).join('<div>')
+        }
+      }, 100)
+    }
+
+    // Clear debug overlay
+    const clearDebugMessages = () => {
+      const debugDiv = document.getElementById('picker-debug')
+      if (debugDiv) {
+        debugDiv.innerHTML = ''
+      }
+    }
+
     // Close modal handlers
     const closeModal = () => {
+      // Clean up debug overlay when closing
+      const debugDiv = document.getElementById('picker-debug')
+      if (debugDiv) {
+        debugDiv.remove()
+      }
       this.closeModal(modal)
       if (onCancel) onCancel()
     }
@@ -361,14 +408,20 @@ class ModalManager {
       if (!file) return
 
       try {
+        clearDebugMessages()
+        showDebugMessage(`✅ File selected: ${file.name}`)
+        showDebugMessage(`📊 Size: ${Math.round(file.size / 1024)}KB, Type: ${file.type}`)
+
         this.showError(modal, '')
         this.showLoading(modal, 'Processing file...')
 
         // Process the file
         processedData = await fileManager.processFileUpload(file, {
-          isActive: true // Default to active for new uploads
+          isActive: true
         })
         selectedFile = file
+
+        showDebugMessage('✅ File processing completed successfully')
 
         // Update preview
         this.updateFilePreview(modal, processedData)
@@ -377,19 +430,75 @@ class ModalManager {
         this.showDetailsStep(modal)
       } catch (error) {
         console.error('File processing error:', error)
+        showDebugMessage(`❌ File processing failed: ${error.message}`)
         this.showError(modal, error.message)
       } finally {
         this.hideLoading(modal)
       }
     }
 
-    // Browse button
+    // Enhanced browse button with strategy testing and debug overlay
     browseBtn.addEventListener('click', async () => {
-      const file = await fileManager.selectFile()
-      if (file) {
-        await handleFileSelect(file)
+      clearDebugMessages()
+      showDebugMessage('🔍 Starting file picker strategy test...')
+
+      // Detect user agent for strategy selection
+      const isAndroid = /Android/i.test(navigator.userAgent)
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+      showDebugMessage(`📱 Device: ${isAndroid ? 'Android' : isIOS ? 'iOS' : 'Desktop'}`)
+
+      // Try different strategies in order of preference
+      const strategies = [
+        { name: 'modern', desc: 'Modern File System Access API' },
+        { name: 'explicit', desc: 'File extensions (.jpg, .png, etc.)' },
+        { name: 'generic', desc: 'Generic file type (*/*) - Should force file browser' },
+        { name: 'mixed', desc: 'Mixed MIME types' },
+        { name: 'default', desc: 'Standard image picker' }
+      ]
+
+      for (let i = 0; i < strategies.length; i++) {
+        const strategy = strategies[i]
+
+        try {
+          showDebugMessage(`📁 Attempt ${i + 1}/${strategies.length}: ${strategy.desc}`)
+
+          // Show which strategy we're trying in the UI temporarily
+          this.showError(modal, `Trying: ${strategy.desc}`)
+
+          const file = await fileManager.selectFile(strategy.name)
+
+          if (file) {
+            showDebugMessage(`🎉 SUCCESS with "${strategy.name}" strategy!`)
+            showDebugMessage(`📄 File: ${file.name}`)
+            showDebugMessage(`📊 Size: ${Math.round(file.size / 1024)}KB`)
+            showDebugMessage(`🎯 WINNER: "${strategy.name}" works on this device!`)
+
+            // Clear the strategy message
+            this.showError(modal, '')
+
+            await handleFileSelect(file)
+            return // Exit on success
+          } else {
+            showDebugMessage(`❌ ${strategy.name}: Cancelled or failed`)
+          }
+        } catch (error) {
+          showDebugMessage(`❌ ${strategy.name}: Error - ${error.message}`)
+          continue
+        }
+
+        // Small delay between attempts for better UX
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
+
+      // If we get here, all strategies failed
+      showDebugMessage('💥 ALL STRATEGIES FAILED')
+      showDebugMessage('👆 Try tapping "Browse" in photo picker (3 dots menu)')
+      this.showError(modal, 'All picker methods failed. In photo picker, try tapping the 3-dots menu → Browse')
     })
+
+    // Add manual strategy test buttons for debugging
+    this.addManualStrategyButtons(modal, fileManager, handleFileSelect, showDebugMessage)
 
     // Drag and drop
     dropZone.addEventListener('dragover', (e) => {
@@ -407,6 +516,7 @@ class ModalManager {
 
       const files = e.dataTransfer.files
       if (files.length > 0) {
+        showDebugMessage(`📎 File dropped: ${files[0].name}`)
         await handleFileSelect(files[0])
       }
     })
@@ -423,7 +533,6 @@ class ModalManager {
         return
       }
 
-      // Validate form
       if (!nameInput.value.trim()) {
         this.showError(modal, 'Map name is required')
         nameInput.focus()
@@ -433,7 +542,6 @@ class ModalManager {
       try {
         this.showLoading(modal, 'Creating map...')
 
-        // Update processed data with form values
         const finalData = {
           ...processedData,
           name: nameInput.value.trim(),
@@ -441,15 +549,14 @@ class ModalManager {
           isActive: activeCheckbox.checked
         }
 
-        // Call upload callback
         if (onUpload) {
           await onUpload(finalData, selectedFile)
         }
 
-        // Close modal
         this.closeModal(modal)
       } catch (error) {
         console.error('Map creation error:', error)
+        showDebugMessage(`❌ Upload failed: ${error.message}`)
         this.showError(modal, error.message)
       } finally {
         this.hideLoading(modal)
@@ -462,11 +569,63 @@ class ModalManager {
       handleSubmit()
     })
 
-    // Auto-focus name input when details step is shown
     nameInput.addEventListener('focus', () => {
       this.showError(modal, '')
     })
   }
+
+  /**
+   * Add manual strategy test buttons for debugging
+   * @param {HTMLElement} modal - Modal element
+   * @param {FileManager} fileManager - File manager instance
+   * @param {Function} handleFileSelect - File selection handler
+   * @param {Function} showDebugMessage - Debug message function
+   */
+  addManualStrategyButtons (modal, fileManager, handleFileSelect, showDebugMessage) {
+    const dropZone = modal.querySelector('#file-drop-zone')
+
+    const testButtonsHtml = `
+      <div class="strategy-test-buttons" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+        <small style="display: block; margin-bottom: 10px; color: #666;">Manual Strategy Testing:</small>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px;">
+          <button type="button" class="btn btn-small" data-strategy="modern">Modern API</button>
+          <button type="button" class="btn btn-small" data-strategy="explicit">Extensions</button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px;">
+          <button type="button" class="btn btn-small" data-strategy="generic">Generic (*/*)</button>
+          <button type="button" class="btn btn-small" data-strategy="mixed">Mixed Types</button>
+        </div>
+        <button type="button" class="btn btn-small" data-strategy="default" style="width: 100%;">Standard Picker</button>
+        <button type="button" class="btn btn-small" onclick="document.getElementById('picker-debug')?.remove()" style="width: 100%; margin-top: 5px; background: #666;">Clear Debug</button>
+      </div>
+    `
+
+    dropZone.insertAdjacentHTML('beforeend', testButtonsHtml)
+
+    // Add event listeners for test buttons
+    modal.querySelectorAll('[data-strategy]').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const strategy = button.dataset.strategy
+
+        showDebugMessage(`🧪 Manual test: ${strategy} strategy`)
+
+        try {
+          const file = await fileManager.selectFile(strategy)
+          if (file) {
+            showDebugMessage(`✅ ${strategy} SUCCESS: ${file.name}`)
+            await handleFileSelect(file)
+          } else {
+            showDebugMessage(`❌ ${strategy}: No file selected`)
+          }
+        } catch (error) {
+          showDebugMessage(`❌ ${strategy} ERROR: ${error.message}`)
+        }
+      })
+    })
+  }
+
+  // ... rest of existing methods (updateFilePreview, showDetailsStep, etc.) remain unchanged ...
 
   /**
    * Update file preview in modal
