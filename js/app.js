@@ -1606,7 +1606,7 @@ class ImageMapperApp {
   }
 
   // ========================================
-  // Marker Details and Interactions (Phase 1D)
+  // Marker Details and Interactions (Phase 1D / Phase 1E)
   // ========================================
 
   /**
@@ -1621,11 +1621,11 @@ class ImageMapperApp {
         throw new Error('Marker not found.')
       }
 
-      // Fetch
-      const photos = await this.storage.getPhotosForMarker(markerId)
-      console.log('Photos for marker:', photos)
+      const allPhotosForMarker = await this.storage.getPhotosForMarker(marker.id)
+      const validPhotos = allPhotosForMarker.filter(photo => (marker.photoIds || []).includes(photo.id))
 
-      // Convert map coords to friendly display (e.g., rounded)
+      console.log('Photos for marker:', validPhotos)
+
       const displayX = marker.x.toFixed(0)
       const displayY = marker.y.toFixed(0)
 
@@ -1634,21 +1634,63 @@ class ImageMapperApp {
           id: marker.id,
           description: marker.description,
           coords: `X: ${displayX}, Y: ${displayY}`,
-          photoCount: photos.length,
-          photos // Pass photo data to the modal
+          photoCount: validPhotos.length,
+          photos: validPhotos // Pass photo data to the modal
         },
         // Callbacks for modal actions
         // onAddPhotos callback
         async () => {
           console.log('Add photos button clicked for marker', marker.id)
+          if (this.modalManager.getTopModalId() === 'marker-details-modal') {
+            this.modalManager.closeTopModal()
+          }
+          await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to fully close
           await this.setupAddPhotosForMarker(marker.id)
-          // After adding photos, refresh the modal to show them
-          await this.showMarkerDetails(marker.id) // Re-open modal with updated data
+          await this.showMarkerDetails(marker.id)
         },
-        // onEditMarker callback (placeholder)
-        async () => { console.log('Edit marker button clicked', marker.id) /* Edit marker logic */ },
-        // onDeleteMarker callback (placeholder) - will be implemented soon
-        async () => { console.log('Delete marker button clicked', marker.id) /* Delete marker logic */ },
+        // onEditMarker callback (REVISED: This now directly triggers edit mode in modal)
+        async (markerIdToEdit) => {
+          console.log(`Edit marker button clicked for ${markerIdToEdit}. Toggling edit mode.`)
+          // No need to close/re-open modal here, edit happens in-place
+        },
+        // onSaveDescription callback (NEW)
+        async (markerIdToSave, newDescription) => {
+          this.showLoading('Saving description...')
+          try {
+            await this.storage.updateMarker(markerIdToSave, {
+              description: newDescription,
+              lastModified: new Date()
+            })
+            // Update local markers array for immediate UI refresh
+            const localMarker = this.markers.find(m => m.id === markerIdToSave)
+            if (localMarker) {
+              localMarker.description = newDescription
+            }
+            // NEW: Update the modal's displayed description directly
+            this.modalManager.updateMarkerDetailsDescription(markerIdToSave, newDescription)
+
+            this.showNotification('Description updated.', 'success')
+            console.log(`Marker ${markerIdToSave} description saved.`)
+          } catch (error) {
+            console.error('Failed to save description:', error)
+            this.showErrorMessage('Save Error', `Failed to save description: ${error.message}`)
+          } finally {
+            this.hideLoading()
+          }
+        },
+        // onDeleteMarker callback
+        async (markerIdToDelete) => {
+          console.log(`Delete marker ${markerIdToDelete} clicked`)
+          this.modalManager.closeTopModal()
+          await this.deleteMarker(markerIdToDelete)
+        },
+        // onDeletePhoto callback
+        async (markerIdToDeleteFrom, photoIdToDelete) => {
+          console.log(`Delete photo ${photoIdToDelete} from marker ${markerIdToDeleteFrom} clicked`)
+          this.modalManager.closeTopModal()
+          await this.deletePhotoFromMarker(markerIdToDeleteFrom, photoIdToDelete)
+          await this.showMarkerDetails(markerIdToDeleteFrom)
+        },
         // onClose callback
         () => {
           console.log('Marker details modal closed.')
@@ -1660,9 +1702,37 @@ class ImageMapperApp {
       console.error('Failed to show marker details:', error)
       this.showErrorMessage('Marker Error', `Failed to open marker details: ${error.message}`)
     } finally {
-      // Need to hide loading, but modal manager loading is separate from app loading.
-      // If modal opens immediately, this hideLoading might cause a flicker.
-      // Assuming modalManager handles its own loading states where relevant.
+      this.hideLoading()
+    }
+  }
+
+  /**
+   * Deletes a marker (and its associated photos) from storage and UI.
+   * @param {string} markerId - The ID of the marker to delete.
+   */
+  async deleteMarker (markerId) {
+    this.showLoading('Deleting marker...')
+    try {
+      // 1. Delete from IndexedDB (this also handles associated photos via storage.js)
+      await this.storage.deleteMarker(markerId)
+      console.log(`Marker ${markerId} and its photos deleted from storage.`)
+
+      // 2. Remove from local markers array and update mapRenderer
+      this.markers = this.markers.filter(m => m.id !== markerId)
+      this.mapRenderer.setMarkers(this.markers)
+      this.mapRenderer.render() // Re-render map to remove the marker visually
+
+      this.showNotification('Marker deleted successfully.', 'success')
+      this.updateAppStatus('Marker deleted.')
+
+      // If the currently viewed map has no markers left, update status or provide a hint
+      if (this.currentMap && this.markers.length === 0) {
+        this.updateAppStatus('No markers on this map.')
+      }
+    } catch (error) {
+      console.error('Failed to delete marker:', error)
+      this.showErrorMessage('Delete Marker Error', `Failed to delete marker: ${error.message}`)
+    } finally {
       this.hideLoading()
     }
   }
@@ -1674,7 +1744,6 @@ class ImageMapperApp {
   async setupAddPhotosForMarker (markerId) {
     this.showLoading('Adding photos...')
     try {
-      // Use FileManager.selectFiles to select one or more image files
       const selectedFiles = await this.fileManager.selectFiles(true, true) // Pass true for debug, true for multiple
 
       if (!selectedFiles || selectedFiles.length === 0) {
@@ -1723,6 +1792,38 @@ class ImageMapperApp {
     } catch (error) {
       console.error('Failed to add photos to marker:', error)
       this.showErrorMessage('Photo Error', `Failed to add photos: ${error.message}`)
+    } finally {
+      this.hideLoading()
+    }
+  }
+
+  /**
+   * Deletes a photo from a marker and from storage.
+   * @param {string} markerId - The ID of the marker the photo is associated with.
+   * @param {string} photoId - The ID of the photo to delete.
+   */
+  async deletePhotoFromMarker (markerId, photoId) {
+    this.showLoading('Removing photo...')
+    try {
+      // 1. Get the marker and remove the photoId from its photoIds array
+      const marker = await this.storage.getMarker(markerId)
+      if (marker) {
+        const updatedPhotoIds = marker.photoIds.filter(id => id !== photoId)
+        await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
+        console.log(`Removed photoId ${photoId} from marker ${markerId}`)
+      } else {
+        console.warn(`Marker ${markerId} not found when trying to delete photo ${photoId} reference.`)
+      }
+
+      // 2. Delete the photo itself from the photos store
+      await this.storage.deletePhoto(photoId)
+      console.log(`Photo ${photoId} deleted from storage.`)
+
+      this.showNotification('Photo removed successfully.', 'success')
+      // Implicitly, the refresh of the marker details modal will show the update
+    } catch (error) {
+      console.error('Failed to delete photo from marker:', error)
+      this.showErrorMessage('Delete Photo Error', `Failed to remove photo: ${error.message}`)
     } finally {
       this.hideLoading()
     }

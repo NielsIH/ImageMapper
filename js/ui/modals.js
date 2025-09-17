@@ -745,22 +745,62 @@ class ModalManager {
   }
 
   /**
+   * Returns the ID of the topmost active modal, or null if no modals are active.
+   * This assumes modal elements have an 'id' attribute.
+   * @returns {string|null} - ID of the topmost modal.
+   */
+  getTopModalId () {
+    if (this.activeModals.size > 0) {
+      const modals = Array.from(this.activeModals)
+      const topModal = modals[modals.length - 1]
+      return topModal.id || null
+    }
+    return null
+  }
+
+  /**
+   * NEW: Update the displayed description in an already open marker details modal.
+   * This is for when the description is edited directly in the modal.
+   * @param {string} markerId - The ID of the marker whose description is being updated.
+   * @param {string} newDescription - The new description text.
+   */
+  updateMarkerDetailsDescription (markerId, newDescription) {
+    const modal = document.querySelector(`#marker-details-modal[data-marker-id="${markerId}"]`)
+    if (modal) {
+      const descriptionDisplaySpan = modal.querySelector('.marker-description-display')
+      const descriptionEditTextArea = modal.querySelector('.marker-description-edit')
+
+      if (descriptionDisplaySpan) {
+        descriptionDisplaySpan.textContent = newDescription || 'No description'
+      }
+      if (descriptionEditTextArea) {
+        descriptionEditTextArea.value = newDescription || '' // Update textarea value to match
+      }
+      console.log(`ModalManager: Updated description for marker ${markerId} to "${newDescription}"`)
+    } else {
+      console.warn(`ModalManager: Marker details modal for ${markerId} not found to update description.`)
+    }
+  }
+
+  /**
    * Creates and displays a modal for marker details.
    * @param {Object} markerDetails - Marker data to display (id, description, coords, photoCount, photos[]).
    * @param {Function} onAddPhotos - Callback for 'Add Photos' button.
-   * @param {Function} onEditMarker - Callback for 'Edit Marker' button.
+   * @param {Function} onEditMarker - Callback for 'Edit Marker' button (now handles toggling edit mode).
+   * @param {Function} onSaveDescription - Callback when description is saved.
    * @param {Function} onDeleteMarker - Callback for 'Delete Marker' button.
+   * @param {Function} onDeletePhoto - Callback when a 'Delete Photo' button is clicked.
    * @param {Function} onClose - Callback when the modal is closed.
    * @returns {HTMLElement} - The created modal element.
    */
-  createMarkerDetailsModal (markerDetails, onAddPhotos, onEditMarker, onDeleteMarker, onClose) {
+  createMarkerDetailsModal (markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onClose) { // Added onSaveDescription
     // Generate photo thumbnails HTML
     const photoThumbnailsHtml = markerDetails.photos && markerDetails.photos.length > 0
       ? markerDetails.photos.map(photo => `
-          <div class="photo-thumbnail-item" data-photo-id="${photo.id}">
+          <div class="photo-thumbnail-item" data-photo-id="${photo.id}" style="position: relative;">
             <img src="${photo.thumbnailData}" alt="${photo.fileName}" class="photo-thumbnail" />
             <span class="photo-name">${photo.fileName}</span>
-            <button class="btn btn-tiny btn-danger delete-photo-btn" data-photo-id="${photo.id}">×</button>
+            <button class="btn btn-tiny btn-danger delete-photo-btn" data-photo-id="${photo.id}" title="Remove Photo">×</button>
           </div>
         `).join('')
       : '<p class="text-secondary text-center">No photos yet. Click "Add Photos" to add some!</p>'
@@ -777,7 +817,11 @@ class ModalManager {
             <div class="marker-info-section">
               <p><strong>ID:</strong> <span class="text-xs text-secondary">${markerDetails.id}</span></p>
               <p><strong>Coordinates:</strong> ${markerDetails.coords}</p>
-              <p><strong>Description:</strong> <span class="marker-description-text">${markerDetails.description || 'No description'}</span></p>
+              <p>
+                <strong>Description:</strong> 
+                <span class="marker-description-display">${markerDetails.description || 'No description'}</span>
+                <textarea class="marker-description-edit hidden" rows="3" maxlength="500" placeholder="Enter description">${markerDetails.description || ''}</textarea>
+              </p>
               <p><strong>Photos:</strong> <span class="marker-photo-count">${markerDetails.photoCount}</span> associated</p>
             </div>
 
@@ -791,6 +835,8 @@ class ModalManager {
           <div class="modal-footer">
             <div class="modal-actions">
               <button class="btn btn-secondary" id="btn-edit-marker" type="button">✏️ Edit Marker</button>
+              <button class="btn btn-primary hidden" id="btn-save-description" type="button">💾 Save</button>
+              <button class="btn btn-secondary hidden" id="btn-cancel-description-edit" type="button">✖️ Cancel</button>
               <button class="btn btn-primary" id="btn-add-photos" type="button">📸 Add Photos</button>
               <button class="btn btn-danger" id="btn-delete-marker" type="button">🗑️ Delete Marker</button>
             </div>
@@ -819,23 +865,162 @@ class ModalManager {
     modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
     modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
 
+    // Elements for description editing
+    const descriptionDisplay = modal.querySelector('.marker-description-display')
+    const descriptionEdit = modal.querySelector('.marker-description-edit')
+    const editButton = modal.querySelector('#btn-edit-marker')
+    const saveButton = modal.querySelector('#btn-save-description')
+    const cancelButton = modal.querySelector('#btn-cancel-description-edit')
+    const addPhotosButton = modal.querySelector('#btn-add-photos')
+    const deleteMarkerButton = modal.querySelector('#btn-delete-marker')
+
+    // Function to toggle edit mode
+    const toggleEditMode = (isEditing) => {
+      if (isEditing) {
+        descriptionDisplay.classList.add('hidden')
+        descriptionEdit.classList.remove('hidden')
+        editButton.classList.add('hidden')
+        saveButton.classList.remove('hidden')
+        cancelButton.classList.remove('hidden')
+        addPhotosButton.disabled = true // Disable other buttons during edit
+        deleteMarkerButton.disabled = true
+        descriptionEdit.focus()
+        descriptionEdit.setSelectionRange(descriptionEdit.value.length, descriptionEdit.value.length) // Put cursor at end
+      } else {
+        descriptionDisplay.classList.remove('hidden')
+        descriptionEdit.classList.add('hidden')
+        editButton.classList.remove('hidden')
+        saveButton.classList.add('hidden')
+        cancelButton.classList.add('hidden')
+        addPhotosButton.disabled = false // Re-enable
+        deleteMarkerButton.disabled = false
+      }
+    }
+
     // Action button listeners
-    modal.querySelector('#btn-add-photos')?.addEventListener('click', () => {
+    editButton?.addEventListener('click', () => {
+      toggleEditMode(true)
+      if (onEditMarker) onEditMarker(markerDetails.id) // Notify app.js that edit mode started
+    })
+
+    saveButton?.addEventListener('click', () => {
+      const newDescription = descriptionEdit.value.trim()
+      if (onSaveDescription) {
+        onSaveDescription(markerDetails.id, newDescription)
+      }
+      toggleEditMode(false) // Exit edit mode
+    })
+
+    cancelButton?.addEventListener('click', () => {
+      descriptionEdit.value = markerDetails.description || '' // Revert to original
+      toggleEditMode(false) // Exit edit mode
+    })
+
+    addPhotosButton?.addEventListener('click', () => {
       if (onAddPhotos) onAddPhotos(markerDetails.id)
     })
-    modal.querySelector('#btn-edit-marker')?.addEventListener('click', () => {
-      if (onEditMarker) onEditMarker(markerDetails.id)
-    })
-    modal.querySelector('#btn-delete-marker')?.addEventListener('click', () => {
+
+    deleteMarkerButton?.addEventListener('click', () => {
       if (onDeleteMarker && confirm('Are you sure you want to delete this marker and all its associated photos? This cannot be undone.')) {
         onDeleteMarker(markerDetails.id)
       }
     })
 
-    // TODO: Add event listeners for delete photo buttons if any
+    // Add event listeners for delete photo buttons if any
+    modal.querySelectorAll('.delete-photo-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const photoId = button.dataset.photoId
+        console.log('Delete photo button clicked for photoId:', photoId)
+        if (onDeletePhoto && confirm('Are you sure you want to remove this photo from the marker?')) {
+          onDeletePhoto(markerDetails.id, photoId)
+        }
+      })
+    })
 
     requestAnimationFrame(() => {
       modal.classList.add('show')
+    })
+
+    return modal
+  }
+
+  /**
+   * Creates and displays a modal for editing marker details.
+   * @param {Object} markerData - Marker data to edit (id, description).
+   * @param {Function} onSave - Callback when save button is clicked (receives updated description).
+   * @param {Function} onCancel - Callback when cancel button or close is clicked.
+   * @returns {HTMLElement} - The created modal element.
+   */
+  createEditMarkerModal (markerData, onSave, onCancel) {
+    const modalHtml = `
+      <div class="modal" id="edit-marker-modal" data-marker-id="${markerData.id}">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Edit Marker: ${markerData.id.substring(markerData.id.length - 4)}</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-marker-form">
+              <div class="form-group">
+                <label for="marker-description-edit">Description</label>
+                <textarea id="marker-description-edit" class="form-control" rows="5" maxlength="500" placeholder="Enter a description for this marker...">${markerData.description || ''}</textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="btn-cancel-edit" type="button">Cancel</button>
+            <button class="btn btn-primary" id="btn-save-edit" type="submit" form="edit-marker-form">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    `
+
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create edit marker modal element.')
+      if (onCancel) onCancel()
+      return null
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    const descriptionInput = modal.querySelector('#marker-description-edit')
+
+    const closeModal = () => {
+      this.closeModal(modal)
+      if (onCancel) onCancel()
+    }
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
+    modal.querySelector('#btn-cancel-edit')?.addEventListener('click', closeModal)
+
+    modal.querySelector('#btn-save-edit')?.addEventListener('click', (e) => {
+      e.preventDefault() // Prevent form default submission
+      if (onSave) {
+        onSave(descriptionInput.value)
+      }
+      this.closeModal(modal)
+    })
+
+    // If form has a submit event, ensure it also calls onSave
+    modal.querySelector('#edit-marker-form')?.addEventListener('submit', (e) => {
+      e.preventDefault()
+      if (onSave) {
+        onSave(descriptionInput.value)
+      }
+      this.closeModal(modal)
+    })
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show')
+      // Auto-focus description field
+      descriptionInput.focus()
     })
 
     return modal
