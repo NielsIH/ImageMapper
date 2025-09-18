@@ -449,11 +449,14 @@ class ImageMapperApp {
    * Orchestrates displaying the comprehensive Maps Management Modal.
    * This includes fetching maps, generating thumbnails, and handling all map actions within the modal.
    */
-  /**
-   * Orchestrates displaying the comprehensive Maps Management Modal.
-   * This includes fetching maps, generating thumbnails, and handling all map actions within the modal.
-   */
   async showMapManagementModal () {
+    // Check if a map management modal is already active via the central ModalManager
+    // This helps prevent opening multiple if another part of the app is also triggering it
+    // without proper closure.
+    if (this.modalManager.getTopModalId() === 'map-management-modal') {
+      return
+    }
+
     this.showLoading('Loading map management...', false)
     try {
       await this.loadMaps()
@@ -475,32 +478,35 @@ class ImageMapperApp {
         return { ...map, thumbnailDataUrl }
       }))
       const currentActiveMapId = this.currentMap ? this.currentMap.id : null
-      this.modalManager.createMapManagementModal(
+
+      const mapManagementModalInstance = this.modalManager.createMapManagementModal(
         mapsWithThumbnails,
         currentActiveMapId,
-        async (mapId) => {
+        async (mapId) => { // onMapSelected callback
           await this.switchToMap(mapId)
-          // REMOVE THIS LINE: this.showMapManagementModal()
-          // The modal will close naturally after map selection.
+          // The modal.closeModal() is handled internally by modalManager during click,
+          // which then triggers the final onClose callback below.
         },
-        async (mapId) => {
+        async (mapId) => { // onMapDelete callback
           await this.deleteMap(mapId)
-          // After delete, re-show the modal with updated list unless no maps left
+          // This ensures the current map management modal instance is completely gone.
+          await this.modalManager.closeModal(mapManagementModalInstance)
+          // Re-show the map management modal with the updated list
           this.showMapManagementModal()
         },
-        async () => {
+        async () => { // onAddNewMap callback
+          await this.modalManager.closeModal(mapManagementModalInstance)
           this.showUploadModal()
         },
-        // onExportMap callback (NEW)
+        // onExportMap callback
         async (mapId) => {
-          console.log(`Export map ${mapId} clicked`)
-          this.modalManager.closeTopModal() // Close the management modal
-          await this.exportHtmlReport(mapId) // Call the new export function
+          await this.modalManager.closeModal(mapManagementModalInstance)
+          await this.exportHtmlReport(mapId)
         },
-        () => {
+        () => { // Final onClose callback passed to createMapManagementModal (triggered by any closing event)
           this.updateAppStatus('Ready')
         },
-        () => {
+        () => { // onModalReady callback (triggered when modal is shown after animation)
           this.hideLoading()
         }
       )
@@ -522,35 +528,30 @@ class ImageMapperApp {
       this.showErrorMessage('Error', 'No map selected for deletion.')
       return
     }
-
     try {
       this.showLoading('Deleting map...')
-
       const wasActiveMap = this.currentMap && this.currentMap.id === mapId
       // const willBeEmpty = this.mapsList.length <= 1 // Check if this is the last map
-
       await this.storage.deleteMap(mapId) // Delete from IndexedDB
       this.thumbnailCache.delete(mapId) // Clear from thumbnail cache
       this.uploadedFiles.delete(mapId) // Clear from uploaded files cache
-
       await this.loadMaps() // Reload all maps from storage to get updated list
-
       if (this.mapsList.length === 0) {
-        // If no maps left, reset currentMap and show welcome screen
+      // If no maps left, reset currentMap and show welcome screen
         this.currentMap = null
         this.checkWelcomeScreen()
         this.mapRenderer.dispose() // Clean up renderer resources
         this.mapRenderer = new MapRenderer('map-canvas') // Re-initialize for empty state
         this.showNotification('All maps deleted. Ready for new upload.', 'info')
       } else if (wasActiveMap) {
-        // If the deleted map was active, activate the first available map
+      // If the deleted map was active, activate the first available map
         const firstMap = this.mapsList[0]
         if (firstMap) {
           await this.storage.setActiveMap(firstMap.id)
           await this.displayMap(firstMap)
           this.showNotification(`Active map changed to: ${firstMap.name}`, 'info')
         } else {
-          // Fallback if somehow no other map is found (shouldn't happen with mapsList.length > 0)
+        // Fallback if somehow no other map is found (shouldn't happen with mapsList.length > 0)
           this.currentMap = null
           this.checkWelcomeScreen()
           this.mapRenderer.dispose()
@@ -558,8 +559,9 @@ class ImageMapperApp {
         }
       }
       this.showNotification('Map deleted successfully.', 'success')
-      // Re-show map management modal to reflect changes
-      await this.showMapManagementModal() // Re-open modal to update map list
+    // REMOVE THIS LINE: The decision to re-open the map management modal
+    // belongs to the onMapDelete callback, not deleteMap itself.
+    // await this.showMapManagementModal() // Re-open modal to update map list
     } catch (error) {
       console.error('Error deleting map:', error)
       this.showErrorMessage('Deletion Failed', `Failed to delete map: ${error.message}`)

@@ -40,6 +40,7 @@ class ModalManager {
    * @returns {HTMLElement} - Modal element.
    */
   createMapManagementModal (maps, activeMapId, onMapSelected, onMapDelete, onAddNewMap, onExportMap, onClose, onModalReady) { // Added onExportMap
+    console.log('ModalManager: Creating new Map Management Modal.')
     const modalHtml = `
       <div class="modal" id="map-management-modal">
         <div class="modal-backdrop"></div>
@@ -130,27 +131,27 @@ class ModalManager {
       })
     })
 
-    // Delete map button listener - no change needed, it already uses stopPropagation
+    // Delete map button listener
     modal.querySelectorAll('.delete-map-btn').forEach(button => {
-      button.addEventListener('click', (e) => {
+      button.addEventListener('click', async (e) => { // Keep async
         e.stopPropagation()
         const mapId = button.dataset.mapId
-        if (onMapDelete && confirm('Are you sure you want to delete this map? This cannot be undone.')) {
-          onMapDelete(mapId)
-          this.closeModal(modal)
+        if (confirm('Are you sure you want to delete this map? This cannot be undone!')) {
+          if (onMapDelete) {
+            await onMapDelete(mapId)
+          }
         }
       })
     })
 
-    // Export map button listener - no change needed, it already uses stopPropagation
+    // Export map button listener
     modal.querySelectorAll('.export-map-btn').forEach(button => {
-      button.addEventListener('click', (e) => {
+      button.addEventListener('click', async (e) => { // Keep async
         e.stopPropagation()
         const mapId = button.dataset.mapId
         if (onExportMap) {
-          onExportMap(mapId)
-          // Optionally close modal after export, or leave open if user might export multiple
-          // this.closeModal(modal);
+          // Similarly, await the onExportMap callback from app.js
+          await onExportMap(mapId)
         }
       })
     })
@@ -733,15 +734,72 @@ class ModalManager {
   /**
    * Close a specific modal
    */
-  closeModal (modal) {
-    modal.classList.remove('show')
-    this.activeModals.delete(modal)
+  // closeModal (modal) {
+  //   modal.classList.remove('show')
+  //   this.activeModals.delete(modal)
 
-    setTimeout(() => {
-      if (modal.parentNode) {
-        modal.parentNode.removeChild(modal)
+  //   setTimeout(() => {
+  //     if (modal.parentNode) {
+  //       modal.parentNode.removeChild(modal)
+  //     }
+  //   }, 300) // Wait for CSS transition
+  // }
+
+  /**
+   * Close a specific modal.
+   * Returns a Promise that resolves when the modal is fully removed from DOM.
+   */
+  closeModal (modal) {
+    console.log(`ModalManager: Attempting to close modal with ID: ${modal ? modal.id : 'N/A'}`)
+    return new Promise(resolve => {
+      if (!modal || !this.activeModals.has(modal)) {
+        console.warn(`ModalManager: closeModal called for non-active or null modal: ${modal ? modal.id : 'N/A'}`)
+        resolve()
+        return
       }
-    }, 300) // Wait for CSS transition
+
+      modal.classList.remove('show')
+      this.activeModals.delete(modal)
+      console.log(`ModalManager: Removed modal ${modal.id} from activeModals set. Remaining: ${this.activeModals.size}`)
+
+      const handleTransitionEnd = () => {
+        modal.removeEventListener('transitionend', handleTransitionEnd)
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal)
+          console.log(`ModalManager: Modal ${modal.id} removed from DOM via transitionend.`)
+        } else {
+          console.warn(`ModalManager: Modal ${modal.id} parentNode was null on transitionend.`)
+        }
+        resolve()
+      }
+
+      const computedStyle = window.getComputedStyle(modal)
+      const transitionDuration = parseFloat(computedStyle.transitionDuration || '0') * 1000
+
+      if (transitionDuration === 0) {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal)
+          console.log(`ModalManager: Modal ${modal.id} removed from DOM (no transition).`)
+        } else {
+          console.warn(`ModalManager: Modal ${modal.id} parentNode was null (no transition).`)
+        }
+        resolve()
+      } else {
+        modal.addEventListener('transitionend', handleTransitionEnd)
+        const fallbackTimer = setTimeout(() => { // Store for potential clear
+          if (modal.parentNode && modal.contains(modal.parentNode)) {
+            modal.parentNode.removeChild(modal)
+            console.warn(`ModalManager: Modal ${modal.id} removed from DOM via setTimeout fallback.`)
+          } else if (!modal.parentNode) {
+            console.warn(`ModalManager: Modal ${modal.id} parentNode was null on setTimeout fallback.`)
+          }
+          resolve()
+        }, transitionDuration + 100) // Increased buffer
+
+        // Clear fallback if transitionend fires first
+        modal.addEventListener('transitionend', () => clearTimeout(fallbackTimer), { once: true })
+      }
+    })
   }
 
   /**
