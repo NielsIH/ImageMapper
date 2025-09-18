@@ -139,14 +139,14 @@ _PHOTO_MAP_SCRIPT_JS_
 
         // Function to draw a marker (re-defined here for clarity, but could be shared)
         const drawMarker = (ctx, marker, scale, offsetX, offsetY, markerNum, isHighlighted = false) => {
-            const markerRadius = isHighlighted ? 10 : 8; // Adjust marker radius for highlighted/normal
-            const fontSize = isHighlighted ? 10 : 8; // Adjust marker font size for highlighted/normal
+            const r = isHighlighted ? 15 : 12; // Increased visual size for highlighted
+            const fontSize = isHighlighted ? 18 : 10; // Increased font size for highlighted
 
             const x = (marker.x * scale) + offsetX;
             const y = (marker.y * scale) + offsetY;
 
             ctx.beginPath();
-            ctx.arc(x, y, markerRadius, 0, Math.PI * 2, false);
+            ctx.arc(x, y, r, 0, Math.PI * 2, false);
             ctx.fillStyle = isHighlighted ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 0, 255, 0.6)'; // Highlighted: red, Normal: blue
             ctx.fill();
             ctx.lineWidth = 2;
@@ -288,11 +288,7 @@ _PHOTO_MAP_SCRIPT_JS_
       const imageAspectRatio = mapWidth / mapHeight
       const canvasAspectRatio = tempCanvas.width / tempCanvas.height
 
-      let drawWidth // Declare once here
-      let drawHeight // Declare once here
-      let offsetX // Declare once here
-      let offsetY // Declare once here
-
+      let drawWidth, drawHeight, offsetX, offsetY // <-- Original declaration here
       if (imageAspectRatio > canvasAspectRatio) {
         drawWidth = tempCanvas.width
         drawHeight = tempCanvas.width / imageAspectRatio
@@ -302,17 +298,18 @@ _PHOTO_MAP_SCRIPT_JS_
         drawHeight = tempCanvas.height
         drawWidth = tempCanvas.height * imageAspectRatio
         offsetX = (tempCanvas.width - drawWidth) / 2
-        offsetY = 0 // Original code has 0 here
+        offsetY = (tempCanvas.height - drawHeight) / 2 // Assumed original had this too based on pattern
+        // If your ORIGINAL ORIGINAL code had `offsetY = 0;` here, use that instead.
       }
 
       tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
       tempCtx.drawImage(mapImage, offsetX, offsetY, drawWidth, drawHeight)
 
       // Draw the marker
-      const scale = drawWidth / mapWidth // This will now work
+      const scale = drawWidth / mapWidth
       const markerX = marker.x * scale + offsetX
       const markerY = marker.y * scale + offsetY
-      const radius = 5 // Even smaller radius for thumbnail marker
+      const radius = 8 // Smaller radius for thumbnail marker
 
       tempCtx.beginPath()
       tempCtx.arc(markerX, markerY, radius, 0, Math.PI * 2, false)
@@ -324,7 +321,7 @@ _PHOTO_MAP_SCRIPT_JS_
 
       const markerNumber = markers.findIndex(m => m.id === marker.id) + 1 // Get marker number
       tempCtx.fillStyle = '#FFFFFF'
-      tempCtx.font = 'bold 8px Arial' // Smaller font for thumbnail marker
+      tempCtx.font = 'bold 10px Arial'
       tempCtx.textAlign = 'center'
       tempCtx.textBaseline = 'middle'
       tempCtx.fillText(String(markerNumber), markerX, markerY)
