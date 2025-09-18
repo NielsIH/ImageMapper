@@ -70,7 +70,7 @@ header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #ddd;
 .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
 .modal-content-map { background: #fff; padding: 15px; border-radius: 8px; max-width: 95vw; max-height: 95vh; overflow: hidden; position: relative; }
 .modal-content-map button.close-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 2em; cursor: pointer; color: #555; }
-.full-map-canvas-container { border: 1px solid #ddd; background-color: #eee; width: 800px; height: 600px; max-width: calc(95vw - 30px); max-height: calc(95vh - 30px); position: relative; overflow: hidden; }
+.full-map-canvas-container { border: 1px solid #ddd; background-color: #eee; width: 1000px; height: 750px; max-width: calc(95vw - 30px); max-height: calc(95vh - 30px); position: relative; overflow: hidden; }
 .full-map-canvas { display: block; }
 .full-map-caption { text-align: center; color: #444; font-size: 1.1em; margin-top: 10px; }
 @media (max-width: 768px) {
@@ -139,14 +139,14 @@ _PHOTO_MAP_SCRIPT_JS_
 
         // Function to draw a marker (re-defined here for clarity, but could be shared)
         const drawMarker = (ctx, marker, scale, offsetX, offsetY, markerNum, isHighlighted = false) => {
-            const r = isHighlighted ? 15 : 12; // Increased visual size for highlighted
-            const fontSize = isHighlighted ? 18 : 10; // Increased font size for highlighted
+            const markerRadius = isHighlighted ? 10 : 8; // Adjust marker radius for highlighted/normal
+            const fontSize = isHighlighted ? 10 : 8; // Adjust marker font size for highlighted/normal
 
             const x = (marker.x * scale) + offsetX;
             const y = (marker.y * scale) + offsetY;
 
             ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2, false);
+            ctx.arc(x, y, markerRadius, 0, Math.PI * 2, false);
             ctx.fillStyle = isHighlighted ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 0, 255, 0.6)'; // Highlighted: red, Normal: blue
             ctx.fill();
             ctx.lineWidth = 2;
@@ -288,7 +288,11 @@ _PHOTO_MAP_SCRIPT_JS_
       const imageAspectRatio = mapWidth / mapHeight
       const canvasAspectRatio = tempCanvas.width / tempCanvas.height
 
-      let drawWidth, drawHeight, offsetX, offsetY
+      let drawWidth // Declare once here
+      let drawHeight // Declare once here
+      let offsetX // Declare once here
+      let offsetY // Declare once here
+
       if (imageAspectRatio > canvasAspectRatio) {
         drawWidth = tempCanvas.width
         drawHeight = tempCanvas.width / imageAspectRatio
@@ -298,16 +302,17 @@ _PHOTO_MAP_SCRIPT_JS_
         drawHeight = tempCanvas.height
         drawWidth = tempCanvas.height * imageAspectRatio
         offsetX = (tempCanvas.width - drawWidth) / 2
+        offsetY = 0 // Original code has 0 here
       }
 
       tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
       tempCtx.drawImage(mapImage, offsetX, offsetY, drawWidth, drawHeight)
 
       // Draw the marker
-      const scale = drawWidth / mapWidth
+      const scale = drawWidth / mapWidth // This will now work
       const markerX = marker.x * scale + offsetX
       const markerY = marker.y * scale + offsetY
-      const radius = 8 // Smaller radius for thumbnail marker
+      const radius = 5 // Even smaller radius for thumbnail marker
 
       tempCtx.beginPath()
       tempCtx.arc(markerX, markerY, radius, 0, Math.PI * 2, false)
@@ -319,7 +324,7 @@ _PHOTO_MAP_SCRIPT_JS_
 
       const markerNumber = markers.findIndex(m => m.id === marker.id) + 1 // Get marker number
       tempCtx.fillStyle = '#FFFFFF'
-      tempCtx.font = 'bold 10px Arial'
+      tempCtx.font = 'bold 8px Arial' // Smaller font for thumbnail marker
       tempCtx.textAlign = 'center'
       tempCtx.textBaseline = 'middle'
       tempCtx.fillText(String(markerNumber), markerX, markerY)
