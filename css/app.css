@@ -169,7 +169,7 @@ body {
     align-items: flex-start; /* Align primary axis items to the start (top) */
     z-index: 10;
     padding: var(--spacing-sm); /* Add padding around the whole unit */
-    background-color: var(--bg-light); 
+    background-color: var(--bg-dark); 
     border-radius: 12px; /* Rounded corners for the container */
     box-shadow: var(--shadow-lg); /* Prominent shadow */
     cursor: default; /* Change cursor back from grab if coming from map-container */
@@ -183,7 +183,7 @@ body {
 .toggle-controls-btn {
     background-color: transparent;
     border: none;
-    color: var(--secondary-color); /* Light color for visibility on dark background */
+    color: var(--bg-primary); /* Light color for visibility on dark background */
     font-size: 1.5rem;
     cursor: pointer;
     align-self: center; /* Ensures the arrow itself is centered vertically within the button */

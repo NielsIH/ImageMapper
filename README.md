@@ -116,8 +116,6 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 
 ### Current Limitations (Phase 1D)
 - Settings modal is not implemented
-- Server synchronization is not implemented (Phase 2)
-- Advanced metadata management is not implemented (Phase 2)
 
 _**Removed previous limitations as they are now implemented.**_
 
