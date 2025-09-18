@@ -53,37 +53,42 @@ class ModalManager {
               ${maps.length === 0
                 ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
                 : `
-                <ul class="maps-list">
-                  ${maps.map(map => `
-                    <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
-                      <div class="map-card-content">
-                        <div class="map-thumbnail-container">
-                          ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`}
+                <div class="maps-list-container">
+                  <ul class="maps-list">
+                    ${maps.map(map => `
+                      <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
+                        <div class="map-card-content">
+                          <div class="map-thumbnail-container">
+                            ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`}
+                          </div>
+                          <div class="map-info">
+                            <span class="map-name">${map.name}</span>
+                            <span class="map-details">${map.width} × ${map.height} px</span>
+                            ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
+                          </div>
                         </div>
-                        <div class="map-info">
-                          <span class="map-name">${map.name}</span>
-                          <span class="map-details">${map.width} × ${map.height} px</span>
-                          ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
+                        <div class="map-item-actions-wrapper">
+                          <button class="btn btn-primary btn-small map-action-btn export-map-btn" data-map-id="${map.id}" title="Export HTML Report">
+                            <span class="icon">📊</span> <span class="btn-text">Export</span>
+                          </button>
+                          <button class="btn btn-danger btn-small map-action-btn delete-map-btn" data-map-id="${map.id}" title="Delete Map">
+                            <span class="icon">🗑️</span> <span class="btn-text">Delete</span>
+                          </button>
                         </div>
-                      </div>
-                      <div class="map-item-actions">
-                        <button class="btn btn-primary btn-small export-map-btn" data-map-id="${map.id}" title="Export HTML Report">📊</button> <!-- NEW EXPORT BUTTON -->
-                        <button class="btn btn-danger btn-small delete-map-btn" data-map-id="${map.id}" title="Delete Map">🗑️</button>
-                      </div>
-                    </li>
-                  `).join('')}
-                </ul>
+                      </li>
+                    `).join('')}
+                  </ul>
+                </div>
               `}
-            </div>
-            <div class="map-actions-footer">
-                <button class="btn btn-primary btn-large add-new-map-btn" type="button">
-                    ➕ Add New Map
-                </button>
             </div>
           </div>
           
-          <div class="modal-footer hidden">
-            <!-- No footer actions needed here, moved to map-actions-footer inside body -->
+          <div class="modal-footer">
+            <div class="modal-actions">
+                <button class="btn btn-primary add-new-map-btn" type="button">
+                    ➕ Add New Map
+                </button>
+            </div>
           </div>
         </div>
       </div>
@@ -106,25 +111,26 @@ class ModalManager {
       this.closeModal(modal)
       if (onClose) onClose()
     }
-
+    // Close
     modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
     modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
 
     // Select map (list item click)
+    // Adjusted to prevent clicks on buttons from triggering map selection
     modal.querySelectorAll('.map-list-item.clickable').forEach(item => {
       item.addEventListener('click', (e) => {
-        // Prevent event from propagating to delete/export button if clicked
-        if (e.target.closest('.delete-map-btn') || e.target.closest('.export-map-btn')) return
-
-        const mapId = item.dataset.mapId
-        if (onMapSelected) {
-          onMapSelected(mapId)
-          this.closeModal(modal)
+        // Only trigger map selection if the click is directly on the content, not buttons
+        if (!e.target.closest('.map-action-btn')) {
+          const mapId = item.dataset.mapId
+          if (onMapSelected) {
+            onMapSelected(mapId)
+            this.closeModal(modal)
+          }
         }
       })
     })
 
-    // Delete map button
+    // Delete map button listener - no change needed, it already uses stopPropagation
     modal.querySelectorAll('.delete-map-btn').forEach(button => {
       button.addEventListener('click', (e) => {
         e.stopPropagation()
@@ -136,20 +142,20 @@ class ModalManager {
       })
     })
 
-    // NEW: Export map button
+    // Export map button listener - no change needed, it already uses stopPropagation
     modal.querySelectorAll('.export-map-btn').forEach(button => {
       button.addEventListener('click', (e) => {
-        e.stopPropagation() // Prevent this click from triggering the parent li's click
+        e.stopPropagation()
         const mapId = button.dataset.mapId
-        if (onExportMap) { // Check if the callback exists
-          onExportMap(mapId) // Call the export callback
-          // Optionally close modal after export, or leave open
+        if (onExportMap) {
+          onExportMap(mapId)
+          // Optionally close modal after export, or leave open if user might export multiple
           // this.closeModal(modal);
         }
       })
     })
 
-    // Add New Map button
+    // Add New Map button listener - no change needed, it already uses stopPropagation
     modal.querySelector('.add-new-map-btn')?.addEventListener('click', (e) => {
       e.stopPropagation()
       if (onAddNewMap) {
@@ -158,7 +164,7 @@ class ModalManager {
       }
     })
 
-    // Populate map initials if no thumbnail
+    // Populate map initials if no thumbnail - no change needed
     modal.querySelectorAll('.map-initials').forEach(initialsDiv => {
       const mapId = initialsDiv.closest('.map-list-item')?.dataset.mapId
       const map = maps.find(m => m.id === mapId)

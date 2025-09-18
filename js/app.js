@@ -455,13 +455,10 @@ class ImageMapperApp {
    */
   async showMapManagementModal () {
     this.showLoading('Loading map management...', false)
-
     try {
       await this.loadMaps()
-
       const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
         let thumbnailDataUrl = this.thumbnailCache.get(map.id)
-
         if (!thumbnailDataUrl && map.imageData && map.imageData instanceof Blob) {
           try {
             thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100)
@@ -477,18 +474,19 @@ class ImageMapperApp {
         }
         return { ...map, thumbnailDataUrl }
       }))
-
       const currentActiveMapId = this.currentMap ? this.currentMap.id : null
-
       this.modalManager.createMapManagementModal(
         mapsWithThumbnails,
         currentActiveMapId,
         async (mapId) => {
           await this.switchToMap(mapId)
-          this.showMapManagementModal()
+          // REMOVE THIS LINE: this.showMapManagementModal()
+          // The modal will close naturally after map selection.
         },
         async (mapId) => {
           await this.deleteMap(mapId)
+          // After delete, re-show the modal with updated list unless no maps left
+          this.showMapManagementModal()
         },
         async () => {
           this.showUploadModal()
@@ -506,7 +504,6 @@ class ImageMapperApp {
           this.hideLoading()
         }
       )
-
       this.updateAppStatus('Map management displayed')
     } catch (error) {
       console.error('Error showing map management modal:', error)

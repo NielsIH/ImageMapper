@@ -457,7 +457,7 @@ body {
   }
 }
 
-/* Modal styles */
+/* --- Modals - General Styling --- */
 .modal {
   position: fixed;
   top: 0;
@@ -494,12 +494,14 @@ body {
   box-shadow: var(--shadow-lg);
   max-width: 90vw;
   max-height: 90vh;
-  width: 600px;
+  width: 600px; /* Default width for wider modals */
   overflow: hidden;
   position: relative;
   z-index: 1;
   transform: scale(0.9);
   transition: transform 0.3s ease;
+  display: flex; /* Use flexbox for modal content */
+  flex-direction: column; /* Stack header, body, footer vertically */
 }
 
 .modal.show .modal-content {
@@ -507,11 +509,12 @@ body {
 }
 
 .modal-header {
-  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg); /* Adjust padding */
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .modal-header h3 {
@@ -544,20 +547,214 @@ body {
 
 .modal-body {
   padding: var(--spacing-lg);
-  max-height: 60vh;
-  overflow-y: auto;
+  flex-grow: 1; /* Allow body to grow and shrink */
+  overflow-y: auto; /* Scroll only the body if content overflows */
+  display: flex;
+  flex-direction: column; /* Ensure child elements are stacked */
 }
 
 .modal-footer {
-  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
+  flex-shrink: 0; /* Prevent footer from shrinking */
+  display: flex; /* Keep for general modal-actions if used */
+  justify-content: flex-end;
+}
+
+.modal-footer.hidden { /* To completely hide it when empty */
+  display: none;
 }
 
 .modal-actions {
   display: flex;
   gap: var(--spacing-sm);
   justify-content: flex-end;
+  width: 100%; /* Ensure actions take full width in footer */
+}
+
+/* --- Maps Management Modal Specific Styles --- */
+.maps-management-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.maps-list-container { /* New container for the ul, to manage its scrolling and flex-grow */
+  flex-grow: 1;
+  overflow-y: auto; /* Allows scrolling only the list */
+  padding: 0; /* Ensures no padding pushing content */
+  margin: 0;
+}
+
+.maps-list {
+  list-style: none; /* Remove bullet points */
+  padding: 0;
+  margin: 0;
+}
+
+.map-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Distribute space between content and actions */
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm); /* Spacing between cards */
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px; /* Rounded corners for card feel */
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.map-list-item:last-of-type { /* Use last-of-type for robustness */
+  margin-bottom: 0;
+}
+
+.map-list-item.clickable {
+  cursor: pointer;
+}
+
+.map-list-item.clickable:hover {
+  background-color: var(--bg-secondary);
+  transform: translateY(-2px); /* Subtle lift on hover */
+}
+
+.map-list-item.active {
+  border: 2px solid var(--primary-color); /* Stronger active border */
+  padding: calc(var(--spacing-sm) - 1px) calc(var(--spacing-md) - 1px); /* Adjust padding for thicker border */
+  background-color: var(--bg-secondary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); /* Outer glow for active */
+}
+
+.map-card-content { /* New style for the content wrapper */
+  display: flex;
+  align-items: center;
+  flex-grow: 1; /* Allows content to take available space */
+  gap: var(--spacing-md);
+}
+
+.map-thumbnail-container {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  background-color: var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.map-thumbnail {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.map-initials {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--text-secondary);
+}
+
+.map-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.map-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.map-details {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.active-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  background-color: rgba(37, 99, 235, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 4px;
+  margin-top: var(--spacing-xs);
+  align-self: flex-start;
+}
+
+.map-item-actions-wrapper { /* New wrapper for export and delete buttons */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+  margin-left: var(--spacing-md);
+}
+
+/* Shared button style for export/delete actions within list items */
+.map-action-btn {
+  background: transparent; /* Changed to transparent, use hover for background */
+  border: 1px solid var(--border-color); /* Added border */
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  line-height: 1;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  -webkit-tap-highlight-color: transparent;
+  font-size: 0.9rem; /* Smaller font for text */
+}
+.map-action-btn:hover {
+  filter: brightness(0.95); /* Slight darken on hover for general action buttons */
+  box-shadow: var(--shadow);
+}
+
+
+/* Specific styling for delete button in map list */
+.map-item-actions-wrapper .delete-map-btn {
+  color: var(--danger-color);
+  border-color: var(--danger-color); /* Border color for danger button */
+}
+.map-item-actions-wrapper .delete-map-btn:hover {
+  background-color: var(--danger-color); /* Light red background on hover */
+  color: white;
+  filter: none;
+}
+
+/* Specific styling for export button in map list */
+.map-item-actions-wrapper .export-map-btn {
+  color: var(--primary-color);
+  border-color: var(--primary-color); /* Border color for primary button */
+}
+.map-item-actions-wrapper .export-map-btn:hover {
+  background-color: var(--primary-color); /* Light primary background on hover */
+  color: white;
+  filter: none;
+}
+
+/* Ensure consistent icon sizing in action buttons */
+.map-action-btn .icon {
+  font-size: 1.25rem; /* Icon size */
+}
+
+/* Hide button text on smaller screens (for these specific action buttons) */
+@media (max-width: 480px) {
+  .map-action-btn .btn-text {
+    display: none;
+  }
+  .map-action-btn {
+    padding: var(--spacing-sm); /* Increase padding for icon-only button */
+  }
 }
 
 /* Upload Modal Specific Styles */
@@ -722,10 +919,6 @@ textarea.form-control {
   margin: 0;
 }
 
-.checkmark {
-  position: relative;
-}
-
 /* Error Display */
 .upload-error {
   margin: var(--spacing-md) 0;
@@ -769,7 +962,18 @@ textarea.form-control {
   justify-content: flex-end;
 }
 
-/* Responsive Modal */
+/* Add New Map Button in Footer */
+.modal-footer .add-new-map-btn {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto; /* Center the button */
+  font-size: 1.05rem;
+  padding: var(--spacing-md) var(--spacing-lg);
+  min-height: calc(var(--touch-target) + var(--spacing-sm));
+  text-align: center; /* Ensure text is centered within button */
+}
+
+/* --- Responsive Adjustments for Modals --- */
 @media (max-width: 768px) {
   .modal-content {
     width: 95vw;
@@ -777,63 +981,301 @@ textarea.form-control {
     margin: var(--spacing-sm);
   }
 
-  /* Responsive adjustments for modal list */
-@media (max-width: 768px) {
-  .maps-list {
-    max-height: 40vh;
-  }
-  .map-list-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
-  }
-  .map-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
-  
-  
   .modal-header,
-  .modal-body,
-  .modal-footer {
+  .modal-body {
     padding: var(--spacing-md);
   }
-  
+  .modal-footer { /* Adjusted for consistency with body/header on smaller screens */
+    padding: var(--spacing-md);
+  }
+
+  .maps-list-container {
+    max-height: 55vh; /* Increased max-height for better fit on small screens */
+  }
+
+  .map-list-item {
+    flex-wrap: nowrap; /* Prevent wrapping at this breakpoint */
+    justify-content: space-between;
+    padding: var(--spacing-sm); /* Adjusted padding */
+    margin-bottom: var(--spacing-sm);
+  }
+  .map-list-item.active {
+    padding: calc(var(--spacing-sm) - 1px);
+  }
+
+  /* Responsive action button text hide for map items */
+  .map-item-actions-wrapper .map-action-btn .btn-text {
+    display: none;
+  }
+  .map-item-actions-wrapper .map-action-btn {
+    padding: var(--spacing-sm);
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+
+  .map-thumbnail-container {
+    width: 50px; /* Smaller thumbnail on smaller screens */
+    height: 50px;
+  }
+  .map-initials {
+    font-size: 1rem;
+  }
+
+  .map-info {
+    flex-basis: auto; /* Let content dictate width more */
+    flex-grow: 1;
+    margin-right: var(--spacing-sm); /* Space between info and actions */
+  }
+  .map-name {
+    font-size: 0.95rem;
+    margin-bottom: var(--spacing-xs);
+  }
+  .map-details {
+    font-size: 0.75rem;
+  }
+  .active-status {
+    font-size: 0.7rem;
+    padding: var(--spacing-xs);
+  }
+
   .file-preview {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
   }
-  
+
   .modal-actions {
-    flex-direction: column-reverse;
+    flex-direction: column-reverse; /* Stack buttons vertically in modals */
   }
-  
+
   .modal-actions .btn {
-    width: 100%;
+    width: 100%; /* Make modal buttons full width */
   }
 }
 
 @media (max-width: 480px) {
+  /* Smaller adjustments for very small screens */
+  .modal-content {
+    width: 98vw;
+    max-height: 98vh;
+    margin: var(--spacing-xs);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: var(--spacing-sm); /* Reduced padding for very small screens */
+  }
+
+  .maps-list-container {
+    max-height: 50vh; /* Re-adjust max-height for optimal viewing on very small phones */
+  }
+
+  .map-list-item {
+    padding: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+  }
+  .map-list-item.active {
+    padding: calc(var(--spacing-xs) - 1px);
+  }
+
+  .map-thumbnail-container {
+    width: 40px; /* Even smaller thumbnail size */
+    height: 40px;
+  }
+  .map-initials {
+    font-size: 0.9rem;
+  }
+
+  .map-name {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+  }
+  .map-details {
+    font-size: 0.65rem;
+  }
+  .active-status {
+    font-size: 0.6rem;
+    padding: 2px 4px; /* Even smaller badge */
+  }
+
+  .map-item-actions-wrapper .map-action-btn {
+    padding: var(--spacing-xs);
+    min-width: calc(var(--touch-target) - 10px); /* Slightly smaller touch target but still good */
+    min-height: calc(var(--touch-target) - 10px);
+  }
+
   .file-drop-zone {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
   }
-  
+
   .file-drop-icon {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
-  
+
   .file-drop-content h4 {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
-  
+
   .preview-image-container {
-    min-height: 100px;
+    min-height: 60px;
   }
-  
+
   .preview-image-container img {
-    max-height: 100px;
+    max-height: 60px;
+  }
+
+  .form-control {
+    padding: var(--spacing-xs);
+    font-size: 0.8rem;
+  }
+
+  .btn {
+    font-size: 0.8rem;
+    min-height: calc(var(--touch-target) - 4px);
+    padding: var(--spacing-sm);
+  }
+
+  .btn-large {
+    font-size: 0.85rem;
+    padding: var(--spacing-sm);
+  }
+
+  .modal-footer .add-new-map-btn {
+    font-size: 0.95rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+/* Marker Details Modal - Photo thumbnails */
+.photo-thumbnails-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-lg);
+}
+
+.photo-thumbnail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  padding: var(--spacing-xs);
+  position: relative;
+  transition: box-shadow 0.2s ease;
+  background-color: var(--bg-primary);
+}
+
+.photo-thumbnail-item:hover {
+  box-shadow: var(--shadow);
+}
+
+.photo-thumbnail-item .delete-photo-btn {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 1rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+  z-index: 1;
+  opacity: 0; /* Hidden by default */
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.photo-thumbnail-item:hover .delete-photo-btn {
+  opacity: 1; /* Show on hover */
+  transform: scale(1);
+}
+
+.photo-thumbnail {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.photo-name {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Marker Details/Edit Modal Styles */
+.marker-info-section {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.marker-info-section p {
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xs);
+}
+
+.marker-info-section p:last-child {
+  margin-bottom: 0;
+}
+
+.marker-description-display {
+  display: inline-block;
+  vertical-align: middle;
+  white-space: pre-wrap; /* Preserve formatting */
+}
+
+.marker-description-edit {
+  width: 100%;
+  display: block;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.photo-list-section h4 {
+  margin-bottom: var(--spacing-sm);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+div.modal-footer button#btn-edit-marker,
+div.modal-footer button#btn-add-photos,
+div.modal-footer button#btn-delete-marker {
+  min-width: 100px; /* Ensure these specific buttons have enough width */
+}
+
+/* Print styles (should remain at the end) */
+@media print {
+  .header,
+  .footer,
+  .map-controls,
+  .modal {
+    display: none;
+  }
+
+  .app-container {
+    height: auto;
+  }
+
+  .main-content {
+    overflow: visible;
   }
 }
 
