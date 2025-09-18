@@ -57,23 +57,27 @@
                     <canvas class="map-canvas" id="map-canvas"></canvas>
                 </div>
                 
-                <!-- Map Controls Overlay -->
-                <div class="map-controls">
-                    <div class="zoom-controls">
-                        <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
-                        <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+                <!-- NEW MAP CONTROLS WRAPPER -->
+                <div class="map-controls-wrapper">
+                    <button class="toggle-controls-btn" id="toggle-map-controls" title="Toggle Controls">
+                        <span class="icon">►</span>
+                    </button>
+                    <!-- Original map-controls div, now contained -->
+                    <div class="map-controls">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+                            <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+                        </div>
+                        <!-- MODIFIED: Wrapped text in span.btn-text -->
+                        <button class="btn btn-primary control-btn" id="btn-place-marker" title="Place New Marker">
+                            📌 <span class="btn-text">Place Marker</span>
+                        </button>
+                        <button class="btn btn-secondary control-btn" id="btn-map-list" title="Map List & Management">
+                            📋 <span class="btn-text">Manage Maps</span>
+                        </button>
                     </div>
-                    <!-- NEW: Place Marker Button -->
-                    <button class="btn btn-primary control-btn" id="btn-place-marker" title="Place New Marker">
-                        📌 Place Marker
-                    </button>
-                    <button class="btn btn-secondary control-btn" id="btn-map-list" title="Map List & Management">
-                        📋 Manage Maps
-                    </button>
-                    <!-- REMOVED:  <button class="btn btn-primary control-btn" id="btn-upload-new-map" title="Upload New Map">
-                        ⬆️ Upload
-                    </button> -->
                 </div>
+                <!-- END NEW MAP CONTROLS WRAPPER -->
             </div>
         </main>
 

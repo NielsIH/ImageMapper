@@ -12,6 +12,7 @@
         ImageProcessor
         HtmlReportGenerator
         Image
+        localStorage
         */
 
 class ImageMapperApp {
@@ -50,6 +51,9 @@ class ImageMapperApp {
     // NEW: State to track the type of interaction
     this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
+    this.mapControls = document.querySelector('.map-controls')
+    this.mapControlsWrapper = document.querySelector('.map-controls-wrapper')
+
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init())
@@ -79,6 +83,9 @@ class ImageMapperApp {
 
       // Load existing maps
       await this.loadMaps()
+
+      // Restore map controls state
+      this.restoreMapControlsState()
 
       // Check welcome screen visibility
       this.checkWelcomeScreen()
@@ -156,6 +163,12 @@ class ImageMapperApp {
     const placeMarkerBtn = document.getElementById('btn-place-marker')
     if (placeMarkerBtn) {
       placeMarkerBtn.addEventListener('click', () => this.placeMarker())
+    }
+
+    // NEW: Toggle Map Controls button
+    const toggleMapControlsBtn = document.getElementById('toggle-map-controls')
+    if (toggleMapControlsBtn) {
+      toggleMapControlsBtn.addEventListener('click', () => this.toggleMapsControls())
     }
   }
 
@@ -647,6 +660,40 @@ class ImageMapperApp {
       this.showErrorMessage('Error Placing Marker', error.message)
     } finally {
       this.hideLoading()
+    }
+  }
+
+  /**
+   * NEW: Method to toggle map controls and save state
+   */
+  toggleMapsControls () {
+    // IMPORTANT: Make sure `this.mapControlsWrapper` is being used here.
+    if (this.mapControlsWrapper) {
+      this.mapControlsWrapper.classList.toggle('minimized') // <--- CRITICAL FIX: Toggle on the wrapper
+      const isMinimized = this.mapControlsWrapper.classList.contains('minimized')
+      localStorage.setItem('mapControlsMinimized', isMinimized)
+      console.log('Toggled map controls. Minimized:', isMinimized)
+    } else {
+      console.warn('Cannot toggle map controls: mapControlsWrapper element not found.')
+    }
+  }
+
+  /**
+   * Restores the saved minimized state of the map controls from localStorage.
+   */
+  restoreMapControlsState () {
+    // IMPORTANT: Make sure `this.mapControlsWrapper` is being used here.
+    if (this.mapControlsWrapper) {
+      const savedState = localStorage.getItem('mapControlsMinimized')
+      if (savedState === 'true') {
+        this.mapControlsWrapper.classList.add('minimized') // <--- CRITICAL FIX: Add to the wrapper
+        console.log('Restored map controls to minimized state.')
+      } else {
+        this.mapControlsWrapper.classList.remove('minimized')
+        console.log('Restored map controls to expanded state.')
+      }
+    } else {
+      console.warn('Cannot restore map controls state: mapControlsWrapper element not found.')
     }
   }
 
