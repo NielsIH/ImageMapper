@@ -270,34 +270,37 @@ class MapStorage {
       throw new Error('Storage not initialized')
     }
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.mapStoreName, this.markerStoreName, this.photoStoreName], 'readwrite')
       const mapStore = transaction.objectStore(this.mapStoreName)
-      const markerStore = transaction.objectStore(this.markerStoreName)
-      const photoStore = transaction.objectStore(this.photoStoreName)
+      // const markerStore = transaction.objectStore(this.markerStoreName)
+      // const photoStore = transaction.objectStore(this.photoStoreName)
 
-      try {
-        // Delete associated markers and their photos
-        const markers = await this.getMarkersForMap(id, transaction) // Pass transaction
-        const markerDeletePromises = markers.map(marker => this._deleteMarkerInternal(marker.id, transaction))
-        await Promise.all(markerDeletePromises)
+      const deleteMarkersAndMap = async () => {
+        try {
+          // Delete associated markers and their photos
+          const markers = await this.getMarkersForMap(id, transaction) // Pass transaction
+          const markerDeletePromises = markers.map(marker => this._deleteMarkerInternal(marker.id, transaction))
+          await Promise.all(markerDeletePromises)
 
-        // Delete the map itself
-        const deleteMapRequest = mapStore.delete(id)
-        deleteMapRequest.onsuccess = () => {
-          console.log('MapStorage: Map deleted successfully', id)
+          // Delete the map itself
+          const deleteMapRequest = mapStore.delete(id)
+          deleteMapRequest.onsuccess = () => {
+            console.log('MapStorage: Map deleted successfully', id)
+          }
+          deleteMapRequest.onerror = (event) => {
+            console.error('MapStorage: Failed to delete map', event.target.error)
+            reject(new Error(`Failed to delete map: ${event.target.error}`))
+          }
+
+          transaction.oncomplete = () => resolve(true)
+          transaction.onerror = (event) => reject(new Error(`Transaction failed: ${event.target.error}`))
+          transaction.onabort = (event) => reject(new Error(`Transaction aborted: ${event.target.error}`))
+        } catch (error) {
+          reject(error)
         }
-        deleteMapRequest.onerror = (event) => {
-          console.error('MapStorage: Failed to delete map', event.target.error)
-          reject(new Error(`Failed to delete map: ${event.target.error}`))
-        }
-
-        transaction.oncomplete = () => resolve(true)
-        transaction.onerror = (event) => reject(new Error(`Transaction failed: ${event.target.error}`))
-        transaction.onabort = (event) => reject(new Error(`Transaction aborted: ${event.target.error}`))
-      } catch (error) {
-        reject(error)
       }
+      deleteMarkersAndMap()
     })
   }
 

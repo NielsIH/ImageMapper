@@ -6,6 +6,30 @@
 
 class ImageProcessor {
   /**
+   * Converts an image Blob directly to a Base64 Data URL.
+   * Useful for images that don't need resizing or specific processing.
+   * @param {Blob} imageBlob - The image Blob to convert.
+   * @returns {Promise<string>} A promise that resolves with the Base64 Data URL.
+   */
+  async blobToBase64 (imageBlob) {
+    return new Promise((resolve, reject) => {
+      if (!(imageBlob instanceof Blob)) {
+        reject(new Error('blobToBase64: Invalid input, imageBlob must be a Blob.'))
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        resolve(reader.result)
+      }
+      reader.onerror = (error) => {
+        reject(new Error('Failed to convert Blob to Base64: ' + error.message))
+      }
+      reader.readAsDataURL(imageBlob)
+    })
+  }
+
+  /**
    * Resizes and compresses an image file.
    * @param {File} imageFile - The original image file from user input.
    * @param {Object} options - Resizing and compression options.

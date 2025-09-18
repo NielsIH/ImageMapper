@@ -34,65 +34,67 @@ class ModalManager {
    * @param {Function} onMapSelected - Callback when a map is selected from the list.
    * @param {Function} onMapDelete - Callback when a map's delete button is clicked.
    * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button is clicked.
+   * @param {Function} onExportMap - Callback when the 'Export HTML Report' button is clicked.
    * @param {Function} onClose - Callback when the modal is closed.
    * @param {Function} [onModalReady] - Optional callback when modal is fully displayed/ready.
    * @returns {HTMLElement} - Modal element.
    */
-  createMapManagementModal (maps, activeMapId, onMapSelected, onMapDelete, onAddNewMap, onClose, onModalReady) {
+  createMapManagementModal (maps, activeMapId, onMapSelected, onMapDelete, onAddNewMap, onExportMap, onClose, onModalReady) { // Added onExportMap
     const modalHtml = `
-  <div class="modal" id="map-management-modal">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Manage Your Maps</h3>
-        <button class="modal-close" type="button" aria-label="Close">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="maps-management-container">
-          ${maps.length === 0
-            ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
-            : `
-            <ul class="maps-list">
-              ${maps.map(map => `
-                <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
-                  <div class="map-card-content">
-                    <div class="map-thumbnail-container">
-                      ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`}
-                    </div>
-                    <div class="map-info">
-                      <span class="map-name">${map.name}</span>
-                      <span class="map-details">${map.width} × ${map.height} px</span>
-                      ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
-                    </div>
-                  </div>
-                  <div class="map-item-actions">
-                    <button class="btn btn-danger btn-small delete-map-btn" data-map-id="${map.id}" title="Delete Map">🗑️</button>
-                  </div>
-                </li>
-              `).join('')}
-            </ul>
-          `}
+      <div class="modal" id="map-management-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Manage Your Maps</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="maps-management-container">
+              ${maps.length === 0
+                ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
+                : `
+                <ul class="maps-list">
+                  ${maps.map(map => `
+                    <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
+                      <div class="map-card-content">
+                        <div class="map-thumbnail-container">
+                          ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`}
+                        </div>
+                        <div class="map-info">
+                          <span class="map-name">${map.name}</span>
+                          <span class="map-details">${map.width} × ${map.height} px</span>
+                          ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
+                        </div>
+                      </div>
+                      <div class="map-item-actions">
+                        <button class="btn btn-primary btn-small export-map-btn" data-map-id="${map.id}" title="Export HTML Report">📊</button> <!-- NEW EXPORT BUTTON -->
+                        <button class="btn btn-danger btn-small delete-map-btn" data-map-id="${map.id}" title="Delete Map">🗑️</button>
+                      </div>
+                    </li>
+                  `).join('')}
+                </ul>
+              `}
+            </div>
+            <div class="map-actions-footer">
+                <button class="btn btn-primary btn-large add-new-map-btn" type="button">
+                    ➕ Add New Map
+                </button>
+            </div>
+          </div>
+          
+          <div class="modal-footer hidden">
+            <!-- No footer actions needed here, moved to map-actions-footer inside body -->
+          </div>
         </div>
-        <div class="map-actions-footer">
-            <button class="btn btn-primary btn-large add-new-map-btn" type="button">
-                ➕ Add New Map
-            </button>
-        </div>
       </div>
-      
-      <div class="modal-footer hidden">
-        <!-- No footer actions needed here, moved to map-actions-footer inside body -->
-      </div>
-    </div>
-  </div>
-`
+    `
 
     const parser = new DOMParser()
     const modalDoc = parser.parseFromString(modalHtml, 'text/html')
     const modal = modalDoc.querySelector('.modal')
     if (!modal) {
       console.error('Failed to create map management modal element.')
-      if (onClose) onClose() // Try to close silently or notify if creation failed
+      if (onClose) onClose()
       return null
     }
 
@@ -111,13 +113,12 @@ class ModalManager {
     // Select map (list item click)
     modal.querySelectorAll('.map-list-item.clickable').forEach(item => {
       item.addEventListener('click', (e) => {
-        // Prevent event from propagating to delete button if clicked
-        if (e.target.closest('.delete-map-btn')) return
+        // Prevent event from propagating to delete/export button if clicked
+        if (e.target.closest('.delete-map-btn') || e.target.closest('.export-map-btn')) return
 
         const mapId = item.dataset.mapId
         if (onMapSelected) {
           onMapSelected(mapId)
-          // Modal will be re-opened by app.js (showMapManagementModal) to show new active state
           this.closeModal(modal)
         }
       })
@@ -126,11 +127,24 @@ class ModalManager {
     // Delete map button
     modal.querySelectorAll('.delete-map-btn').forEach(button => {
       button.addEventListener('click', (e) => {
-        e.stopPropagation() // Prevent this click from triggering the parent li's click
+        e.stopPropagation()
         const mapId = button.dataset.mapId
         if (onMapDelete && confirm('Are you sure you want to delete this map? This cannot be undone.')) {
           onMapDelete(mapId)
-          this.closeModal(modal) // Close modal and let app.js re-open to reflect change
+          this.closeModal(modal)
+        }
+      })
+    })
+
+    // NEW: Export map button
+    modal.querySelectorAll('.export-map-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent this click from triggering the parent li's click
+        const mapId = button.dataset.mapId
+        if (onExportMap) { // Check if the callback exists
+          onExportMap(mapId) // Call the export callback
+          // Optionally close modal after export, or leave open
+          // this.closeModal(modal);
         }
       })
     })
@@ -140,7 +154,7 @@ class ModalManager {
       e.stopPropagation()
       if (onAddNewMap) {
         onAddNewMap()
-        this.closeModal(modal) // Close this modal to open the upload modal
+        this.closeModal(modal)
       }
     })
 
@@ -323,11 +337,11 @@ class ModalManager {
     const createBtn = modal.querySelector('#create-map-btn')
 
     // Steps
-    const selectionStep = modal.querySelector('#file-selection-step')
-    const detailsStep = modal.querySelector('#file-details-step')
-    const selectionActions = modal.querySelector('#file-selection-actions')
-    const detailsActions = modal.querySelector('#file-details-actions')
-    const errorDisplay = modal.querySelector('#upload-error')
+    // const selectionStep = modal.querySelector('#file-selection-step')
+    // const detailsStep = modal.querySelector('#file-details-step')
+    // const selectionActions = modal.querySelector('#file-selection-actions')
+    // const detailsActions = modal.querySelector('#file-details-actions')
+    // const errorDisplay = modal.querySelector('#upload-error')
 
     // Form elements
     const form = modal.querySelector('#map-details-form')
@@ -336,10 +350,10 @@ class ModalManager {
     const activeCheckbox = modal.querySelector('#set-as-active')
 
     // Preview elements
-    const previewImg = modal.querySelector('#preview-image')
-    const fileName = modal.querySelector('#file-name')
-    const fileSize = modal.querySelector('#file-size')
-    const fileDimensions = modal.querySelector('#file-dimensions')
+    // const previewImg = modal.querySelector('#preview-image')
+    // const fileName = modal.querySelector('#file-name')
+    // const fileSize = modal.querySelector('#file-size')
+    // const fileDimensions = modal.querySelector('#file-dimensions')
 
     // File manager instance
     const fileManager = new FileManager()

@@ -10,6 +10,7 @@
         ModalManager
         MapRenderer
         ImageProcessor
+        HtmlReportGenerator
         Image
         */
 
@@ -448,14 +449,16 @@ class ImageMapperApp {
    * Orchestrates displaying the comprehensive Maps Management Modal.
    * This includes fetching maps, generating thumbnails, and handling all map actions within the modal.
    */
+  /**
+   * Orchestrates displaying the comprehensive Maps Management Modal.
+   * This includes fetching maps, generating thumbnails, and handling all map actions within the modal.
+   */
   async showMapManagementModal () {
-    this.showLoading('Loading map management...', false) // Show loading spinner, don't auto-hide
+    this.showLoading('Loading map management...', false)
 
     try {
-      // Ensure maps list is up to date and includes imageData Blobs
       await this.loadMaps()
 
-      // Process maps to generate or retrieve cached thumbnails
       const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
         let thumbnailDataUrl = this.thumbnailCache.get(map.id)
 
@@ -477,28 +480,28 @@ class ImageMapperApp {
 
       const currentActiveMapId = this.currentMap ? this.currentMap.id : null
 
-      this.modalManager.createMapManagementModal( // <<< Call to NEW modal function
+      this.modalManager.createMapManagementModal(
         mapsWithThumbnails,
         currentActiveMapId,
-        // onMapSelected callback for 'Select' button/item click
         async (mapId) => {
           await this.switchToMap(mapId)
-          // After switching map, re-render the modal to update active state
-          this.showMapManagementModal() // Re-open modal to show new active map
+          this.showMapManagementModal()
         },
-        // onMapDelete callback for 'Delete' button click
         async (mapId) => {
-          await this.deleteMap(mapId) // New delete method to be implemented
+          await this.deleteMap(mapId)
         },
-        // onAddNewMap callback for '+ Add New Map' button click
         async () => {
-          this.showUploadModal() // Call existing upload modal
+          this.showUploadModal()
         },
-        // onClose callback for modal close
+        // onExportMap callback (NEW)
+        async (mapId) => {
+          console.log(`Export map ${mapId} clicked`)
+          this.modalManager.closeTopModal() // Close the management modal
+          await this.exportHtmlReport(mapId) // Call the new export function
+        },
         () => {
           this.updateAppStatus('Ready')
         },
-        // onModalReady callback to hide loading spinner
         () => {
           this.hideLoading()
         }
@@ -508,7 +511,7 @@ class ImageMapperApp {
     } catch (error) {
       console.error('Error showing map management modal:', error)
       this.showErrorMessage('Failed to open map management', error.message)
-      this.hideLoading() // Ensure loading is hidden on error
+      this.hideLoading()
     }
   }
 
@@ -527,7 +530,7 @@ class ImageMapperApp {
       this.showLoading('Deleting map...')
 
       const wasActiveMap = this.currentMap && this.currentMap.id === mapId
-      const willBeEmpty = this.mapsList.length <= 1 // Check if this is the last map
+      // const willBeEmpty = this.mapsList.length <= 1 // Check if this is the last map
 
       await this.storage.deleteMap(mapId) // Delete from IndexedDB
       this.thumbnailCache.delete(mapId) // Clear from thumbnail cache
@@ -1827,6 +1830,41 @@ class ImageMapperApp {
     } finally {
       this.hideLoading()
     }
+  }
+
+  async exportHtmlReport (mapId) {
+    const map = await this.storage.getMap(mapId)
+    if (!map) {
+      console.error('Map not found for export:', mapId)
+      alert('Map not found for export.')
+      return
+    }
+
+    const markers = await this.storage.getMarkersForMap(mapId)
+    let allPhotos = []
+    const photoPromises = [] // To store promises for converting blobs to data URLs
+
+    for (const marker of markers) {
+      const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
+      markerPhotos.forEach(photo => {
+        // For each photo, convert its imageData (Blob) to a Data URL
+        // We'll add this new property to the photo object
+        photoPromises.push(this.imageProcessor.blobToBase64(photo.imageData)
+          .then(dataUrl => {
+            photo.imageDataUrl = dataUrl
+            return photo
+          }))
+      })
+    }
+
+    allPhotos = await Promise.all(photoPromises) // Wait for all conversions
+
+    // Sort allPhotos by fileName for consistent display
+    allPhotos.sort((a, b) => a.fileName.localeCompare(b.fileName))
+
+    // Call the static method from the new HtmlReportGenerator class
+    // Pass the photos array which now includes imageDataUrl
+    await HtmlReportGenerator.generateReport(map, markers, allPhotos, this.imageProcessor)
   }
 
   /**
