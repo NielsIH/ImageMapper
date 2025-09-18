@@ -20,12 +20,19 @@ image-mapper/
 ├── index.html              # Main app HTML
 ├── manifest.json           # PWA configuration
 ├── service-worker.js       # Offline functionality
+├── DEPLOYMENT.md           # Instructions for deployment
 ├── css/
-│   └── app.css            # Main stylesheet
+│   └── app.css             # Main stylesheet
 ├── js/
-│   └── app.js             # Main application logic
-├── icons/                 # PWA icons (to be added)
-└── README.md              # This file
+│   ├── app.js              # Main application logic
+│   ├── storage.js          # Handles IndexedDB interactions (MapStorage class)
+│   ├── fileManager.js      # Utility for file selection and processing
+│   ├── mapRenderer.js      # Manages canvas rendering, pan, zoom, markers
+│   ├── modals.js           # Manages UI for various modals (ModalManager class)
+│   ├── imageProcessor.js   # Utility for image manipulation and thumbnail generation
+│   └── HtmlReportGenerator.js # Generates HTML reports for map data
+├── icons/                  # PWA icons (to be added)
+└── README.md               # This file
 ```
 
 ## Getting Started
@@ -35,7 +42,7 @@ Visit the deployed app: `https://nielsih.github.io/ImageMapper`
 
 ### 📱 Install as PWA
 1. Visit the app URL on any device
-2. Look for "Install" or "Add to Home Screen" option
+2. Look for "Install" or "Add to Home Screen" option or just bookmark the url
 3. The app works offline after installation
 
 ### 🛠️ Local Development
@@ -62,37 +69,41 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 3. Check "Offline" to simulate offline mode
 4. Refresh the page - the app should still work
 
-## Upcoming Phases
+## Implemented Phases ✨
 
-### Phase 1B: File Management (Next)
-- Map file upload and storage
-- Map naming and descriptions
-- Map list management (CRUD operations)
-- Local storage of map metadata
+### Phase 1B: File Management ✅
+- ✅ Map file upload and storage
+- ✅ Map naming and descriptions (including editing in map management modal)
+- ✅ Map list management (CRUD operations, including active map selection, deletion, export)
+- ✅ Local storage of map metadata (using IndexedDB)
 
-### Phase 1C: Map Display Engine
-- Canvas-based map rendering
-- Pan and zoom functionality
-- Touch and mouse interaction
-- Map switching interface
+### Phase 1C: Map Display Engine ✅
+- ✅ Canvas-based map rendering
+- ✅ Pan and zoom functionality (mouse and touch gestures)
+- ✅ Touch and mouse interaction (panning, pinch-zoom)
+- ✅ Map switching interface (via map management modal)
+- ✅ Resizable map canvas that adapts to screen size
+- ✅ **Toggleable zoom controls and action buttons (minimize/maximize to icons)**
 
-### Phase 1D: Marker System
-- Click/tap to place markers on maps
-- Image association with markers
-- Note-taking functionality
-- Coordinate tracking
+### Phase 1D: Marker System ✅
+- ✅ Click/tap to place markers at canvas center
+- ✅ Marker dragging (mouse and touch)
+- ✅ Marker details modal (showing description, coordinates, associated photos)
+- ✅ Marker description editing
+- ✅ Marker deletion
+- ✅ Image association with markers (uploading photos to markers)
+- ✅ Note-taking functionality (marker description)
+- ✅ Coordinate tracking (display in marker details)
 
-### Phase 2: Export and Sync
-- Data export in multiple formats
-- Server synchronization
-- Advanced metadata management
+### Phase 2: Export and Sync (Next)
+- Data export in multiple formats (HTML report implemented)
+
 
 ## Technical Stack
 
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
 - **Storage**: IndexedDB for offline data, Cache API for files
 - **PWA**: Service Worker, Web App Manifest
-- **Future Backend**: ASP.NET Core Web API
 
 ## Browser Support
 
@@ -103,11 +114,12 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 
 ## Development Notes
 
-### Current Limitations (Phase 1A)
-- Map upload is not yet implemented (placeholder buttons)
-- Map display is not yet functional (placeholder canvas)
-- Zoom controls are not yet connected to actual functionality
+### Current Limitations (Phase 1D)
 - Settings modal is not implemented
+- Server synchronization is not implemented (Phase 2)
+- Advanced metadata management is not implemented (Phase 2)
+
+_**Removed previous limitations as they are now implemented.**_
 
 ### Key Design Decisions
 - **Offline-first approach**: Everything must work without internet

@@ -163,37 +163,40 @@ body {
     position: absolute;
     top: var(--spacing-md); /* Correct for top positioning */
     right: var(--spacing-md);
-    display: flex;
+    /* display: flex; */
     flex-direction: row; /* Arrange toggle button and map controls side-by-side */
     gap: var(--spacing-sm); /* Spacing between toggle button and actual controls */
     align-items: flex-start; /* Align primary axis items to the start (top) */
     z-index: 10;
     padding: var(--spacing-sm); /* Add padding around the whole unit */
-    background-color: var(--bg-dark); /* Dark background for the control unit */
+    background-color: var(--bg-light); 
     border-radius: 12px; /* Rounded corners for the container */
     box-shadow: var(--shadow-lg); /* Prominent shadow */
     cursor: default; /* Change cursor back from grab if coming from map-container */
     overflow: hidden; /* Crucial: hide content that exceeds min-width when shrinking */
     transition: all 0.3s ease-in-out; /* Smooth transition for the wrapper itself position/size */
+    max-width: fit-content; /* Ensure wrapper only takes width needed for content */
+    min-width: var(--touch-target); /* Minimum width to always show the toggle button */
 }
 
 /* Toggle Button (now inside wrapper) */
 .toggle-controls-btn {
     background-color: transparent;
     border: none;
-    color: var(--bg-primary); /* Light color for visibility on dark background */
+    color: var(--secondary-color); /* Light color for visibility on dark background */
     font-size: 1.5rem;
     cursor: pointer;
-    align-self: center; /* FIX: Center vertically within its own button area */
+    align-self: center; /* Ensures the arrow itself is centered vertically within the button */
     padding: 0;
     line-height: 1;
     transition: transform 0.3s ease-in-out, color 0.2s ease;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: var(--touch-target);
-    height: var(--touch-target);
+    width: var(--touch-target); /* Fixed width for the button */
+    height: var(--touch-target); /* Fixed height for the button */
     flex-shrink: 0; /* Prevent it from shrinking */
+    flex-grow: 0; /* Prevent it from growing */
 }
 
 .toggle-controls-btn:hover {
@@ -221,7 +224,8 @@ body {
 /* Styles applied when the WRAPPER is minimized */
 .map-controls-wrapper.minimized .map-controls {
     /* --- CRITICAL FIX: Ensure the inner controls remain visible as icon-only buttons --- */
-    max-width: calc(var(--touch-target) + var(--spacing-sm)) !important; /* Max-width to fit one icon-button + its gap */
+    /* Width should be enough for a single icon button (touch target size) */
+    max-width: var(--touch-target) !important; 
     opacity: 1 !important; /* Keep visible */
     visibility: visible !important; /* Keep visible */
     /* Only hide the text within buttons, not the whole control group */
@@ -295,6 +299,9 @@ body {
     -webkit-tap-highlight-color: transparent;
     font-family: inherit;
     flex-shrink: 0; 
+    /* NEW: Explicitly set a max-width to prevent wide buttons on mobile */
+    max-width: 100%; /* Allows it to shrink to fit parent on smaller screens */
+    width: fit-content; /* Only take up content width */
 }
 
 /* Explicit style for the primary control button (Place Marker) */
@@ -559,7 +566,7 @@ body {
   }
   
   .map-controls-wrapper {
-        bottom: var(--spacing-sm);
+        bottom: auto;
         right: var(--spacing-sm);
         gap: var(--spacing-xs); /* Smaller gap on small screens */
         padding: var(--spacing-sm);
@@ -586,7 +593,7 @@ body {
     font-size: 0.875rem;
   }
   .map-controls-wrapper {
-        bottom: var(--spacing-xs);
+        bottom: auto;
         right: var(--spacing-xs);
         padding: var(--spacing-xs);
   }
