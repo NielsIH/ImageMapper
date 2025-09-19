@@ -36,3 +36,6 @@ photos/
 .DS_Store?
 ehthumbs.db
 Icon?
+
+# Exception for the actual icons folder
+!icons/

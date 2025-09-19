@@ -1,133 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#2563eb">
-    <!-- Safari/iOS Pinned Tab Color -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="msapplication-TileColor" content="#2563eb">
-    <meta name="description" content="Map photos and images to specific locations on any map or floor plan">
-    
-    <title>Image Mapper</title>
-    
-    <!-- PWA manifest -->
-    <link rel="manifest" href="manifest.json">
-    
-    <!-- iOS meta tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Image Mapper">
-    
-    <!-- Icons will be added later -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-    
-    <!-- Styles -->
-    <link rel="stylesheet" href="css/app.css">
-</head>
-<body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <h1 class="app-title">Image Mapper</h1>
-            <div class="header-actions">
-                <!-- NEW: Import Data button and hidden file input -->
-                <button class="btn btn-secondary" id="btn-import-data" title="Import Map Data (JSON)">
-                    📥 Import Data
-                    <input type="file" id="file-input-import" accept=".json" style="display: none;">
-                </button>
-                <button class="btn btn-secondary" id="btn-settings">
-                    ⚙️ Settings
-                </button>
-            </div>
-        </header>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#2563eb" />
+        <!-- Safari/iOS Pinned Tab Color -->
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#2563eb" />
+        <meta name="description" content="Map photos and images to specific locations on any map or floor plan" />
 
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <!-- Welcome Screen (shown when no maps are loaded) -->
-            <div class="welcome-screen" id="welcome-screen">
-                <div class="welcome-content">
-                    <div class="welcome-icon">🗺️</div>
-                    <h2>Welcome to Image Mapper</h2>
-                    <p>Start by uploading a map, floor plan, or site layout to begin mapping your photos to specific locations.</p>
-                    <button class="btn btn-primary btn-large" id="btn-add-first-map">
-                        📁 Upload First Map
-                    </button>
-                </div>
-            </div>
+        <title>Image Mapper</title>
 
-               <!-- Map Display Area (hidden initially) -->
-            <div class="map-display hidden" id="map-display">
-                <div class="map-container" id="map-container">
-                    <canvas class="map-canvas" id="map-canvas"></canvas>
-                </div>
-                
-                <!-- NEW MAP CONTROLS WRAPPER -->
-                <div class="map-controls-wrapper">
-                    <button class="toggle-controls-btn" id="toggle-map-controls" title="Toggle Controls">
-                        <span class="icon">►</span>
+        <!-- PWA manifest -->
+        <link rel="manifest" href="manifest.json" />
+
+        <!-- iOS meta tags -->
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Image Mapper" />
+
+        <!-- Icons will be added later -->
+        <link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
+        <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+        <link rel="shortcut icon" href="/icons/favicon.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-title" content="Image Mapper" />
+
+        <!-- Styles -->
+        <link rel="stylesheet" href="css/app.css" />
+    </head>
+    <body>
+        <div class="app-container">
+            <!-- Header -->
+            <header class="header">
+                <h1 class="app-title">Image Mapper</h1>
+                <div class="header-actions">
+                    <!-- NEW: Import Data button and hidden file input -->
+                    <button class="btn btn-secondary" id="btn-import-data" title="Import Map Data (JSON)">
+                        📥 Import Data
+                        <input type="file" id="file-input-import" accept=".json" style="display: none" />
                     </button>
-                    <!-- Original map-controls div, now contained -->
-                    <div class="map-controls">
-                        <div class="zoom-controls">
-                            <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
-                            <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
-                        </div>
-                        <!-- MODIFIED: Wrapped text in span.btn-text -->
-                        <button class="btn btn-primary control-btn" id="btn-place-marker" title="Place New Marker">
-                            📌 <span class="btn-text">Place Marker</span>
-                        </button>
-                        <button class="btn btn-secondary control-btn" id="btn-map-list" title="Map List & Management">
-                            📋 <span class="btn-text">Manage Maps</span>
-                        </button>
+                    <button class="btn btn-secondary" id="btn-settings">⚙️ Settings</button>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- Welcome Screen (shown when no maps are loaded) -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-content">
+                        <div class="welcome-icon">🗺️</div>
+                        <h2>Welcome to Image Mapper</h2>
+                        <p>
+                            Start by uploading a map, floor plan, or site layout to begin mapping your photos to
+                            specific locations.
+                        </p>
+                        <button class="btn btn-primary btn-large" id="btn-add-first-map">📁 Upload First Map</button>
                     </div>
                 </div>
-                <!-- END NEW MAP CONTROLS WRAPPER -->
-            </div>
-        </main>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <div class="footer-content">
-                <span class="app-status" id="app-status">Ready</span>
-                <span class="connection-status" id="connection-status">Offline Ready</span>
-            </div>
-        </footer>
-    </div>
+                <!-- Map Display Area (hidden initially) -->
+                <div class="map-display hidden" id="map-display">
+                    <div class="map-container" id="map-container">
+                        <canvas class="map-canvas" id="map-canvas"></canvas>
+                    </div>
 
-    <!-- Loading Overlay -->
-    <div class="loading-overlay hidden" id="loading-overlay">
-        <div class="loading-content">
-            <div class="spinner"></div>
-            <p class="loading-text" id="loading-text">Loading...</p>
+                    <!-- NEW MAP CONTROLS WRAPPER -->
+                    <div class="map-controls-wrapper">
+                        <button class="toggle-controls-btn" id="toggle-map-controls" title="Toggle Controls">
+                            <span class="icon">►</span>
+                        </button>
+                        <!-- Original map-controls div, now contained -->
+                        <div class="map-controls">
+                            <div class="zoom-controls">
+                                <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+                                <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+                            </div>
+                            <!-- MODIFIED: Wrapped text in span.btn-text -->
+                            <button class="btn btn-primary control-btn" id="btn-place-marker" title="Place New Marker">
+                                📌 <span class="btn-text">Place Marker</span>
+                            </button>
+                            <button
+                                class="btn btn-secondary control-btn"
+                                id="btn-map-list"
+                                title="Map List & Management">
+                                📋 <span class="btn-text">Manage Maps</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- END NEW MAP CONTROLS WRAPPER -->
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="footer">
+                <div class="footer-content">
+                    <span class="app-status" id="app-status">Ready</span>
+                    <span class="connection-status" id="connection-status">Offline Ready</span>
+                </div>
+            </footer>
         </div>
-    </div>
 
-    <!-- Service Worker Registration -->
-    <script>
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then((registration) => {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
-                    });
-            });
-        }
-    </script>
+        <!-- Loading Overlay -->
+        <div class="loading-overlay hidden" id="loading-overlay">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p class="loading-text" id="loading-text">Loading...</p>
+            </div>
+        </div>
 
-    <!-- App Scripts -->
-    <script src="js/storage.js"></script>
-    <script src="js/fileManager.js"></script>
-    <script src="js/mapRenderer.js"></script>
-    <script src="js/ui/modals.js"></script>
-    <script src="js/imageProcessor.js"></script>
-    <script src="js/HtmlReportGenerator.js"></script>
-    <script src="js/MapDataExporterImporter.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/debug.js"></script>
-</body>
+        <!-- Service Worker Registration -->
+        <script>
+            // Register service worker
+            if ("serviceWorker" in navigator) {
+                window.addEventListener("load", () => {
+                    navigator.serviceWorker
+                        .register("./service-worker.js")
+                        .then((registration) => {
+                            console.log("SW registered: ", registration)
+                        })
+                        .catch((registrationError) => {
+                            console.log("SW registration failed: ", registrationError)
+                        })
+                })
+            }
+        </script>
+
+        <!-- App Scripts -->
+        <script src="js/storage.js"></script>
+        <script src="js/fileManager.js"></script>
+        <script src="js/mapRenderer.js"></script>
+        <script src="js/ui/modals.js"></script>
+        <script src="js/imageProcessor.js"></script>
+        <script src="js/HtmlReportGenerator.js"></script>
+        <script src="js/MapDataExporterImporter.js"></script>
+        <script src="js/app.js"></script>
+        <script src="js/debug.js"></script>
+    </body>
 </html>
