@@ -43,13 +43,13 @@
   ],
   "screenshots": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjgwIDcyMCI+PHJlY3Qgd2lkdGg9IjEyODAiIGhlaWdodD0iNzIwIiBmaWxsPSIjZjhmYWZjIi8+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEyODAiIGhlaWghtD0iNjAiIGZpbGw9IiMyNTYzZWIiLz48dGV4dCB4PSIyMCIgeT0iNDAiIGZpbGw9IndoaXRlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiPlF1YXJyeSBJbnZlbnRvcnk8L3RleHQuPHRleHQgeD0iNjQwIiB5PSI0MDAiIGZpbGw9IiMzNzQxNTEiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+TjjwvdGV4dD48L3N2Zz4=",
+      "src": "icons/screenshot-wide.png",
       "sizes": "1280x720",
       "type": "image/svg+xml",
       "form_factor": "wide"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NDAgMTEzNiI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIxMTM2IiBmaWxsPSIjZjhmYWZjIi8+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjY0MCIgaGVpZ2h0PSI2MCIgZmlsbD0iIzI1NjNlYiIvPjx0ZXh0IHg9IjIwIiB5PSI0MCIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCI+UXVhcnJ5IEludmVudG9yeTwvdGV4dD48dGV4dCB4PSIzMjAiIHk9IjYwMCIgZmlsbD0iIzM3NDE1MSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjY0IiB0ZXh0LWFuY2hvcnM9Im1pZGRsZSI+8J+TjjwvdGV4dD48L3N2Zz4=",
+      "src": "icons/screenshot-narrow.png",
       "sizes": "640x1136",
       "type": "image/svg+xml",
       "form_factor": "narrow"
