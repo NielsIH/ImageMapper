@@ -96,7 +96,8 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Coordinate tracking (display in marker details)
 
 ### Phase 2: Export and Sync (Next)
-- Data export in multiple formats (HTML report implemented)
+- ✅ Data export in multiple formats (HTML report implemented)
+- ✅ Import and export of maps with markers and images
 
 
 ## Technical Stack
@@ -116,6 +117,8 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 
 ### Current Limitations (Phase 1D)
 - Settings modal is not implemented
+- Import and export settings
+- Quality settings for images (that were added to markers)
 
 _**Removed previous limitations as they are now implemented.**_
 

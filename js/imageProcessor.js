@@ -30,6 +30,33 @@ class ImageProcessor {
   }
 
   /**
+     * Converts a Base64 Data URL string to a Blob object.
+     * @param {string} base64String The Base64 Data URL (e.g., "data:image/png;base64,...").
+     * @param {string} [mimeType] Optional MIME type. If not provided, it's extracted from the Base64 string.
+     * @returns {Blob} The Blob object.
+     */
+  static base64ToBlob (base64String, mimeType = null) {
+    // Extract MIME type and actual base64 data
+    let byteString
+    if (base64String.split(',')[0].indexOf('base64') >= 0) {
+      byteString = atob(base64String.split(',')[1])
+    } else {
+      byteString = decodeURIComponent(base64String.split(',')[1])
+    }
+
+    const actualMimeType = mimeType || base64String.split(',')[0].split(':')[1].split(';')[0]
+
+    // Write the bytes of the string to a typed array
+    const ab = new ArrayBuffer(byteString.length)
+    const ia = new Uint8Array(ab)
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i)
+    }
+
+    return new Blob([ab], { type: actualMimeType })
+  }
+
+  /**
    * Resizes and compresses an image file.
    * @param {File} imageFile - The original image file from user input.
    * @param {Object} options - Resizing and compression options.

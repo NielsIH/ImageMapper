@@ -896,6 +896,159 @@ class MapStorage {
   }
 
   /**
+   * Saves or updates a map in storage. Respects the ID provided in mapData.
+   * If mapData does not contain an 'id', it will be treated as a new map and
+   * the ID will be generated (by delegating to addMap).
+   * @param {Object} mapData - The map object to save, must contain 'id' for updates.
+   * @returns {Promise<Object>} - The saved/updated map object.
+   */
+  async saveMap (mapData) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    // If no ID is provided in mapData, delegate to addMap which generates a new ID.
+    // This handles cases where saveMap might be called for truly new maps.
+    if (!mapData.id) {
+      console.warn('MapStorage: mapData provided without ID to saveMap, delegating to addMap.')
+      return this.addMap(mapData)
+    }
+    if (mapData.imageData && !(mapData.imageData instanceof Blob)) {
+      throw new Error('MapStorage: imageData must be a Blob object if provided (or null/undefined, but not Base64 string here).')
+    }
+
+    const mapToSave = {
+      id: mapData.id, // Use the provided ID
+      name: mapData.name || 'Untitled Map',
+      description: mapData.description || '',
+      fileName: mapData.fileName || '',
+      filePath: mapData.filePath || '', // Keep filePath if it exists (e.g., from import)
+      width: mapData.width || 0,
+      height: mapData.height || 0,
+      fileSize: mapData.fileSize || 0,
+      fileType: mapData.fileType || '',
+      createdDate: mapData.createdDate ? new Date(mapData.createdDate) : new Date(), // Use provided date for imported data if available
+      lastModified: new Date(), // Always update lastModified on save
+      isActive: mapData.isActive || false, // Respect provided isActive status
+      imageData: mapData.imageData || null,
+      settings: {
+        defaultZoom: 1, // Default, but override with any provided
+        allowMarkers: true, // Default, but override with any provided
+        ...mapData.settings
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
+      const store = transaction.objectStore(this.mapStoreName)
+
+      const request = store.put(mapToSave) // Use put() to add or update based on ID
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Map saved/updated successfully', mapToSave.id)
+        resolve(mapToSave)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to save/update map', request.error)
+        reject(new Error(`Failed to save map: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Saves or updates a marker in storage. Respects the ID provided in markerData.
+   * If markerData does not contain an 'id', it will be treated as a new marker and
+   * the ID will be generated (by delegating to addMarker).
+   * @param {Object} markerData - The marker object to save, must contain 'id' for updates.
+   * @returns {Promise<Object>} - The saved/updated marker object.
+   */
+  async saveMarker (markerData) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    // If no ID is provided in markerData, delegate to addMarker.
+    if (!markerData.id) {
+      console.warn('MapStorage: markerData provided without ID to saveMarker, delegating to addMarker.')
+      return this.addMarker(markerData)
+    }
+    const markerToSave = {
+      id: markerData.id, // Use the provided ID
+      mapId: markerData.mapId,
+      x: markerData.x,
+      y: markerData.y,
+      createdDate: markerData.createdDate ? new Date(markerData.createdDate) : new Date(),
+      lastModified: new Date(), // Always update lastModified on save
+      description: markerData.description || '',
+      photoIds: markerData.photoIds || [] // Ensure it's an array
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerStoreName], 'readwrite')
+      const store = transaction.objectStore(this.markerStoreName)
+      const request = store.put(markerToSave) // Use put()
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Marker saved/updated successfully', markerToSave.id)
+        resolve(markerToSave)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to save/update marker', request.error)
+        reject(new Error(`Failed to save marker: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Saves or updates a photo in storage. Respects the ID provided in photoData.
+   * If photoData does not contain an 'id', it will be treated as a new photo and
+   * the ID will be generated (by delegating to addPhoto).
+   * @param {Object} photoData - The photo object to save, must contain 'id' for updates.
+   * @returns {Promise<Object>} - The saved/updated photo object.
+   */
+  async savePhoto (photoData) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    // If no ID is provided in photoData, delegate to addPhoto.
+    if (!photoData.id) {
+      console.warn('MapStorage: photoData provided without ID to savePhoto, delegating to addPhoto.')
+      return this.addPhoto(photoData)
+    }
+    if (!(photoData.imageData instanceof Blob)) { // imageData MUST be a Blob for storage
+      throw new Error('PhotoStorage: imageData must be a Blob object for saving (or null/undefined).')
+    }
+
+    const photoToSave = {
+      id: photoData.id, // Use the provided ID
+      markerId: photoData.markerId,
+      imageData: photoData.imageData,
+      thumbnailData: photoData.thumbnailData || null, // Already Base64 or null
+      fileName: photoData.fileName || 'Untitled Photo',
+      fileType: photoData.fileType || 'image/jpeg',
+      fileSize: photoData.fileSize || 0,
+      createdDate: photoData.createdDate ? new Date(photoData.createdDate) : new Date(),
+      description: photoData.description || ''
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.photoStoreName], 'readwrite')
+      const store = transaction.objectStore(this.photoStoreName)
+      const request = store.put(photoToSave) // Use put()
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Photo saved/updated successfully', photoToSave.id)
+        resolve(photoToSave)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to save/update photo', request.error)
+        reject(new Error(`Failed to save photo: ${request.error}`))
+      }
+    })
+  }
+
+  /**
    * Close the database connection
    */
   close () {

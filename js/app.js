@@ -11,6 +11,7 @@
         MapRenderer
         ImageProcessor
         HtmlReportGenerator
+        MapDataExporterImporter
         Image
         localStorage
         */
@@ -31,6 +32,23 @@ class ImageMapperApp {
     this.uploadedFiles = new Map() // Store file references for rendering
     this.thumbnailCache = new Map() // NEW: Cache for thumbnail Data URLs
     this.imageProcessor = new ImageProcessor() // For future image processing
+    // Define image compression settings here
+    this.imageCompressionSettings = {
+      map: {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.8
+      },
+      photo: { // For images attached to markers
+        maxWidth: 1000,
+        maxHeight: 1000,
+        quality: 0.5
+      },
+      thumbnail: { // For very small thumbnails, like in lists
+        maxSize: 100, // Max dimension (either width or height)
+        quality: 0.7
+      }
+    }
 
     // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
@@ -133,6 +151,27 @@ class ImageMapperApp {
     const settingsBtn = document.getElementById('btn-settings')
     if (settingsBtn) {
       settingsBtn.addEventListener('click', () => this.showSettings())
+    }
+    // NEW: Import Data button listeners
+    const btnImportData = document.getElementById('btn-import-data')
+    const fileInputImport = document.getElementById('file-input-import')
+
+    if (btnImportData) {
+      btnImportData.addEventListener('click', () => {
+        // Trigger the hidden file input click when the button is clicked
+        fileInputImport.click()
+      })
+    }
+
+    if (fileInputImport) {
+      fileInputImport.addEventListener('change', async (event) => {
+        const file = event.target.files[0]
+        if (file) {
+          await this.handleImportFile(file) // A new method we'll create next
+        }
+        // Clear the file input value to allow importing the same file again if needed
+        event.target.value = ''
+      })
     }
 
     // Add first map button
@@ -469,29 +508,34 @@ class ImageMapperApp {
     if (this.modalManager.getTopModalId() === 'map-management-modal') {
       return
     }
-
     this.showLoading('Loading map management...', false)
     try {
-      await this.loadMaps()
+      await this.loadMaps() // Make sure this.mapsList is populated
       const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
         let thumbnailDataUrl = this.thumbnailCache.get(map.id)
-        if (!thumbnailDataUrl && map.imageData && map.imageData instanceof Blob) {
+        if (!thumbnailDataUrl && map.imageData instanceof Blob) { // Check for Blob type before processing
           try {
-            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100)
+            // Generate thumbnail from map.imageData (Blob)
+            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100) // 100px size
             if (thumbnailDataUrl) {
               this.thumbnailCache.set(map.id, thumbnailDataUrl)
             }
           } catch (thumbError) {
-            console.warn(`Failed to generate thumbnail for map ${map.id}:`, thumbError)
+            console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
             thumbnailDataUrl = null
           }
         } else if (!map.imageData) {
+          // If map.imageData is null or undefined (e.g., in an imported map, or older data)
           thumbnailDataUrl = null
         }
+        // Return map object with thumbnailDataUrl (new property)
         return { ...map, thumbnailDataUrl }
       }))
+
       const currentActiveMapId = this.currentMap ? this.currentMap.id : null
 
+      // CORRECTED CALL TO createMapManagementModal
+      // Ensure parameters match the updated signature in modals.js
       const mapManagementModalInstance = this.modalManager.createMapManagementModal(
         mapsWithThumbnails,
         currentActiveMapId,
@@ -502,19 +546,24 @@ class ImageMapperApp {
         },
         async (mapId) => { // onMapDelete callback
           await this.deleteMap(mapId)
-          // This ensures the current map management modal instance is completely gone.
-          await this.modalManager.closeModal(mapManagementModalInstance)
+          // Ensure the currently open modal is closed/cleaned up if needed before re-opening
+          this.modalManager.closeModal(mapManagementModalInstance)
           // Re-show the map management modal with the updated list
           this.showMapManagementModal()
         },
-        async () => { // onAddNewMap callback
-          await this.modalManager.closeModal(mapManagementModalInstance)
-          this.showUploadModal()
+        async () => { // onAddNewMap callback - simplified for direct call
+          this.modalManager.closeModal(mapManagementModalInstance)
+          this.showUploadModal() // Assuming this opens the upload modal
         },
-        // onExportMap callback
+        // onExportHtmlMap callback (was onExportMap)
         async (mapId) => {
-          await this.modalManager.closeModal(mapManagementModalInstance)
-          await this.exportHtmlReport(mapId)
+          this.modalManager.closeModal(mapManagementModalInstance) // Close modal before export
+          await this.exportHtmlReport(mapId) // Call the correct HTML export method
+        },
+        // onExportJsonMap callback (NEW)
+        async (mapId) => {
+          this.modalManager.closeModal(mapManagementModalInstance) // Close modal before export
+          await this.exportJsonMap(mapId) // Call the new JSON export method
         },
         () => { // Final onClose callback passed to createMapManagementModal (triggered by any closing event)
           this.updateAppStatus('Ready')
@@ -525,11 +574,28 @@ class ImageMapperApp {
       )
       this.updateAppStatus('Map management displayed')
     } catch (error) {
-      console.error('Error showing map management modal:', error)
+      console.error('App: Error showing map management modal:', error)
       this.showErrorMessage('Failed to open map management', error.message)
       this.hideLoading()
     }
   }
+
+  //   async showMapManagementModal () {
+  //     this.updateAppStatus('Loading map list...')
+  //     const maps = await this.loadMaps()
+  //     this.updateAppStatus('Map list loaded.')
+
+  //     this.modalManager.createMapManagementModal(
+  //       maps,
+  //       this.currentMapId,
+  //       async (mapId) => this.selectMap(mapId), // REAL Callback
+  //       async (mapId) => this.deleteMap(mapId), // REAL Callback
+  //       () => console.log('Add New Map'), // Dummy for now
+  //       async (mapId) => console.log('Export HTML:', mapId), // Dummy for now
+  //       async (mapId) => console.log('Export JSON:', mapId), // Dummy for now
+  //       () => this.updateAppStatus('Ready') // REAL Callback (assuming it's this one)
+  //     )
+  // }
 
   /**
    * Delete a map from storage and update UI.
@@ -1448,9 +1514,9 @@ class ImageMapperApp {
 
       // --- NEW STEP: Process the image for storage ---
       const processedImageBlob = await this.imageProcessor.processImage(originalFile, {
-        maxWidth: 1920, // Max width for storing
-        maxHeight: 1920, // Max height for storing
-        quality: 0.8, // 80% JPEG quality
+        maxWidth: this.imageCompressionSettings.map.maxWidth, // Max width for storing
+        maxHeight: this.imageCompressionSettings.map.maxHeight, // Max height for storing
+        quality: this.imageCompressionSettings.map.quality, // JPEG quality
         // You can consider 'image/webp' here if you want, but check browser compatibility for Canvas toBlob
         outputFormat: originalFile.type.startsWith('image/') ? originalFile.type : 'image/jpeg'
       })
@@ -1654,25 +1720,20 @@ class ImageMapperApp {
     }
   }
 
-  // ========================================
-  // Marker Details and Interactions (Phase 1D / Phase 1E)
-  // ========================================
-
   /**
-   * Shows the details modal for a specific marker.
+   * Displays the marker details modal for a given marker.
    * @param {string} markerId - The ID of the marker to display.
    */
   async showMarkerDetails (markerId) {
     this.showLoading('Loading marker details...')
     try {
-      const marker = await this.storage.getMarker(markerId)
+      const marker = await this.storage.getMarker(markerId) // Using markerId directly. Assuming activeMap.id is not needed here based on provided code.
       if (!marker) {
-        throw new Error('Marker not found.')
+        throw new Error('Marker not found.') // Throw error to be caught below
       }
 
       const allPhotosForMarker = await this.storage.getPhotosForMarker(marker.id)
       const validPhotos = allPhotosForMarker.filter(photo => (marker.photoIds || []).includes(photo.id))
-
       console.log('Photos for marker:', validPhotos)
 
       const displayX = marker.x.toFixed(0)
@@ -1695,7 +1756,7 @@ class ImageMapperApp {
           }
           await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to fully close
           await this.setupAddPhotosForMarker(marker.id)
-          await this.showMarkerDetails(marker.id)
+          await this.showMarkerDetails(marker.id) // Correctly calling itself by original name
         },
         // onEditMarker callback (REVISED: This now directly triggers edit mode in modal)
         async (markerIdToEdit) => {
@@ -1717,7 +1778,6 @@ class ImageMapperApp {
             }
             // NEW: Update the modal's displayed description directly
             this.modalManager.updateMarkerDetailsDescription(markerIdToSave, newDescription)
-
             this.showNotification('Description updated.', 'success')
             console.log(`Marker ${markerIdToSave} description saved.`)
           } catch (error) {
@@ -1738,8 +1798,10 @@ class ImageMapperApp {
           console.log(`Delete photo ${photoIdToDelete} from marker ${markerIdToDeleteFrom} clicked`)
           this.modalManager.closeTopModal()
           await this.deletePhotoFromMarker(markerIdToDeleteFrom, photoIdToDelete)
-          await this.showMarkerDetails(markerIdToDeleteFrom)
+          await this.showMarkerDetails(markerIdToDeleteFrom) // Correctly calling itself by original name
         },
+        // NEW: onViewPhoto callback (placed before onClose as per ModalManager signature)
+        (photoId) => this.handleViewPhoto(photoId), // This is the new line
         // onClose callback
         () => {
           console.log('Marker details modal closed.')
@@ -1749,7 +1811,7 @@ class ImageMapperApp {
       this.updateAppStatus(`Viewing marker: ${marker.id}`)
     } catch (error) {
       console.error('Failed to show marker details:', error)
-      this.showErrorMessage('Marker Error', `Failed to open marker details: ${error.message}`)
+      this.showErrorMessage('Marker Error', `Failed to open marker details: ${error.message}`) // This catches the "Marker not found" error, or others.
     } finally {
       this.hideLoading()
     }
@@ -1793,35 +1855,43 @@ class ImageMapperApp {
   async setupAddPhotosForMarker (markerId) {
     this.showLoading('Adding photos...')
     try {
-      const selectedFiles = await this.fileManager.selectFiles(true, true) // Pass true for debug, true for multiple
-
+      const selectedFiles = await this.fileManager.selectFiles(true, true)
       if (!selectedFiles || selectedFiles.length === 0) {
         this.showNotification('Photo selection cancelled.', 'info')
         return
       }
-
       const photoIdsToAdd = []
-
       for (const file of selectedFiles) {
         this.updateAppStatus(`Processing photo: ${file.name}...`)
 
-        // Process the image for storage (resize, compress)
-        const processedImageBlob = await this.imageProcessor.processImage(file, {
-          maxWidth: 1024, // Smaller max width for associated photos to save space
-          maxHeight: 1024,
-          quality: 0.7, // Lower quality for associated photos
-          outputFormat: file.type.startsWith('image/') ? file.type : 'image/jpeg'
-        })
+        // --- DEBUGGING START ---
+        console.log('DEBUG: Original file name:', file.name)
+        console.log('DEBUG: Original file type:', file.type)
+        console.log('DEBUG: Original file size:', file.size, 'bytes')
+        // --- DEBUGGING END ---
 
-        // Also generate a small thumbnail for display in the modal
-        const thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(processedImageBlob, 100)
+        const processOptions = {
+          maxWidth: this.imageCompressionSettings.photo.maxWidth,
+          maxHeight: this.imageCompressionSettings.photo.maxHeight,
+          quality: this.imageCompressionSettings.photo.quality,
+          outputFormat: 'image/jpeg' // <--- CHANGE IS HERE: ALWAYS force JPEG for associated images
+        }
+        console.log('DEBUG: Processing options:', processOptions)
 
+        const processedImageBlob = await this.imageProcessor.processImage(file, processOptions)
+
+        // --- DEBUGGING START ---
+        console.log('DEBUG: Processed Image Blob Type:', processedImageBlob.type)
+        console.log('DEBUG: Processed Image Blob Size:', processedImageBlob.size, 'bytes')
+        // --- DEBUGGING END ---
+
+        const thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(processedImageBlob, this.imageCompressionSettings.thumbnail.maxSize, 'image/jpeg', this.imageCompressionSettings.thumbnail.quality)
         const photoData = {
           markerId,
           imageData: processedImageBlob,
           thumbnailData: thumbnailDataUrl,
           fileName: file.name,
-          fileType: processedImageBlob.type,
+          fileType: 'image/jpeg', // <--- Also update this to reflect actual stored type
           fileSize: processedImageBlob.size
         }
         const savedPhoto = await this.storage.addPhoto(photoData)
@@ -1878,39 +1948,180 @@ class ImageMapperApp {
     }
   }
 
+  /**
+     * Exports a map's data to an HTML report.
+     * Modified to fit the new callback signature from MapsModal.
+     * @param {string} mapId The ID of the map to export.
+     */
   async exportHtmlReport (mapId) {
-    const map = await this.storage.getMap(mapId)
-    if (!map) {
-      console.error('Map not found for export:', mapId)
-      alert('Map not found for export.')
-      return
+    this.updateAppStatus(`Generating HTML report for map ${mapId}...`)
+    try {
+      const map = await this.storage.getMap(mapId)
+      if (!map) {
+        console.error('App: Map not found for HTML export:', mapId)
+        alert('Map not found for HTML export.')
+        this.updateAppStatus('Ready', 'error')
+        return
+      }
+      const markers = await this.storage.getMarkersForMap(mapId)
+      let allPhotos = []
+      const photoPromises = []
+      for (const marker of markers) {
+        const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
+        markerPhotos.forEach(photo => {
+          photoPromises.push(this.imageProcessor.blobToBase64(photo.imageData)
+            .then(dataUrl => {
+              photo.imageDataUrl = dataUrl // Assign Base64 representation of original image Blob
+              return photo
+            }))
+        })
+      }
+      allPhotos = await Promise.all(photoPromises)
+      allPhotos.sort((a, b) => a.fileName.localeCompare(b.fileName))
+
+      // Call the static method from HtmlReportGenerator
+      await HtmlReportGenerator.generateReport(map, markers, allPhotos, this.imageProcessor)
+      this.updateAppStatus(`HTML report for map "${map.name}" generated successfully.`, 'success')
+    } catch (error) {
+      console.error('App: Error generating HTML report:', error)
+      alert('Error generating HTML report. Check console for details.')
+      this.updateAppStatus('HTML report generation failed', 'error')
     }
+  }
 
-    const markers = await this.storage.getMarkersForMap(mapId)
-    let allPhotos = []
-    const photoPromises = [] // To store promises for converting blobs to data URLs
-
-    for (const marker of markers) {
-      const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
-      markerPhotos.forEach(photo => {
-        // For each photo, convert its imageData (Blob) to a Data URL
-        // We'll add this new property to the photo object
-        photoPromises.push(this.imageProcessor.blobToBase64(photo.imageData)
-          .then(dataUrl => {
-            photo.imageDataUrl = dataUrl
-            return photo
-          }))
-      })
+  /**
+     * Exports a map's data to a JSON file using MapDataExporterImporter.
+     * @param {string} mapId The ID of the map to export.
+     */
+  async exportJsonMap (mapId) {
+    this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`)
+    try {
+      const map = await this.storage.getMap(mapId)
+      if (!map) {
+        console.error('App: Map not found for JSON export:', mapId)
+        alert('Map not found for JSON export.')
+        this.updateAppStatus('Ready', 'error')
+        return
+      }
+      const markers = await this.storage.getMarkersForMap(mapId)
+      const photos = []
+      for (const marker of markers) {
+        const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
+        photos.push(...markerPhotos)
+      }
+      // MapDataExporterImporter handles Blob to Base64 conversion and download
+      await MapDataExporterImporter.exportData(map, markers, photos, this.imageProcessor)
+      this.updateAppStatus(`JSON data for map "${map.name}" exported successfully.`, 'success')
+    } catch (error) {
+      console.error('App: Error exporting JSON map data:', error)
+      alert('Error exporting JSON map data. Check console for details.')
+      this.updateAppStatus('JSON export failed', 'error')
     }
+  }
 
-    allPhotos = await Promise.all(photoPromises) // Wait for all conversions
+  /**
+     * Handles the file selected by the user for import.
+     * @param {File} file The JSON file to import.
+     */
+  async handleImportFile (file) {
+    this.updateAppStatus(`Importing data from "${file.name}"...`)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        try {
+          const jsonData = e.target.result
+          const { map, markers, photos } = await MapDataExporterImporter.importData(jsonData, ImageProcessor)
+          // Save imported data to storage using the new save methods
+          await this.storage.saveMap(map)
+          for (const marker of markers) {
+            await this.storage.saveMarker(marker)
+          }
+          for (const photo of photos) {
+            await this.storage.savePhoto(photo)
+          }
+          this.updateAppStatus(`Data from "${file.name}" imported successfully.`, 'success')
 
-    // Sort allPhotos by fileName for consistent display
-    allPhotos.sort((a, b) => a.fileName.localeCompare(b.fileName))
+          if (map && map.id) {
+            // 1. Reload the internal maps list in App instance
+            await this.loadMaps() // Assuming this populates this.mapsList
 
-    // Call the static method from the new HtmlReportGenerator class
-    // Pass the photos array which now includes imageDataUrl
-    await HtmlReportGenerator.generateReport(map, markers, allPhotos, this.imageProcessor)
+            // 2. Set the newly imported map as active and load it onto the canvas
+            //    'switchToMap' will now find the map in the updated this.mapsList
+            await this.switchToMap(map.id)
+            console.log('Imported map loaded and set as active.')
+
+            // 3. Refresh the map list in the UI (by showing the modal)
+            //    This ensures the map management modal is up-to-date if opened
+            await this.showMapManagementModal()
+          }
+
+          alert(`Map "${map.name}" and its associated data imported successfully! It is now the active map.`)
+        } catch (importError) {
+          console.error('App: Error processing imported data:', importError)
+          alert(`Error processing imported data: ${importError.message}`)
+          this.updateAppStatus('Import failed', 'error')
+        }
+      }
+      reader.onerror = (e) => {
+        console.error('App: Error reading file:', e)
+        alert('Error reading file.')
+        this.updateAppStatus('File read failed', 'error')
+      }
+      reader.readAsText(file)
+    } catch (error) {
+      console.error('App: Unexpected error during file import setup:', error)
+      alert('Unexpected error during file import setup.')
+      this.updateAppStatus('Import setup failed', 'error')
+    }
+  }
+
+  /**
+   * Handles the request to view a full-size photo.
+   * Fetches the photo data, creates an Object URL, and displays it in a modal.
+   * @param {string} photoId - The ID of the photo to view.
+   */
+  async handleViewPhoto (photoId) {
+    this.showLoading('Loading image...') // Assuming you have showLoading
+    try {
+      const photo = await this.storage.getPhoto(photoId)
+      if (!photo || !photo.imageData) {
+        console.error('Photo data not found for ID:', photoId)
+        // Replaced showToast with your existing error notification
+        this.showErrorMessage('Image Load Error', 'Image data not found.')
+        return
+      }
+
+      const imageBlob = photo.imageData // Directly use the imageData Blob
+
+      // Revoke any previous object URL to prevent memory leaks
+      if (this.currentImageViewerUrl) {
+        URL.revokeObjectURL(this.currentImageViewerUrl)
+      }
+
+      // Create a new object URL for the image Blob
+      this.currentImageViewerUrl = URL.createObjectURL(imageBlob)
+
+      this.modalManager.createImageViewerModal(
+        this.currentImageViewerUrl,
+        photo.fileName || 'Image', // Use filename as title
+        () => {
+          // Callback when the image viewer modal closes
+          this.updateAppStatus('Image viewer closed.')
+          // Revoke the object URL immediately after the modal is closed
+          if (this.currentImageViewerUrl) {
+            URL.revokeObjectURL(this.currentImageViewerUrl)
+            this.currentImageViewerUrl = null
+          }
+        }
+      )
+      this.updateAppStatus(`Viewing image: ${photo.fileName}`)
+    } catch (error) {
+      console.error('Error displaying photo:', error)
+      // Replaced showToast with your existing error notification
+      this.showErrorMessage('Image Load Error', `Failed to load image: ${error.message}`)
+    } finally {
+      this.hideLoading() // Assuming you have hideLoading
+    }
   }
 
   /**

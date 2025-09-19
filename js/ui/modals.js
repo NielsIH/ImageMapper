@@ -13,11 +13,12 @@ class ModalManager {
   constructor () {
     this.activeModals = new Set()
     this.setupGlobalListeners()
+    this.currentObjectUrl = null // To store the URL created by createObjectURL
   }
 
   /**
-   * Set up global event listeners for modal system
-   */
+     * Set up global event listeners for modal system
+     */
   setupGlobalListeners () {
     // Close modals on Escape key
     document.addEventListener('keydown', (e) => {
@@ -28,18 +29,29 @@ class ModalManager {
   }
 
   /**
-   * Creates a comprehensive Map Management Modal to display, select, add, and delete maps.
-   * @param {Array<Object>} maps - Array of map metadata objects (with thumbnailDataUrl).
-   * @param {string|null} activeMapId - ID of the currently active map.
-   * @param {Function} onMapSelected - Callback when a map is selected from the list.
-   * @param {Function} onMapDelete - Callback when a map's delete button is clicked.
-   * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button is clicked.
-   * @param {Function} onExportMap - Callback when the 'Export HTML Report' button is clicked.
-   * @param {Function} onClose - Callback when the modal is closed.
-   * @param {Function} [onModalReady] - Optional callback when modal is fully displayed/ready.
-   * @returns {HTMLElement} - Modal element.
-   */
-  createMapManagementModal (maps, activeMapId, onMapSelected, onMapDelete, onAddNewMap, onExportMap, onClose, onModalReady) { // Added onExportMap
+     * Creates a comprehensive Map Management Modal to display, select, add, and delete maps.
+     * @param {Array<Object>} maps - Array of map metadata objects (with thumbnailDataUrl).
+     * @param {string|null} activeMapId - ID of the currently active map.
+     * @param {Function} onMapSelected - Callback when a map is selected from the list.
+     * @param {Function} onMapDelete - Callback when a map's delete button is clicked.
+     * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button is clicked.
+     * @param {Function} onExportHtmlMap - Callback when the 'Export HTML Report' button is clicked.
+     *    @param {Function} onExportJsonMap - Callback when the 'Export JSON Data' button is clicked.
+     * @param {Function} onClose - Callback when the modal is closed.
+     * @param {Function} [onModalReady] - Optional callback when modal is fully displayed/ready.
+     * @returns {HTMLElement} - Modal element.
+     */
+  createMapManagementModal (
+    maps,
+    activeMapId,
+    onMapSelected,
+    onMapDelete,
+    onAddNewMap,
+    onExportHtmlMap,
+    onExportJsonMap,
+    onClose,
+    onModalReady
+  ) {
     console.log('ModalManager: Creating new Map Management Modal.')
     const modalHtml = `
       <div class="modal" id="map-management-modal">
@@ -51,16 +63,25 @@ class ModalManager {
           </div>
           <div class="modal-body">
             <div class="maps-management-container">
-              ${maps.length === 0
-                ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
-                : `
+              ${
+                  maps.length === 0
+                      ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
+                      : `
                 <div class="maps-list-container">
                   <ul class="maps-list">
-                    ${maps.map(map => `
-                      <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${map.id !== activeMapId ? 'clickable' : ''}" data-map-id="${map.id}">
+                    ${maps
+                        .map(
+                            (map) => `
+                      <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${
+                                map.id !== activeMapId ? 'clickable' : ''
+                            }" data-map-id="${map.id}">
                         <div class="map-card-content">
                           <div class="map-thumbnail-container">
-                            ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />` : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`}
+                            ${
+                                map.thumbnailDataUrl
+                                    ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />`
+                                    : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`
+                            }
                           </div>
                           <div class="map-info">
                             <span class="map-name">${map.name}</span>
@@ -69,18 +90,28 @@ class ModalManager {
                           </div>
                         </div>
                         <div class="map-item-actions-wrapper">
-                          <button class="btn btn-primary btn-small map-action-btn export-map-btn" data-map-id="${map.id}" title="Export HTML Report">
-                            <span class="icon">📊</span> <span class="btn-text">Export</span>
-                          </button>
-                          <button class="btn btn-danger btn-small map-action-btn delete-map-btn" data-map-id="${map.id}" title="Delete Map">
-                            <span class="icon">🗑️</span> <span class="btn-text">Delete</span>
-                          </button>
-                        </div>
+<button class="btn btn-primary btn-small map-action-btn export-map-btn" data-map-id="${
+                                map.id
+                            }" title="Export HTML Report">
+<span class="icon">📊</span> <span class="btn-text">Export</span>
+</button>
+<button class="btn btn-secondary btn-small map-action-btn export-json-map-btn" data-map-id="${
+                                map.id
+                            }" title="Export Map Data as JSON">
+<span class="icon">💾</span> <span class="btn-text">Export JSON</span>
+</button>
+<button class="btn btn-danger btn-small map-action-btn delete-map-btn" data-map-id="${map.id}" title="Delete Map">
+<span class="icon">🗑️</span> <span class="btn-text">Delete</span>
+</button>
+</div>
                       </li>
-                    `).join('')}
+                    `
+                        )
+                        .join('')}
                   </ul>
                 </div>
-              `}
+              `
+              }
             </div>
           </div>
           
@@ -118,7 +149,7 @@ class ModalManager {
 
     // Select map (list item click)
     // Adjusted to prevent clicks on buttons from triggering map selection
-    modal.querySelectorAll('.map-list-item.clickable').forEach(item => {
+    modal.querySelectorAll('.map-list-item.clickable').forEach((item) => {
       item.addEventListener('click', (e) => {
         // Only trigger map selection if the click is directly on the content, not buttons
         if (!e.target.closest('.map-action-btn')) {
@@ -132,8 +163,9 @@ class ModalManager {
     })
 
     // Delete map button listener
-    modal.querySelectorAll('.delete-map-btn').forEach(button => {
-      button.addEventListener('click', async (e) => { // Keep async
+    modal.querySelectorAll('.delete-map-btn').forEach((button) => {
+      button.addEventListener('click', async (e) => {
+        // Keep async
         e.stopPropagation()
         const mapId = button.dataset.mapId
         if (confirm('Are you sure you want to delete this map? This cannot be undone!')) {
@@ -144,14 +176,24 @@ class ModalManager {
       })
     })
 
-    // Export map button listener
+    // Export HTML map button listener (original 'Export' button)
     modal.querySelectorAll('.export-map-btn').forEach(button => {
       button.addEventListener('click', async (e) => { // Keep async
         e.stopPropagation()
         const mapId = button.dataset.mapId
-        if (onExportMap) {
-          // Similarly, await the onExportMap callback from app.js
-          await onExportMap(mapId)
+        if (onExportHtmlMap) { // Changed to onExportHtmlMap
+          await onExportHtmlMap(mapId)
+        }
+      })
+    })
+
+    // NEW: Export JSON Data button listener
+    modal.querySelectorAll('.export-json-map-btn').forEach(button => {
+      button.addEventListener('click', async (e) => { // Keep async
+        e.stopPropagation()
+        const mapId = button.dataset.mapId
+        if (onExportJsonMap) { // Call new onExportJsonMap callback
+          await onExportJsonMap(mapId)
         }
       })
     })
@@ -166,9 +208,9 @@ class ModalManager {
     })
 
     // Populate map initials if no thumbnail - no change needed
-    modal.querySelectorAll('.map-initials').forEach(initialsDiv => {
+    modal.querySelectorAll('.map-initials').forEach((initialsDiv) => {
       const mapId = initialsDiv.closest('.map-list-item')?.dataset.mapId
-      const map = maps.find(m => m.id === mapId)
+      const map = maps.find((m) => m.id === mapId)
       if (map) {
         initialsDiv.textContent = map.name.substring(0, 2).toUpperCase()
       }
@@ -185,11 +227,11 @@ class ModalManager {
   }
 
   /**
-   * Create upload modal for map file selection
-   * @param {Function} onUpload - Callback when file is uploaded
-   * @param {Function} onCancel - Callback when upload is cancelled
-   * @returns {HTMLElement} - Modal element
-   */
+     * Create upload modal for map file selection
+     * @param {Function} onUpload - Callback when file is uploaded
+     * @param {Function} onCancel - Callback when upload is cancelled
+     * @returns {HTMLElement} - Modal element
+     */
   createUploadModal (onUpload, onCancel) {
     const modalHtml = `
       <div class="modal" id="upload-modal">
@@ -325,11 +367,11 @@ class ModalManager {
   }
 
   /**
-   * Set up upload modal functionality with file picker strategy testing
-   * @param {HTMLElement} modal - Modal element
-   * @param {Function} onUpload - Upload callback
-   * @param {Function} onCancel - Cancel callback
-   */
+     * Set up upload modal functionality with file picker strategy testing
+     * @param {HTMLElement} modal - Modal element
+     * @param {Function} onUpload - Upload callback
+     * @param {Function} onCancel - Cancel callback
+     */
   setupUploadModal (modal, onUpload, onCancel) {
     let selectedFile = null
     let processedData = null
@@ -459,8 +501,7 @@ class ModalManager {
 
     // Enhanced browse button
     browseBtn.addEventListener('click', async () => {
-      const showDebug = window.location.hostname.includes('localhost') ||
-                   window.location.search.includes('debug')
+      const showDebug = window.location.hostname.includes('localhost') || window.location.search.includes('debug')
 
       if (showDebug) {
         clearDebugMessages()
@@ -572,18 +613,17 @@ class ModalManager {
   }
 
   /**
- * Add debug controls (only shown in debug mode)
- * @param {HTMLElement} modal - Modal element
- * @param {FileManager} fileManager - File manager instance
- * @param {Function} handleFileSelect - File selection handler
- * @param {Function} showDebugMessage - Debug message function
- */
+     * Add debug controls (only shown in debug mode)
+     * @param {HTMLElement} modal - Modal element
+     * @param {FileManager} fileManager - File manager instance
+     * @param {Function} handleFileSelect - File selection handler
+     * @param {Function} showDebugMessage - Debug message function
+     */
   addManualStrategyButtons (modal, fileManager, handleFileSelect, showDebugMessage) {
     const dropZone = modal.querySelector('#file-drop-zone')
 
     // Only show debug controls in debug mode
-    const showDebug = window.location.hostname.includes('localhost') ||
-                   window.location.search.includes('debug')
+    const showDebug = window.location.hostname.includes('localhost') || window.location.search.includes('debug')
 
     if (!showDebug) return
 
@@ -619,8 +659,8 @@ class ModalManager {
   }
 
   /**
-   * Update file preview in modal
-   */
+     * Update file preview in modal
+     */
   updateFilePreview (modal, processedData) {
     const previewImg = modal.querySelector('#preview-image')
     const fileName = modal.querySelector('#file-name')
@@ -641,8 +681,8 @@ class ModalManager {
   }
 
   /**
-   * Show file details step
-   */
+     * Show file details step
+     */
   showDetailsStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
@@ -661,8 +701,8 @@ class ModalManager {
   }
 
   /**
-   * Show file selection step
-   */
+     * Show file selection step
+     */
   showSelectionStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
@@ -676,8 +716,8 @@ class ModalManager {
   }
 
   /**
-   * Show error message in modal
-   */
+     * Show error message in modal
+     */
   showError (modal, message) {
     const errorDisplay = modal.querySelector('#upload-error')
     const errorMessage = modal.querySelector('#error-message')
@@ -691,8 +731,8 @@ class ModalManager {
   }
 
   /**
-   * Show loading state in modal
-   */
+     * Show loading state in modal
+     */
   showLoading (modal, message = 'Loading...') {
     // Add loading class to modal
     modal.classList.add('loading')
@@ -701,7 +741,9 @@ class ModalManager {
     const form = modal.querySelector('#map-details-form')
     if (form) {
       const inputs = form.querySelectorAll('input, textarea, button')
-      inputs.forEach(input => { input.disabled = true })
+      inputs.forEach((input) => {
+        input.disabled = true
+      })
     }
 
     // Update button text
@@ -712,8 +754,8 @@ class ModalManager {
   }
 
   /**
-   * Hide loading state in modal
-   */
+     * Hide loading state in modal
+     */
   hideLoading (modal) {
     modal.classList.remove('loading')
 
@@ -721,7 +763,9 @@ class ModalManager {
     const form = modal.querySelector('#map-details-form')
     if (form) {
       const inputs = form.querySelectorAll('input, textarea, button')
-      inputs.forEach(input => { input.disabled = false })
+      inputs.forEach((input) => {
+        input.disabled = false
+      })
     }
 
     // Restore button text
@@ -732,8 +776,8 @@ class ModalManager {
   }
 
   /**
-   * Close a specific modal
-   */
+     * Close a specific modal
+     */
   // closeModal (modal) {
   //   modal.classList.remove('show')
   //   this.activeModals.delete(modal)
@@ -746,21 +790,30 @@ class ModalManager {
   // }
 
   /**
-   * Close a specific modal.
-   * Returns a Promise that resolves when the modal is fully removed from DOM.
-   */
+     * Close a specific modal.
+     * Returns a Promise that resolves when the modal is fully removed from DOM.
+     */
   closeModal (modal) {
-    console.log(`ModalManager: Attempting to close modal with ID: ${modal ? modal.id : 'N/A'}`)
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       if (!modal || !this.activeModals.has(modal)) {
-        console.warn(`ModalManager: closeModal called for non-active or null modal: ${modal ? modal.id : 'N/A'}`)
+        console.warn(
+          `ModalManager: closeModal called for non-active or null modal: ${modal ? modal.id : 'N/A'}`
+        )
         resolve()
         return
       }
 
       modal.classList.remove('show')
       this.activeModals.delete(modal)
-      console.log(`ModalManager: Removed modal ${modal.id} from activeModals set. Remaining: ${this.activeModals.size}`)
+      console.log(
+        `ModalManager: Removed modal ${modal.id} from activeModals set. Remaining: ${this.activeModals.size}`
+      )
+
+      // If the closed modal was the image viewer, revoke the object URL
+      if (modal.id === 'image-viewer-modal' && this.currentObjectUrl) {
+        URL.revokeObjectURL(this.currentObjectUrl)
+        this.currentObjectUrl = null
+      }
 
       const handleTransitionEnd = () => {
         modal.removeEventListener('transitionend', handleTransitionEnd)
@@ -786,7 +839,8 @@ class ModalManager {
         resolve()
       } else {
         modal.addEventListener('transitionend', handleTransitionEnd)
-        const fallbackTimer = setTimeout(() => { // Store for potential clear
+        const fallbackTimer = setTimeout(() => {
+          // Store for potential clear
           if (modal.parentNode && modal.contains(modal.parentNode)) {
             modal.parentNode.removeChild(modal)
             console.warn(`ModalManager: Modal ${modal.id} removed from DOM via setTimeout fallback.`)
@@ -803,8 +857,8 @@ class ModalManager {
   }
 
   /**
-   * Close the topmost modal
-   */
+     * Close the topmost modal
+     */
   closeTopModal () {
     if (this.activeModals.size > 0) {
       const modals = Array.from(this.activeModals)
@@ -814,19 +868,19 @@ class ModalManager {
   }
 
   /**
-   * Close all modals
-   */
+     * Close all modals
+     */
   closeAllModals () {
-    Array.from(this.activeModals).forEach(modal => {
+    Array.from(this.activeModals).forEach((modal) => {
       this.closeModal(modal)
     })
   }
 
   /**
-   * Returns the ID of the topmost active modal, or null if no modals are active.
-   * This assumes modal elements have an 'id' attribute.
-   * @returns {string|null} - ID of the topmost modal.
-   */
+     * Returns the ID of the topmost active modal, or null if no modals are active.
+     * This assumes modal elements have an 'id' attribute.
+     * @returns {string|null} - ID of the topmost modal.
+     */
   getTopModalId () {
     if (this.activeModals.size > 0) {
       const modals = Array.from(this.activeModals)
@@ -837,11 +891,11 @@ class ModalManager {
   }
 
   /**
-   * NEW: Update the displayed description in an already open marker details modal.
-   * This is for when the description is edited directly in the modal.
-   * @param {string} markerId - The ID of the marker whose description is being updated.
-   * @param {string} newDescription - The new description text.
-   */
+     * NEW: Update the displayed description in an already open marker details modal.
+     * This is for when the description is edited directly in the modal.
+     * @param {string} markerId - The ID of the marker whose description is being updated.
+     * @param {string} newDescription - The new description text.
+     */
   updateMarkerDetailsDescription (markerId, newDescription) {
     const modal = document.querySelector(`#marker-details-modal[data-marker-id="${markerId}"]`)
     if (modal) {
@@ -868,20 +922,35 @@ class ModalManager {
    * @param {Function} onSaveDescription - Callback when description is saved.
    * @param {Function} onDeleteMarker - Callback for 'Delete Marker' button.
    * @param {Function} onDeletePhoto - Callback when a 'Delete Photo' button is clicked.
+   * @param {Function} onViewPhoto - NEW: Callback when a photo thumbnail is clicked (receives photo.id).
    * @param {Function} onClose - Callback when the modal is closed.
    * @returns {HTMLElement} - The created modal element.
    */
-  createMarkerDetailsModal (markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onClose) { // Added onSaveDescription
+  createMarkerDetailsModal (
+    markerDetails,
+    onAddPhotos,
+    onEditMarker,
+    onSaveDescription,
+    onDeleteMarker,
+    onDeletePhoto,
+    onViewPhoto, // <-- NEW PARAMETER
+    onClose
+  ) {
     // Generate photo thumbnails HTML
-    const photoThumbnailsHtml = markerDetails.photos && markerDetails.photos.length > 0
-      ? markerDetails.photos.map(photo => `
+    const photoThumbnailsHtml =
+            markerDetails.photos && markerDetails.photos.length > 0
+              ? markerDetails.photos
+                .map(
+                  (photo) => `
           <div class="photo-thumbnail-item" data-photo-id="${photo.id}" style="position: relative;">
-            <img src="${photo.thumbnailData}" alt="${photo.fileName}" class="photo-thumbnail" />
+            <img src="${photo.thumbnailData}" alt="${photo.fileName}" class="photo-thumbnail clickable-thumbnail" data-photo-id="${photo.id}" />
             <span class="photo-name">${photo.fileName}</span>
             <button class="btn btn-tiny btn-danger delete-photo-btn" data-photo-id="${photo.id}" title="Remove Photo">×</button>
           </div>
-        `).join('')
-      : '<p class="text-secondary text-center">No photos yet. Click "Add Photos" to add some!</p>'
+        `
+                )
+                .join('')
+              : '<p class="text-secondary text-center">No photos yet. Click "Add Photos" to add some!</p>'
 
     const modalHtml = `
       <div class="modal" id="marker-details-modal" data-marker-id="${markerDetails.id}">
@@ -896,11 +965,15 @@ class ModalManager {
               <p><strong>ID:</strong> <span class="text-xs text-secondary">${markerDetails.id}</span></p>
               <p><strong>Coordinates:</strong> ${markerDetails.coords}</p>
               <p>
-                <strong>Description:</strong> 
+                <strong>Description:</strong>
                 <span class="marker-description-display">${markerDetails.description || 'No description'}</span>
-                <textarea class="marker-description-edit hidden" rows="3" maxlength="500" placeholder="Enter description">${markerDetails.description || ''}</textarea>
+                <textarea class="marker-description-edit hidden" rows="3" maxlength="500" placeholder="Enter description">${
+                    markerDetails.description || ''
+                }</textarea>
               </p>
-              <p><strong>Photos:</strong> <span class="marker-photo-count">${markerDetails.photoCount}</span> associated</p>
+              <p><strong>Photos:</strong> <span class="marker-photo-count">${
+                  markerDetails.photoCount
+              }</span> associated</p>
             </div>
 
             <div class="photo-list-section">
@@ -999,19 +1072,36 @@ class ModalManager {
     })
 
     deleteMarkerButton?.addEventListener('click', () => {
-      if (onDeleteMarker && confirm('Are you sure you want to delete this marker and all its associated photos? This cannot be undone.')) {
+      if (
+        onDeleteMarker &&
+                confirm(
+                  'Are you sure you want to delete this marker and all its associated photos? This cannot be undone.'
+                )
+      ) {
         onDeleteMarker(markerDetails.id)
       }
     })
 
     // Add event listeners for delete photo buttons if any
-    modal.querySelectorAll('.delete-photo-btn').forEach(button => {
+    modal.querySelectorAll('.delete-photo-btn').forEach((button) => {
       button.addEventListener('click', (e) => {
         e.stopPropagation()
         const photoId = button.dataset.photoId
         console.log('Delete photo button clicked for photoId:', photoId)
         if (onDeletePhoto && confirm('Are you sure you want to remove this photo from the marker?')) {
           onDeletePhoto(markerDetails.id, photoId)
+        }
+      })
+    })
+
+    // NEW: Add event listeners for clickable photo thumbnails
+    modal.querySelectorAll('.photo-thumbnail.clickable-thumbnail').forEach((thumbnail) => {
+      thumbnail.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const photoId = thumbnail.dataset.photoId
+        console.log('Photo thumbnail clicked for photoId:', photoId)
+        if (onViewPhoto) {
+          onViewPhoto(photoId)
         }
       })
     })
@@ -1024,12 +1114,12 @@ class ModalManager {
   }
 
   /**
-   * Creates and displays a modal for editing marker details.
-   * @param {Object} markerData - Marker data to edit (id, description).
-   * @param {Function} onSave - Callback when save button is clicked (receives updated description).
-   * @param {Function} onCancel - Callback when cancel button or close is clicked.
-   * @returns {HTMLElement} - The created modal element.
-   */
+     * Creates and displays a modal for editing marker details.
+     * @param {Object} markerData - Marker data to edit (id, description).
+     * @param {Function} onSave - Callback when save button is clicked (receives updated description).
+     * @param {Function} onCancel - Callback when cancel button or close is clicked.
+     * @returns {HTMLElement} - The created modal element.
+     */
   createEditMarkerModal (markerData, onSave, onCancel) {
     const modalHtml = `
       <div class="modal" id="edit-marker-modal" data-marker-id="${markerData.id}">
@@ -1043,7 +1133,9 @@ class ModalManager {
             <form id="edit-marker-form">
               <div class="form-group">
                 <label for="marker-description-edit">Description</label>
-                <textarea id="marker-description-edit" class="form-control" rows="5" maxlength="500" placeholder="Enter a description for this marker...">${markerData.description || ''}</textarea>
+                <textarea id="marker-description-edit" class="form-control" rows="5" maxlength="500" placeholder="Enter a description for this marker...">${
+                    markerData.description || ''
+                }</textarea>
               </div>
             </form>
           </div>
@@ -1101,6 +1193,55 @@ class ModalManager {
       descriptionInput.focus()
     })
 
+    return modal
+  }
+
+  /**
+   * Creates and displays a modal for viewing a full-size image.
+   * @param {string} imageUrl - The URL of the image to display (can be Data URL or object URL).
+   * @param {string} [imageTitle='Image Viewer'] - An optional title for the image.
+   * @param {Function} onClose - Callback when the modal is closed.
+   * @returns {HTMLElement} - The created modal element.
+   */
+  createImageViewerModal (imageUrl, imageTitle = 'Image Viewer', onClose) {
+    console.log('ModalManager: Creating new Image Viewer Modal.')
+    const modalHtml = `
+      <div class="modal" id="image-viewer-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content image-viewer-content">
+          <div class="modal-header">
+            <h3 class="image-viewer-title">${imageTitle}</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body image-viewer-body">
+            <img src="${imageUrl}" alt="${imageTitle}" class="full-size-image" />
+          </div>
+        </div>
+      </div>
+    `
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create image viewer modal element.')
+      if (onClose) onClose()
+      return null
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    const closeModal = () => {
+      this.closeModal(modal)
+      if (onClose) onClose()
+    }
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show')
+    })
     return modal
   }
 }
