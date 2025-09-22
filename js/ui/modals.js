@@ -29,16 +29,17 @@ class ModalManager {
   }
 
   /**
-     * Creates a comprehensive Map Management Modal to display, select, add, and delete maps.
-     * @param {Array<Object>} maps - Array of map metadata objects (with thumbnailDataUrl).
+     * Creates a comprehensive Map Management Modal...
+     * @param {Array<Object>} maps - Array of map metadata objects...
      * @param {string|null} activeMapId - ID of the currently active map.
-     * @param {Function} onMapSelected - Callback when a map is selected from the list.
-     * @param {Function} onMapDelete - Callback when a map's delete button is clicked.
-     * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button is clicked.
-     * @param {Function} onExportHtmlMap - Callback when the 'Export HTML Report' button is clicked.
-     *    @param {Function} onExportJsonMap - Callback when the 'Export JSON Data' button is clicked.
+     * @param {Function} onMapSelected - Callback when a map is selected...
+     * @param {Function} onMapDelete - Callback when a map's delete button...
+     * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button...
+     * @param {Function} onExportHtmlMap - Callback when the 'Export HTML Report' button...
+     * @param {Function} onExportJsonMap - Callback when the 'Export JSON Data' button...
      * @param {Function} onClose - Callback when the modal is closed.
      * @param {Function} [onModalReady] - Optional callback when modal is fully displayed/ready.
+     * @param {Function} onClearAllData - NEW: Callback when 'Clear All App Data' button is clicked.
      * @returns {HTMLElement} - Modal element.
      */
   createMapManagementModal (
@@ -50,7 +51,8 @@ class ModalManager {
     onExportHtmlMap,
     onExportJsonMap,
     onClose,
-    onModalReady
+    onModalReady,
+    onClearAllData // <--- NEW PARAMETER HERE
   ) {
     console.log('ModalManager: Creating new Map Management Modal.')
     const modalHtml = `
@@ -120,6 +122,7 @@ class ModalManager {
                 <button class="btn btn-primary add-new-map-btn" type="button">
                     ➕ Add New Map
                 </button>
+                <button id="btn-clear-all-data" class="btn btn-warning">Clear All Data</button>
             </div>
           </div>
         </div>
@@ -187,7 +190,7 @@ class ModalManager {
       })
     })
 
-    // NEW: Export JSON Data button listener
+    // Export JSON Data button listener
     modal.querySelectorAll('.export-json-map-btn').forEach(button => {
       button.addEventListener('click', async (e) => { // Keep async
         e.stopPropagation()
@@ -206,6 +209,17 @@ class ModalManager {
         this.closeModal(modal)
       }
     })
+    // Add listener for the new Clear All Data button
+    const btnClearAllData = modal.querySelector('#btn-clear-all-data')
+    if (btnClearAllData) {
+      btnClearAllData.addEventListener('click', async () => {
+        // Confirmation is handled by app.js's clearAllAppData, so just call it
+        if (onClearAllData) {
+          await onClearAllData()
+          this.closeModal(modal)
+        }
+      })
+    }
 
     // Populate map initials if no thumbnail - no change needed
     modal.querySelectorAll('.map-initials').forEach((initialsDiv) => {

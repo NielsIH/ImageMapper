@@ -628,6 +628,9 @@ class ImageMapperApp {
         },
         () => { // onModalReady callback (triggered when modal is shown after animation)
           this.hideLoading()
+        },
+        async () => { // <--- NEW PARAMETER: onClearAllData callback
+          await this.clearAllAppData()
         }
       )
       this.updateAppStatus('Map management displayed')
@@ -702,6 +705,56 @@ class ImageMapperApp {
     } catch (error) {
       console.error('Error deleting map:', error)
       this.showErrorMessage('Deletion Failed', `Failed to delete map: ${error.message}`)
+    } finally {
+      this.hideLoading()
+    }
+  }
+
+  // Call this method from your settings modal or another appropriate place.
+  async clearAllAppData () {
+    if (!window.confirm('Are you sure you want to delete ALL maps, markers, and photos from this app? This action cannot be undone.')) {
+      this.showNotification('Clear all data cancelled.', 'info')
+      return
+    }
+
+    this.showLoading('Clearing all app data...')
+    try {
+      // 1. Clear IndexedDB data
+      await this.storage.clearAllMaps()
+      console.log('App: IndexedDB data cleared.')
+
+      // 2. Clear localStorage data (preferences)
+      localStorage.removeItem('markersLocked')
+      localStorage.removeItem('mapRotation')
+      localStorage.removeItem('markerDisplaySize')
+      localStorage.removeItem('showCrosshair')
+      localStorage.removeItem('mapControlsMinimized')
+      // Add any other localStorage items here
+      console.log('App: localStorage data cleared.')
+
+      // 3. Clear Cache API (Service Worker caches)
+      if ('caches' in window) {
+        const cacheNames = await window.caches.keys()
+        await Promise.all(cacheNames.map(cacheName => window.caches.delete(cacheName)))
+        console.log('App: Cache API data cleared.')
+      }
+
+      // 4. Optionally, unregister Service Worker (might not be necessary for just clearing data)
+      // if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      //   const registration = await navigator.serviceWorker.getRegistration()
+      //   if (registration) {
+      //     await registration.unregister()
+      //     console.log('App: Service Worker unregistered.')
+      //   }
+      // }
+
+      this.showNotification('All app data has been cleared. The app will now reload.', 'success')
+      this.hideLoading()
+      // Full page reload to ensure a clean state
+      window.location.reload(true) // Pass true to force a reload from the server (bypassing cache)
+    } catch (error) {
+      console.error('App: Error clearing all app data:', error)
+      this.showErrorMessage('Clear Data Failed', `Failed to clear all app data: ${error.message}`)
     } finally {
       this.hideLoading()
     }
