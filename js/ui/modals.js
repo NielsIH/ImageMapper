@@ -93,7 +93,7 @@ class ModalManager {
 <button class="btn btn-primary btn-small map-action-btn export-map-btn" data-map-id="${
                                 map.id
                             }" title="Export HTML Report">
-<span class="icon">📊</span> <span class="btn-text">Export</span>
+<span class="icon">🗒️</span> <span class="btn-text">Report</span>
 </button>
 <button class="btn btn-secondary btn-small map-action-btn export-json-map-btn" data-map-id="${
                                 map.id

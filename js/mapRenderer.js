@@ -1,10 +1,5 @@
 /**
  * Image Mapper PWA - Map Rendering System
- * Phase 1B: Canvas-based map display and rendering
- */
-
-/**
- * Map Renderer for displaying uploaded maps on canvas
  */
 
 /* global console, document, window, Image, URL */
@@ -13,26 +8,31 @@ class MapRenderer {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
     this.currentMap = null
+    // this.imageData will now hold an HTMLCanvasElement (the rotated bitmap)
     this.imageData = null
+    // this.originalImageData holds the original (unrotated) HTMLImageElement reference
+    this.originalImageData = null
     this.scale = 1
     this.offsetX = 0
     this.offsetY = 0
     this.maxScale = 5
     this.minScale = 0.1
     this.showDebugInfo = false
-    this.markers = [] // NEW: Array to hold marker data
-    this.showCrosshair = false // NEW: Control crosshair visibility
-    this.markersAreEditable = false // NEW: Control if markers are rendered as editable
-    // NEW: Marker size settings
+    this.markers = []
+    this.showCrosshair = false
+    this.markersAreEditable = false
+
+    // Map Rotation -- This is the actual rotation angle applied to the *image bitmap*
+    this.currentMapRotation = 0 // Stored rotation in degrees (0, 90, 180, 270)
+
+    // Marker size settings
     this.markerSizeSettings = {
       normal: { radius: 12, fontSizeFactor: 1.0 },
       large: { radius: 18, fontSizeFactor: 1.2 },
       extraLarge: { radius: 24, fontSizeFactor: 1.4 }
     }
-    // NEW: Currently active marker size
     this.markerCurrentDisplaySizeKey = 'normal' // Default size
 
-    // Setup canvas immediately if container is visible
     if (this.canvas.offsetParent !== null) {
       this.setupCanvas()
     }
@@ -47,12 +47,10 @@ class MapRenderer {
       console.error('MapRenderer: Canvas element not found')
       return
     }
-    // Only apply image smoothing here, actual resizing done in loadMap/resizeHandler
     if (this.ctx) {
       this.ctx.imageSmoothingEnabled = true
       this.ctx.imageSmoothingQuality = 'high'
     }
-    console.log('MapRenderer: Canvas basic context initialized.')
   }
 
   /**
@@ -77,20 +75,20 @@ class MapRenderer {
 
     const container = this.canvas.parentElement
     if (!container || container.offsetParent === null) {
-      console.warn('MapRenderer: Container not visible, deferring canvas resize')
+      console.warn('MapRenderer: resizeCanvas - Container not visible or element not in DOM yet.')
       return false // Container not visible yet
     }
 
     const rect = container.getBoundingClientRect()
 
-    console.log('MapRenderer: resizeCanvas - Parent container rect:', rect)
-    console.log(`  Initial canvas attributes: ${this.canvas.width}x${this.canvas.height}`)
-
     const width = Math.max(container.clientWidth || rect.width, 100)
     const height = Math.max(container.clientHeight || rect.height, 100)
 
+    // NEW LOG:
+    console.log(`MapRenderer: resizeCanvas - Calculated dimensions: ${width}x${height} from parent (clientWidth: ${container.clientWidth}, rect.width: ${rect.width}).`)
+
     if (this.canvas.width === width && this.canvas.height === height) {
-      console.log('MapRenderer: Canvas attributes unchanged.')
+      console.log('MapRenderer: resizeCanvas - Canvas already correct size.')
       return // Avoid unnecessary redraws if size is the same
     }
 
@@ -100,39 +98,71 @@ class MapRenderer {
     this.canvas.style.width = width + 'px'
     this.canvas.style.height = height + 'px'
 
-    console.log(`MapRenderer: Canvas attributes set to ${this.canvas.width}x${this.canvas.height}`)
-    return true // Successfully resized
+    // NEW LOG:
+    console.log(`MapRenderer: resizeCanvas - Canvas set to: ${this.canvas.width}x${this.canvas.height}.`)
+  }
+
+  /**
+   * Helper to create a rotated version of an image on an offscreen canvas.
+   * This offscreen canvas is then used as `this.imageData`.
+   * @param {HTMLImageElement} img - The original (unrotated) HTMLImageElement.
+   * @param {number} degrees - Rotation angle (0, 90, 180, 270) clockwise.
+   * @returns {HTMLCanvasElement} A new canvas containing the rotated image.
+   */
+  _getRotatedImageCanvas (img, degrees) {
+    const offscreenCanvas = document.createElement('canvas')
+    const offscreenCtx = offscreenCanvas.getContext('2d')
+
+    const width = img.naturalWidth
+    const height = img.naturalHeight
+
+    let rotatedCanvasWidth = width
+    let rotatedCanvasHeight = height
+
+    if (degrees === 90 || degrees === 270) {
+      rotatedCanvasWidth = height
+      rotatedCanvasHeight = width
+    }
+
+    offscreenCanvas.width = rotatedCanvasWidth
+    offscreenCanvas.height = rotatedCanvasHeight
+
+    offscreenCtx.save()
+    // Translate to the center of the offscreen canvas, rotate, then draw original image
+    offscreenCtx.translate(rotatedCanvasWidth / 2, rotatedCanvasHeight / 2)
+    offscreenCtx.rotate(degrees * Math.PI / 180)
+    offscreenCtx.drawImage(img, -width / 2, -height / 2) // Draw original image centered inside rotated context
+    offscreenCtx.restore()
+
+    return offscreenCanvas
   }
 
   /**
    * Load and display a map
    * @param {Object} mapData - Map metadata from storage
    * @param {File|Blob} imageSource - File object or Blob
+   * MODIFIED: Store original image reference and create rotated bitmap.
    */
   async loadMap (mapData, imageSource) {
     try {
-      console.log('MapRenderer: Loading map:', mapData.name)
-
       this.currentMap = mapData
 
       if (!(imageSource instanceof File) && !(imageSource instanceof Blob)) {
         throw new Error('Invalid image source: must be File or Blob object.')
       }
 
-      if (this.imageData && this.imageData.src && this.imageData.src.startsWith('blob:')) {
-        URL.revokeObjectURL(this.imageData.src)
+      // Clean up previous image data object URL if it was a Blob
+      if (this.originalImageData && this.originalImageData.src && this.originalImageData.src.startsWith('blob:')) {
+        URL.revokeObjectURL(this.originalImageData.src)
       }
 
-      const img = new Image()
-
       return new Promise((resolve, reject) => {
-        const imageUrl = URL.createObjectURL(imageSource)
-        console.log('MapRenderer: Created object URL for imageSource:', imageUrl)
-
+        const img = new Image()
         img.onload = () => {
-          console.log('MapRenderer: Image loaded successfully into Image object')
-          URL.revokeObjectURL(imageUrl)
-          this.imageData = img
+          this.originalImageData = img // Store reference to original Image object (unrotated)
+
+          // Create the initial rotated bitmap using the currentMapRotation setting
+          this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
 
           this.resizeCanvas()
           this.fitToScreen()
@@ -142,12 +172,9 @@ class MapRenderer {
         }
 
         img.onerror = () => {
-          console.error('MapRenderer: Failed to load image from imageSource')
-          URL.revokeObjectURL(imageUrl)
           reject(new Error('Failed to load map image'))
         }
-
-        img.src = imageUrl
+        img.src = URL.createObjectURL(imageSource) // img.src uses Blob URL
       })
     } catch (error) {
       console.error('MapRenderer: Error loading map:', error)
@@ -158,13 +185,13 @@ class MapRenderer {
   /**
    * Create a placeholder image for maps without file data
    * @param {Object} mapData - Map metadata
+   * MODIFIED: Clear originalImageData when loading placeholder.
    */
   async loadPlaceholder (mapData) {
     try {
-      console.log('MapRenderer: Loading placeholder for:', mapData.name)
-
       this.currentMap = mapData
-      this.imageData = null
+      this.imageData = null // Clear the rotated bitmap (canvas element)
+      this.originalImageData = null // Clear original image reference
       this.markers = [] // Clear markers for placeholder
 
       this.render()
@@ -175,58 +202,54 @@ class MapRenderer {
   }
 
   /**
-   * Calculate scale and position to fit image to screen
+   * Calculate scale and position to fit image to screen.
+   * MODIFIED: Uses this.imageData.width/height directly (as it's already rotated).
    */
   fitToScreen () {
     if (!this.imageData || !this.canvas) {
-      console.warn('MapRenderer: Cannot fit to screen - missing image data or canvas')
+      console.warn('MapRenderer: fitToScreen - No image data or canvas. Skipping.')
       return
     }
 
     const canvasWidth = this.canvas.width
     const canvasHeight = this.canvas.height
-    const imageWidth = this.imageData.naturalWidth || this.imageData.width
-    const imageHeight = this.imageData.naturalHeight || this.imageData.height
+    // Dimensions are directly from the (potentially rotated) imageData canvas
+    const effectiveContentWidth = this.imageData.width
+    const effectiveContentHeight = this.imageData.height
 
-    console.log('MapRenderer: Fit to screen calculations:')
-    console.log(`  Canvas: ${canvasWidth}x${canvasHeight}`)
-    console.log(`  Image: ${imageWidth}x${imageHeight}`)
+    // NEW LOG:\n
+    console.log(`MapRenderer: fitToScreen - Canvas: ${canvasWidth}x${canvasHeight}, Image: ${effectiveContentWidth}x${effectiveContentHeight}.`)
 
-    if (canvasWidth <= 0 || canvasHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
-      console.error('MapRenderer: Invalid dimensions for fit calculation')
+    if (canvasWidth <= 0 || canvasHeight <= 0 || effectiveContentWidth <= 0 || effectiveContentHeight <= 0) {
       this.scale = 1
       this.offsetX = 0
       this.offsetY = 0
+      console.warn('MapRenderer: fitToScreen - Invalid dimensions (0 or less). Resetting scale/offset.')
       return
     }
 
-    const scaleX = canvasWidth / imageWidth
-    const scaleY = canvasHeight / imageHeight
+    const scaleX = canvasWidth / effectiveContentWidth
+    const scaleY = canvasHeight / effectiveContentHeight
     this.scale = Math.min(scaleX, scaleY, 1)
 
-    this.scale = Math.max(this.scale, 0.01)
+    this.scale = Math.max(this.scale, this.minScale)
 
-    this.offsetX = (canvasWidth - imageWidth * this.scale) / 2
-    this.offsetY = (canvasHeight - imageHeight * this.scale) / 2
-
-    console.log(`MapRenderer: Fit to screen - scale: ${this.scale.toFixed(3)}, offset: ${this.offsetX.toFixed(0)}, ${this.offsetY.toFixed(0)}`)
+    // Calculate offsets based on current bitmap dimensions
+    this.offsetX = (canvasWidth - effectiveContentWidth * this.scale) / 2
+    this.offsetY = (canvasHeight - effectiveContentHeight * this.scale) / 2
   }
 
   /**
-   * Render the current map on canvas
-   */
-  /**
-   * Render the current map on canvas
+   * Render the current map on canvas.
+   * MODIFIED: Simplified as imageData is an already rotated HTMLCanvasElement.
    */
   render () {
     if (!this.canvas || !this.ctx) return
 
-    // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
     if (this.imageData) {
       this.renderImage()
-      // NEW: Render markers if they exist
       this.renderMarkers()
     } else if (this.currentMap) {
       this.renderPlaceholder()
@@ -234,32 +257,27 @@ class MapRenderer {
       this.renderEmptyState()
     }
 
-    // NEW: Draw crosshair if enabled
     if (this.showCrosshair) {
       this.drawCrosshair()
     }
-
-    // Draw debug info (optional), always last to be on top
     if (this.showDebugInfo) {
       this.renderDebugInfo()
     }
   }
 
   /**
-   * Render the map image
+   * Render the map image.
+   * MODIFIED: Simplified to draw the already rotated imageData (HTMLCanvasElement).
    */
   renderImage () {
     if (!this.imageData) return
-
-    const imageWidth = this.imageData.naturalWidth * this.scale
-    const imageHeight = this.imageData.naturalHeight * this.scale
 
     this.ctx.drawImage(
       this.imageData,
       this.offsetX,
       this.offsetY,
-      imageWidth,
-      imageHeight
+      this.imageData.width * this.scale,
+      this.imageData.height * this.scale
     )
   }
 
@@ -336,8 +354,9 @@ class MapRenderer {
     ]
     if (this.imageData) {
       info.push(
-        `Image: ${this.imageData.naturalWidth}×${this.imageData.naturalHeight}`,
-        `Rendered: ${(this.imageData.naturalWidth * this.scale).toFixed(0)}×${(this.imageData.naturalHeight * this.scale).toFixed(0)}`
+        `Image: ${this.imageData.width}x${this.imageData.height}`, // Use imageData.width/height directly
+        `Rendered: ${(this.imageData.width * this.scale).toFixed(0)}x${(this.imageData.height * this.scale).toFixed(0)}`,
+        `Rotation: ${this.currentMapRotation}°` // Use currentMapRotation
       )
     }
     info.push(`Markers: ${this.markers.length}`)
@@ -349,7 +368,7 @@ class MapRenderer {
   }
 
   /**
-   * NEW: Draw a crosshair at the center of the canvas.
+   * Draw a crosshair at the center of the canvas.
    */
   drawCrosshair () {
     const centerX = this.canvas.width / 2
@@ -379,7 +398,7 @@ class MapRenderer {
   }
 
   /**
-   * NEW: Toggle the visibility of the crosshair.
+   * Toggle the visibility of the crosshair.
    * @param {boolean} visible - Whether the crosshair should be visible.
    */
   toggleCrosshair (visible) {
@@ -388,48 +407,186 @@ class MapRenderer {
   }
 
   /**
+   * NEW: Set the map's current rotation. This will re-render the image with the new rotation.
+   * @param {number} degrees - The new rotation angle (0, 90, 180, 270).
+   */
+  setMapRotation (degrees) {
+    const validDegrees = [0, 90, 180, 270]
+    if (!validDegrees.includes(degrees)) {
+      console.warn('MapRenderer: Invalid rotation degrees:', degrees, '. Must be 0, 90, 180, or 270.')
+      return
+    }
+
+    // Only apply if there's an original image and the rotation is actually changing
+    if (this.originalImageData && this.currentMapRotation !== degrees) {
+      this.currentMapRotation = degrees
+      // Re-create the rotated image bitmap from the original image data
+      this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
+
+      this.resizeCanvas() // Ensure canvas is resized if needed
+      this.fitToScreen() // Re-fit because dimensions of imageData might have changed
+      this.render() // Redraw everything
+    } else if (this.originalImageData && this.currentMapRotation === degrees) {
+      // Rotation unchanged, but still force a render if original image data exists
+      // This handles cases where `setMapRotation` might be called externally
+      // without other explicit renders, e.g., on initial app load for a map
+      this.render()
+    } else if (!this.originalImageData) {
+      // If no image is loaded, just update the property, it will be applied once an image loads
+      this.currentMapRotation = degrees // Still update, even if no image is present
+      console.warn('MapRenderer: Cannot immediately set rotation, no original image data loaded.')
+    }
+  }
+
+  /**
    * Get current map bounds for coordinate calculations
    */
   getMapBounds () {
     if (!this.imageData) return null
-
     return {
       x: this.offsetX,
       y: this.offsetY,
-      width: this.imageData.naturalWidth * this.scale,
-      height: this.imageData.naturalHeight * this.scale,
+      width: this.imageData.width * this.scale, // Use imageData.width
+      height: this.imageData.height * this.scale, // Use imageData.height
       scale: this.scale
     }
   }
 
   /**
-   * Convert screen coordinates to map coordinates
-   * @param {number} screenX - Screen X coordinate
-   * @param {number} screenY - Screen Y coordinate
-   * @returns {Object} Map coordinates
+   * Convert screen coordinates to map coordinates.
+   * MODIFIED: Simplified - operates directly on the already rotated imageData.
+   * @param {number} screenX - Screen X coordinate (raw canvas pixel)
+   * @param {number} screenY - Screen Y coordinate (raw canvas pixel)
+   * @returns {Object} Map coordinates (x,y relative to top-left of the original, unrotated image)
    */
   screenToMap (screenX, screenY) {
-    if (!this.imageData) return null
+    if (!this.imageData || !this.originalImageData) return null
 
-    const mapX = (screenX - this.offsetX) / this.scale
-    const mapY = (screenY - this.offsetY) / this.scale
+    // First convert screen coords to coords on the *rotated* image bitmap (imageData.width/height)
+    const rotatedMapX = (screenX - this.offsetX) / this.scale
+    const rotatedMapY = (screenY - this.offsetY) / this.scale
+
+    // Now convert from *rotated* map coords back to *original* map coords
+    let mapX, mapY
+    const originalWidth = this.originalImageData.naturalWidth
+    const originalHeight = this.originalImageData.naturalHeight
+
+    switch (this.currentMapRotation) {
+      case 0:
+        mapX = rotatedMapX
+        mapY = rotatedMapY
+        break
+      case 90: // Original (x,y) -> Rotated (OriginalHeight - y, x)
+        mapX = rotatedMapY
+        mapY = originalWidth - rotatedMapX
+        break
+      case 180: // Original (x,y) -> Rotated (OriginalWidth - x, OriginalHeight - y)
+        mapX = originalWidth - rotatedMapX
+        mapY = originalHeight - rotatedMapY
+        break
+      case 270: // Original (x,y) -> Rotated (y, OriginalWidth - x)
+        mapX = originalHeight - rotatedMapY
+        mapY = rotatedMapX
+        break
+      default:
+        // Should not happen, but default to simple conversion
+        mapX = rotatedMapX
+        mapY = rotatedMapY
+    }
 
     return { x: mapX, y: mapY }
   }
 
   /**
-   * Convert map coordinates to screen coordinates
-   * @param {number} mapX - Map X coordinate
-   * @param {number} mapY - Map Y coordinate
-   * @returns {Object} Screen coordinates
+   * Convert map coordinates to screen coordinates.
+   * MODIFIED: Simplified - operates directly on the already rotated imageData.
+   * @param {number} mapX - Map X coordinate (x,y relative to top-left of the original, unrotated image)
+   * @param {number} mapY - Map Y coordinate (x,y relative to top-left of the original, unrotated image)
+   * @returns {Object} Screen coordinates (raw canvas pixel)
    */
   mapToScreen (mapX, mapY) {
-    if (!this.imageData) return null
+    if (!this.imageData || !this.originalImageData) return null
 
-    const screenX = mapX * this.scale + this.offsetX
-    const screenY = mapY * this.scale + this.offsetY
+    // First convert from *original* map coords to *rotated* map coords
+    let rotatedMapX, rotatedMapY
+    const originalWidth = this.originalImageData.naturalWidth
+    const originalHeight = this.originalImageData.naturalHeight
+
+    switch (this.currentMapRotation) {
+      case 0:
+        rotatedMapX = mapX
+        rotatedMapY = mapY
+        break
+      case 90: // Original (x,y) -> Rotated (OriginalHeight - y, x)
+        rotatedMapX = originalHeight - mapY
+        rotatedMapY = mapX
+        break
+      case 180: // Original (x,y) -> Rotated (OriginalWidth - x, OriginalHeight - y)
+        rotatedMapX = originalWidth - mapX
+        rotatedMapY = originalHeight - mapY
+        break
+      case 270: // Original (x,y) -> Rotated (y, OriginalWidth - x)
+        rotatedMapX = mapY
+        rotatedMapY = originalWidth - mapX
+        break
+      default:
+        // Should not happen, but default to simple conversion
+        rotatedMapX = mapX
+        rotatedMapY = mapY
+    }
+
+    // Now convert rotated map coords to screen coords
+    const screenX = rotatedMapX * this.scale + this.offsetX
+    const screenY = rotatedMapY * this.scale + this.offsetY
 
     return { x: screenX, y: screenY }
+  }
+
+  /**
+   * Converts a screen-space vector (deltaX, deltaY) into a map-space vector,
+   * accounting for current rotation and scale.
+   * This is useful for drag operations where the movement on screen
+   * needs to be translated to movement on the original unrotated map.
+   * @param {number} deltaScreenX - The change in X in screen coordinates.
+   * @param {number} deltaScreenY - The change in Y in screen coordinates.
+   * @returns {{mapDeltaX: number, mapDeltaY: number}} The corresponding change in map coordinates.
+   */
+  screenVectorToMapVector (deltaScreenX, deltaScreenY) {
+    // First, convert screen deltas to deltas on the *rotated* image bitmap (imageData.width/height)
+    const rotatedMapDeltaX = deltaScreenX / this.scale
+    const rotatedMapDeltaY = deltaScreenY / this.scale
+
+    let mapDeltaX, mapDeltaY
+
+    // Now convert these deltas from *rotated* map space back to *original* map space
+    switch (this.currentMapRotation) {
+      case 0:
+        mapDeltaX = rotatedMapDeltaX
+        mapDeltaY = rotatedMapDeltaY
+        break
+      case 90:
+        // A movement right on screen (+deltaScreenX) was a movement down on original map (+mapDeltaY)
+        // A movement down on screen (+deltaScreenY) was a movement left on original map (-mapDeltaX)
+        mapDeltaX = rotatedMapDeltaY
+        mapDeltaY = -rotatedMapDeltaX
+        break
+      case 180:
+        // A movement right on screen (+deltaScreenX) was a movement left on original map (-mapDeltaX)
+        // A movement down on screen (+deltaScreenY) was a movement up on original map (-mapDeltaY)
+        mapDeltaX = -rotatedMapDeltaX
+        mapDeltaY = -rotatedMapDeltaY
+        break
+      case 270:
+        // A movement right on screen (+deltaScreenX) was a movement up on original map (-mapDeltaY)
+        // A movement down on screen (+deltaScreenY) was a movement right on original map (+mapDeltaX)
+        mapDeltaX = -rotatedMapDeltaY
+        mapDeltaY = rotatedMapDeltaX
+        break
+      default:
+        mapDeltaX = rotatedMapDeltaX
+        mapDeltaY = rotatedMapDeltaY
+    }
+    return { mapDeltaX, mapDeltaY }
   }
 
   /**
@@ -466,7 +623,6 @@ class MapRenderer {
     this.offsetY = zoomCenterY - (zoomCenterY - this.offsetY) * scaleDiff
     this.scale = newScale
 
-    console.log(`MapRenderer: Zoomed to ${this.scale.toFixed(3)}x`)
     this.render()
   }
 
@@ -487,7 +643,6 @@ class MapRenderer {
   resetView () {
     this.fitToScreen()
     this.render()
-    console.log('MapRenderer: View reset to fit screen')
   }
 
   /**
@@ -526,15 +681,12 @@ class MapRenderer {
   /**
    * Render all current markers on the canvas.
    */
-  /**
-   * NEW: Render all current markers on the canvas.
-   * MODIFIED: Pass `marker.hasPhotos` to `drawMarker`.
-   */
   renderMarkers () {
     if (!this.markers || this.markers.length === 0) return
 
     this.markers.forEach((marker, index) => {
-      // Check if the marker is currently within the visible canvas viewport before drawing too
+      // Convert original map (image) coordinates to screen (canvas) coordinates
+      // using the updated mapToScreen which handles current rotation
       const screenCoords = this.mapToScreen(marker.x, marker.y)
       if (
         screenCoords &&
@@ -542,14 +694,14 @@ class MapRenderer {
         screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
       ) {
         // Pass the editable state AND hasPhotos status to drawMarker
-        // Ensure marker.hasPhotos is a boolean
-        this.drawMarker(screenCoords.x, screenCoords.y, index + 1, this.markersAreEditable, !!marker.hasPhotos)
+        // Use marker.hasPhotos (already boolean thanks to app.js's preparation)
+        this.drawMarker(screenCoords.x, screenCoords.y, index + 1, this.markersAreEditable, marker.hasPhotos)
       }
     })
   }
 
   /**
-   * NEW: Set whether markers should be rendered as editable.
+   * Set whether markers should be rendered as editable.
    * @param {boolean} editable - True if markers should appear editable (unlocked), false otherwise (locked).
    */
   setMarkersEditable (editable) {
@@ -560,7 +712,7 @@ class MapRenderer {
   }
 
   /**
-   * NEW: Get the properties of the currently active marker display size.
+   * Get the properties of the currently active marker display size.
    * @returns {Object} An object containing radius and fontSizeFactor.
    */
   getCurrentMarkerDisplaySize () {
@@ -568,22 +720,20 @@ class MapRenderer {
   }
 
   /**
-   * NEW: Set the display size of the markers.
+   * Set the display size of the markers.
    * @param {string} sizeKey - 'normal', 'large', or 'extraLarge'.
    */
   setMarkerDisplaySize (sizeKey) {
     if (this.markerSizeSettings[sizeKey]) {
       this.markerCurrentDisplaySizeKey = sizeKey
       this.render() // Re-render to show updated marker sizes
-      console.log('MapRenderer: Marker display size set to:', sizeKey)
     } else {
       console.warn('MapRenderer: Invalid marker size key:', sizeKey, '. Keeping current size.')
     }
   }
 
   /**
-   * NEW: Draw a single marker on the canvas.
-   * Modified to differentiate between locked/unlocked states and with/without photos.
+   * Draw a single marker on the canvas.
    * @param {number} x - Screen X coordinate of the marker center.
    * @param {number} y - Screen Y coordinate of the marker center.
    * @param {number} number - Optional number to display on the marker.
@@ -591,7 +741,6 @@ class MapRenderer {
    * @param {boolean} hasPhotos - If true, draw the marker with a 'has photos' style.
    */
   drawMarker (x, y, number, isEditable, hasPhotos) {
-    // Get the current radius and font size from settings
     const currentSize = this.markerSizeSettings[this.markerCurrentDisplaySizeKey]
     const radius = currentSize.radius
     const fontSize = radius * currentSize.fontSizeFactor
@@ -602,24 +751,20 @@ class MapRenderer {
 
     if (isEditable) { // Unlocked/Editable State
       if (hasPhotos) {
-        // Unlocked, Has Photos (Current Red)
         borderColor = '#dc2626' // Red-600
         fillColor = '#ef4444' // Red-500
         textColor = '#ffffff' // White
       } else {
-        // Unlocked, No Photos (Orange/Yellow - calling attention)
         borderColor = '#f59e0b' // Amber-500
         fillColor = '#fbbf24' // Amber-400
         textColor = '#1f2937' // Dark Gray text for contrast
       }
     } else { // Locked State
       if (hasPhotos) {
-        // Locked, Has Photos (Dark Gray)
         borderColor = '#4b5563' // Gray-600
         fillColor = '#6b7280' // Gray-500
         textColor = '#ffffff' // White
       } else {
-        // Locked, No Photos (Light Gray - "needs attention but is locked")
         borderColor = '#9ca3af' // Gray-400
         fillColor = '#d1d5db' // Gray-300
         textColor = '#374151' // Darker Gray text for contrast
@@ -653,7 +798,6 @@ class MapRenderer {
   toggleDebugInfo () {
     this.showDebugInfo = !this.showDebugInfo
     this.render()
-    console.log('MapRenderer: Debug info', this.showDebugInfo ? 'enabled' : 'disabled')
   }
 
   /**
@@ -671,15 +815,16 @@ class MapRenderer {
 
   /**
    * Clean up resources
+   * MODIFIED: Also revoke originalImageData object URL
    */
   dispose () {
-  // Clean up any object URLs or resources
-  // Check if imageData exists and if its src is a blob URL before revoking
-    if (this.imageData && this.imageData.src && this.imageData.src.startsWith('blob:')) {
-      URL.revokeObjectURL(this.imageData.src)
+    // Clean up any object URLs or resources
+    if (this.originalImageData && this.originalImageData.src && this.originalImageData.src.startsWith('blob:')) {
+      URL.revokeObjectURL(this.originalImageData.src)
     }
 
-    this.imageData = null
+    this.imageData = null // The canvas element itself
+    this.originalImageData = null // The original Image object
     this.currentMap = null
     this.markers = [] // Clear markers on dispose
 

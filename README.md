@@ -83,11 +83,15 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Touch and mouse interaction (panning, pinch-zoom)
 - ✅ Map switching interface (via map management modal)
 - ✅ Resizable map canvas that adapts to screen size
-- ✅ **Toggleable zoom controls and action buttons (minimize/maximize to icons)**
+- ✅ Toggleable zoom controls and action buttons (minimize/maximize to icons)
+- ✅ Crosshair visibility toggle and persistence
+- ✅ Marker lock/unlock toggle and persistence
+- ✅ Marker display size toggle and persistence
+- ✅ Map rotation (90-degree increments) and persistence
 
 ### Phase 1D: Marker System ✅
 - ✅ Click/tap to place markers at canvas center
-- ✅ Marker dragging (mouse and touch)
+- ✅ Marker dragging (mouse and touch, now preserves position across map rotations)
 - ✅ Marker details modal (showing description, coordinates, associated photos)
 - ✅ Marker description editing
 - ✅ Marker deletion
@@ -95,7 +99,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Note-taking functionality (marker description)
 - ✅ Coordinate tracking (display in marker details)
 
-### Phase 2: Export and Sync (Next)
+### Phase 2: Export and Sync
 - ✅ Data export in multiple formats (HTML report implemented)
 - ✅ Import and export of maps with markers and images
 
@@ -119,8 +123,6 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - Settings modal is not implemented
 - Import and export settings
 - Quality settings for images (that were added to markers)
-
-_**Removed previous limitations as they are now implemented.**_
 
 ### Key Design Decisions
 - **Offline-first approach**: Everything must work without internet

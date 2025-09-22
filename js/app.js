@@ -21,8 +21,6 @@ class ImageMapperApp {
   constructor () {
     this.isOnline = navigator.onLine
     this.serviceWorkerReady = false
-
-    // Phase 1B: Storage and map management
     this.storage = new MapStorage()
     this.fileManager = new FileManager()
     this.modalManager = new ModalManager()
@@ -31,9 +29,8 @@ class ImageMapperApp {
     this.mapsList = []
     this.isLoading = false
     this.uploadedFiles = new Map() // Store file references for rendering
-    this.thumbnailCache = new Map() // NEW: Cache for thumbnail Data URLs
-    this.imageProcessor = new ImageProcessor() // For future image processing
-    // Define image compression settings here
+    this.thumbnailCache = new Map()
+    this.imageProcessor = new ImageProcessor()
     this.imageCompressionSettings = {
       map: {
         maxWidth: 1920,
@@ -54,10 +51,14 @@ class ImageMapperApp {
     this.markerDisplaySizeKey = 'normal' // Initial marker size
     this.markerSizeCycle = ['normal', 'large', 'extraLarge'] // Cycle order
     this.markerSizeLabelMap = { // For button text
-      normal: 'Normal Size',
-      large: 'Large Size',
-      extraLarge: 'XL Size' // Abbreviated for button display
+      normal: 'Normal Markers',
+      large: 'Large Markers',
+      extraLarge: 'XL Markers' // Abbreviated for button display
     }
+    // NEW (for Map Rotation Feature):
+    this.mapCurrentRotation = 0 // Current map rotation in degrees (0, 90, 180, 270)
+    // Define the cycle for rotation in degrees
+    this.rotationCycle = [0, 90, 180, 270]
 
     // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
@@ -110,25 +111,41 @@ class ImageMapperApp {
       // Initialize storage system
       await this.initializeStorage()
 
-      // Load existing maps
+      // Load existing maps FIRST. This populates this.mapsList AND this.currentMap.
       await this.loadMaps()
 
-      // Restore map controls state
+      // Restore preference states. These should NOT trigger any re-renders,
+      // just load values from localStorage. The actual application of these
+      // preferences to the renderer will happen when displayMap is called.
       this.restoreMapControlsState()
-
-      // Restore crosshair state
       this.restoreCrosshairState()
-
-      // NEW: Restore marker lock state
       this.restoreMarkerLockState()
-
-      // NEW: Restore marker size state
       this.restoreMarkerSizeState()
+      // this.mapCurrentRotation is set here, but NOT applied to mapRenderer yet.
+      this.restoreMapRotationState()
 
-      // Check welcome screen visibility
-      this.checkWelcomeScreen()
+      // Now, and ONLY now, decide whether to display a map or the welcome screen.
+      if (this.currentMap) {
+        console.log('App: Active map detected. Calling displayMap().')
+        // displayMap will:
+        // 1. load image into mapRenderer (setting originalImageData)
+        // 2. call mapRenderer.setMapRotation(this.mapCurrentRotation) (applying rotation)
+        // 3. fetch markers
+        // 4. call mapRenderer.setMarkers()
+        // 5. call mapRenderer.render() (the final render with image and markers)
+        await this.displayMap(this.currentMap)
 
-      // Initialize app state
+        // Ensure welcome screen is hidden and map display visible
+        document.getElementById('welcome-screen')?.classList.add('hidden')
+        document.getElementById('map-display')?.classList.remove('hidden')
+        this.updateAppStatus(`${this.mapsList.length} maps available`)
+      } else {
+        console.log('App: No active map. Calling checkWelcomeScreen().')
+        // checkWelcomeScreen will correctly show the welcome elements.
+        this.checkWelcomeScreen()
+      }
+
+      // Initialize app state (this should be the final status update, not intermediate ones)
       this.updateAppStatus('Ready')
 
       console.log('Image Mapper App: Initialization complete')
@@ -223,12 +240,17 @@ class ImageMapperApp {
       placeMarkerBtn.addEventListener('click', () => this.placeMarker())
     }
 
-    // NEW: Toggle Marker Lock button
+    // Toggle Marker Lock button
     const toggleMarkerLockBtn = document.getElementById('btn-toggle-marker-lock')
     if (toggleMarkerLockBtn) {
       toggleMarkerLockBtn.addEventListener('click', () => this.toggleMarkerLockState())
     }
-    // NEW: Toggle Marker Size button
+    // NEW: Toggle Map Rotation button
+    const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
+    if (toggleMapRotationBtn) {
+      toggleMapRotationBtn.addEventListener('click', () => this.toggleMapRotation())
+    }
+    // Toggle Marker Size button
     const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
     if (toggleMarkerSizeBtn) {
       toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
@@ -807,18 +829,68 @@ class ImageMapperApp {
       // const btnTextSpan = toggleMarkerLockBtn.querySelector('.btn-text')
       if (this.markersLocked) {
         toggleMarkerLockBtn.title = 'Unlock markers position'
-        toggleMarkerLockBtn.innerHTML = '🔒 <span class="btn-text">Locked Markers</span>'
+        toggleMarkerLockBtn.innerHTML = '🔒 <span class="btn-text">Markers Locked</span>'
         toggleMarkerLockBtn.classList.remove('active') // Optional: remove an 'active' class if you style unlocked state
       } else {
         toggleMarkerLockBtn.title = 'Lock markers position'
-        toggleMarkerLockBtn.innerHTML = '🔓 <span class="btn-text">Unlocked Markers</span>'
+        toggleMarkerLockBtn.innerHTML = '🔓 <span class="btn-text">Markers Unlocked</span>'
         toggleMarkerLockBtn.classList.add('active') // Optional: add an 'active' class for unlocked state
       }
     }
   }
 
   /**
-   * NEW: Toggles the display size of markers.
+   * NEW: Toggles the map's rotation.
+   */
+  toggleMapRotation () {
+    // Find current index in the rotation cycle
+    const currentIndex = this.rotationCycle.indexOf(this.mapCurrentRotation)
+    // Calculate next index, wrapping around to 0
+    const nextIndex = (currentIndex + 1) % this.rotationCycle.length
+    this.mapCurrentRotation = this.rotationCycle[nextIndex]
+
+    if (this.mapRenderer) {
+      this.mapRenderer.setMapRotation(this.mapCurrentRotation) // FIX IS HERE
+    }
+    localStorage.setItem('mapRotation', this.mapCurrentRotation)
+    this.updateMapRotationButtonUI()
+    this.showNotification(`Map rotation set to ${this.mapCurrentRotation} degrees.`, 'info')
+    console.log('Map rotation toggled. Current rotation:', this.mapCurrentRotation)
+  }
+
+  /**
+   * NEW: Restores the saved map rotation from localStorage.
+   */
+  restoreMapRotationState () {
+    const savedRotation = localStorage.getItem('mapRotation')
+    // Ensure savedRotation is a number and is one of our valid cycle values
+    const rotationAsNumber = parseInt(savedRotation, 10)
+    if (!isNaN(rotationAsNumber) && this.rotationCycle.includes(rotationAsNumber)) {
+      this.mapCurrentRotation = rotationAsNumber
+    } else {
+      this.mapCurrentRotation = 0 // Default to 0 degrees if invalid or not found
+    }
+
+    if (this.mapRenderer) {
+      this.mapRenderer.setMapRotation(this.mapCurrentRotation) // FIX IS HERE
+    }
+    this.updateMapRotationButtonUI() // Update button text/icon on load
+    console.log('Restored map rotation state:', this.mapCurrentRotation)
+  }
+
+  /**
+   * NEW: Updates the text and icon of the map rotation button based on current state.
+   */
+  updateMapRotationButtonUI () {
+    const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
+    if (toggleMapRotationBtn) {
+      toggleMapRotationBtn.title = `Map rotation: ${this.mapCurrentRotation}°`
+      toggleMapRotationBtn.innerHTML = `🔄 <span class="btn-text">Rotation ${this.mapCurrentRotation}°</span>`
+    }
+  }
+
+  /**
+   * Toggles the display size of markers.
    */
   toggleMarkerSize () {
     const currentIndex = this.markerSizeCycle.indexOf(this.markerDisplaySizeKey)
@@ -1021,8 +1093,11 @@ class ImageMapperApp {
       const deltaX = event.clientX - this.initialDownX
       const deltaY = event.clientY - this.initialDownY
 
-      const currentMarkerMapX = this.dragStartMapX + (deltaX / this.mapRenderer.scale)
-      const currentMarkerMapY = this.dragStartMapY + (deltaY / this.mapRenderer.scale)
+      // NEW: Use screenVectorToMapVector to get the deltas in map's original coordinate system
+      const { mapDeltaX, mapDeltaY } = this.mapRenderer.screenVectorToMapVector(deltaX, deltaY)
+
+      const currentMarkerMapX = this.dragStartMapX + mapDeltaX
+      const currentMarkerMapY = this.dragStartMapY + mapDeltaY
 
       const markerIndex = this.markers.findIndex(m => m.id === this.draggedMarkerId)
       if (markerIndex !== -1) {
@@ -1239,8 +1314,11 @@ class ImageMapperApp {
       const deltaX = touch.x - this.initialDownX
       const deltaY = touch.y - this.initialDownY
 
-      const currentMarkerMapX = this.dragStartMapX + (deltaX / this.mapRenderer.scale)
-      const currentMarkerMapY = this.dragStartMapY + (deltaY / this.mapRenderer.scale)
+      // NEW: Use screenVectorToMapVector for touch events as well
+      const { mapDeltaX, mapDeltaY } = this.mapRenderer.screenVectorToMapVector(deltaX, deltaY)
+
+      const currentMarkerMapX = this.dragStartMapX + mapDeltaX
+      const currentMarkerMapY = this.dragStartMapY + mapDeltaY
 
       const markerIndex = this.markers.findIndex(m => m.id === this.draggedMarkerId)
       if (markerIndex !== -1) {
@@ -1471,52 +1549,31 @@ class ImageMapperApp {
     const welcomeScreen = document.getElementById('welcome-screen')
     const mapDisplay = document.getElementById('map-display')
     const addFirstMapBtn = document.getElementById('btn-add-first-map')
+    console.log('--- checkWelcomeScreen() called --- Maps count:', this.mapsList.length, 'CurrentMap:', this.currentMap ? this.currentMap.id : 'none')
 
-    if (this.mapsList.length === 0) {
-      // Show welcome screen if no maps
+    if (this.mapsList.length === 0 || !this.currentMap) { // Only show if genuinely no maps or no active map
       welcomeScreen?.classList.remove('hidden')
       mapDisplay?.classList.add('hidden')
       this.updateAppStatus('No maps - Upload your first map')
 
-      // Update button text for first upload
       if (addFirstMapBtn) {
         addFirstMapBtn.innerHTML = '📁 Upload First Map'
       }
     } else {
-      // Hide welcome screen if maps exist
+      // If there are maps AND an active map, the welcome screen should NOT be shown
+      // and displayMap() should have been called (which hides welcome and shows map).
+      // This 'else' branch of checkWelcomeScreen() should ideally not be reachable
+      // if init() logic is correct. But it acts as a safeguard.
       welcomeScreen?.classList.add('hidden')
       mapDisplay?.classList.remove('hidden')
       this.updateAppStatus(`${this.mapsList.length} maps available`)
 
-      // Update button text for additional uploads
       if (addFirstMapBtn) {
         addFirstMapBtn.innerHTML = '📁 Upload New Map'
       }
     }
-    //  - ensure canvas setup when showing map display
-    if (this.mapsList.length > 0) {
-      welcomeScreen?.classList.add('hidden')
-      mapDisplay?.classList.remove('hidden')
-
-      // NOW display the map after container is visible
-      if (this.currentMap && !this.mapRenderer.imageData) {
-        setTimeout(async () => {
-          this.mapRenderer.resizeCanvas() // This will work now
-          await this.displayMap(this.currentMap)
-        }, 100) // Small delay for layout
-      }
-
-      // NEW: Ensure canvas is properly initialized when map display becomes visible
-      setTimeout(() => {
-        this.mapRenderer.setupCanvas()
-        this.mapRenderer.resizeCanvas()
-        if (this.currentMap) {
-          this.mapRenderer.render()
-        }
-      }, 50) // Small delay to ensure CSS layout is applied
-
-      this.updateAppStatus(`${this.mapsList.length} maps available`)
-    }
+    // Remove the redundant setTimeout blocks related to canvas setup here.
+    // displayMap() and setMapRotation() handle the rendering.
   }
 
   /**
@@ -1719,22 +1776,27 @@ class ImageMapperApp {
     }
   }
 
-  // ========================================
-  // Phase 1B: Map Display System
-  // ========================================
-
   /**
    * Display a map on the canvas
    * @param {Object} mapData - Map metadata from storage. Now includes imageData.
    * MODIFIED: To correctly determine and pass `hasPhotos` status to markers using getMarkerPhotoCount.
+   * ALSO MODIFIED: To apply map rotation initially.
    */
   async displayMap (mapData) {
+    console.log('--- displayMap() called for:', mapData.name, '---') // Keep this log
     if (!mapData) {
       console.warn('No map data provided for display')
       return
     }
 
     try {
+      // NEW: Ensure map display elements are visible BEFORE loading image into renderer
+      const welcomeScreen = document.getElementById('welcome-screen')
+      const mapDisplay = document.getElementById('map-display')
+      if (welcomeScreen && mapDisplay) {
+        welcomeScreen.classList.add('hidden')
+        mapDisplay.classList.remove('hidden')
+      }
       console.log('Displaying map:', mapData.name)
       this.updateAppStatus(`Loading map: ${mapData.name}`)
 
@@ -1746,7 +1808,7 @@ class ImageMapperApp {
       }
 
       if (imageBlob && imageBlob instanceof Blob) {
-        await this.mapRenderer.loadMap(mapData, imageBlob)
+        await this.mapRenderer.loadMap(mapData, imageBlob) // This calls render() ONCE with no markers yet
         console.log('Map loaded from Blob successfully')
       } else {
         await this.mapRenderer.loadPlaceholder(mapData)
@@ -1755,22 +1817,26 @@ class ImageMapperApp {
 
       this.currentMap = mapData
 
-      // MODIFIED: Load markers for the current map and use getMarkerPhotoCount for hasPhotos status
+      // Apply the rotation AFTER the map image is loaded into mapRenderer.
+      // This call will itself trigger mapRenderer.render().
+      if (this.mapRenderer) {
+        this.mapRenderer.setMapRotation(this.mapCurrentRotation)
+      }
+
+      // Fetch, process, and set markers.
       const fetchedMarkers = await this.storage.getMarkersForMap(this.currentMap.id)
       this.markers = await Promise.all(fetchedMarkers.map(async marker => {
         const photoCount = await this.storage.getMarkerPhotoCount(marker.id)
         return {
           ...marker,
-          // IMPORTANT: The photoIds array on the marker object from IndexedDB might not be perfectly current
-          // if photos were added/deleted without explicitly updating the marker object itself.
-          // However, hasPhotos is now correctly determined by directly counting photos.
           hasPhotos: photoCount > 0
-          // Retain photoIds from the marker object if it exists, for modals etc.
-          // It will be updated when adding/deleting photos anyway.
         }
       }))
 
       this.mapRenderer.setMarkers(this.markers)
+      console.log('--- app.js: setMarkers() called with', this.markers.length, 'markers ---')
+
+      // CRITICAL: Call render once more AFTER markers are set, to ensure they are drawn.
       this.mapRenderer.render()
 
       this.updateAppStatus(`Map displayed: ${mapData.name}`)
