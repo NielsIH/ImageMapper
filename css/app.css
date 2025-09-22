@@ -299,10 +299,13 @@ body {
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     font-family: inherit;
-    flex-shrink: 0; 
-    /* NEW: Explicitly set a max-width to prevent wide buttons on mobile */
-    max-width: 100%; /* Allows it to shrink to fit parent on smaller screens */
-    width: fit-content; /* Only take up content width */
+    flex-shrink: 0;
+
+    /* MODIFIED / NEW: For consistent button width */
+    width: 150px; /* Set a fixed width. Adjust this value as needed. */
+    max-width: 100%; /* Ensures it doesn't break layout on very small screens */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Show ellipsis for truncated text */
 }
 
 /* Explicit style for the primary control button (Place Marker) */

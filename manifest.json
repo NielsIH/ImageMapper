@@ -7,7 +7,6 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "orientation": "any",
   "scope": "./",
   "lang": "en",
   "categories": ["utilities", "productivity"],

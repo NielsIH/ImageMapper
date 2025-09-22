@@ -14,6 +14,7 @@
         MapDataExporterImporter
         Image
         localStorage
+        FileReader
         */
 
 class ImageMapperApp {
@@ -49,6 +50,14 @@ class ImageMapperApp {
         quality: 0.7
       }
     }
+    // NEW: Marker Size Control
+    this.markerDisplaySizeKey = 'normal' // Initial marker size
+    this.markerSizeCycle = ['normal', 'large', 'extraLarge'] // Cycle order
+    this.markerSizeLabelMap = { // For button text
+      normal: 'Normal Size',
+      large: 'Large Size',
+      extraLarge: 'XL Size' // Abbreviated for button display
+    }
 
     // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
@@ -59,18 +68,20 @@ class ImageMapperApp {
     this.activeTouches = new Map() // Stores active touch points for multi-touch
 
     this.markers = [] // NEW: Array to hold markers for the current map
-    // NEW state properties for marker dragging
+    // state properties for marker dragging
     this.isDraggingMarker = false
     this.draggedMarkerId = null
     this.dragStartMapX = 0 // Marker's map X at start of drag
     this.dragStartMapY = 0 // Marker's map Y at start of drag
     this.initialMouseX = 0 // Mouse X at start of drag
     this.initialMouseY = 0 // Mouse Y at start of drag
-    // NEW: State to track the type of interaction
+    // State to track the type of interaction
     this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
     this.mapControls = document.querySelector('.map-controls')
     this.mapControlsWrapper = document.querySelector('.map-controls-wrapper')
+    this.showCrosshair = false // NEW: State to track crosshair visibility
+    this.markersLocked = true // NEW: State to track if markers are globally locked (default: true)
 
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
@@ -96,7 +107,7 @@ class ImageMapperApp {
       // Check service worker status
       await this.checkServiceWorker()
 
-      // Phase 1B: Initialize storage system
+      // Initialize storage system
       await this.initializeStorage()
 
       // Load existing maps
@@ -104,6 +115,15 @@ class ImageMapperApp {
 
       // Restore map controls state
       this.restoreMapControlsState()
+
+      // Restore crosshair state
+      this.restoreCrosshairState()
+
+      // NEW: Restore marker lock state
+      this.restoreMarkerLockState()
+
+      // NEW: Restore marker size state
+      this.restoreMarkerSizeState()
 
       // Check welcome screen visibility
       this.checkWelcomeScreen()
@@ -152,7 +172,6 @@ class ImageMapperApp {
     if (settingsBtn) {
       settingsBtn.addEventListener('click', () => this.showSettings())
     }
-    // NEW: Import Data button listeners
     const btnImportData = document.getElementById('btn-import-data')
     const fileInputImport = document.getElementById('file-input-import')
 
@@ -198,13 +217,30 @@ class ImageMapperApp {
       zoomOutBtn.addEventListener('click', () => this.zoomOut())
     }
 
-    // NEW: Place Marker button
+    // Place marker button
     const placeMarkerBtn = document.getElementById('btn-place-marker')
     if (placeMarkerBtn) {
       placeMarkerBtn.addEventListener('click', () => this.placeMarker())
     }
 
-    // NEW: Toggle Map Controls button
+    // NEW: Toggle Marker Lock button
+    const toggleMarkerLockBtn = document.getElementById('btn-toggle-marker-lock')
+    if (toggleMarkerLockBtn) {
+      toggleMarkerLockBtn.addEventListener('click', () => this.toggleMarkerLockState())
+    }
+    // NEW: Toggle Marker Size button
+    const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
+    if (toggleMarkerSizeBtn) {
+      toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
+    }
+
+    // Toggle Crosshair button
+    const toggleCrosshairBtn = document.getElementById('btn-toggle-crosshair')
+    if (toggleCrosshairBtn) {
+      toggleCrosshairBtn.addEventListener('click', () => this.toggleCrosshair())
+    }
+
+    // Toggle Map Controls button
     const toggleMapControlsBtn = document.getElementById('toggle-map-controls')
     if (toggleMapControlsBtn) {
       toggleMapControlsBtn.addEventListener('click', () => this.toggleMapsControls())
@@ -730,6 +766,132 @@ class ImageMapperApp {
   }
 
   /**
+   * NEW: Toggles the marker lock state.
+   */
+  toggleMarkerLockState () {
+    this.markersLocked = !this.markersLocked
+    if (this.mapRenderer) {
+      this.mapRenderer.setMarkersEditable(!this.markersLocked) // MapRenderer takes 'editable' state
+    }
+    localStorage.setItem('markersLocked', this.markersLocked)
+    this.updateMarkerLockButtonUI()
+    this.showNotification(`Markers are now ${this.markersLocked ? 'locked' : 'unlocked'} for editing.`, 'info')
+    console.log('Markers lock state toggled. Locked:', this.markersLocked)
+  }
+
+  /**
+   * NEW: Restores the saved state of marker locking from localStorage.
+   */
+  restoreMarkerLockState () {
+    const savedState = localStorage.getItem('markersLocked')
+    if (savedState !== null) {
+      this.markersLocked = (savedState === 'true') // localStorage stores strings
+    } else {
+      // Default state if nothing found in localStorage (initially locked)
+      this.markersLocked = true
+    }
+
+    if (this.mapRenderer) {
+      this.mapRenderer.setMarkersEditable(!this.markersLocked)
+    }
+    this.updateMarkerLockButtonUI() // Update button text/icon on load
+    console.log('Restored markers lock state:', this.markersLocked)
+  }
+
+  /**
+   * NEW: Updates the text and icon of the marker lock button based on current state.
+   */
+  updateMarkerLockButtonUI () {
+    const toggleMarkerLockBtn = document.getElementById('btn-toggle-marker-lock')
+    if (toggleMarkerLockBtn) {
+      // const btnTextSpan = toggleMarkerLockBtn.querySelector('.btn-text')
+      if (this.markersLocked) {
+        toggleMarkerLockBtn.title = 'Unlock markers position'
+        toggleMarkerLockBtn.innerHTML = '🔒 <span class="btn-text">Locked Markers</span>'
+        toggleMarkerLockBtn.classList.remove('active') // Optional: remove an 'active' class if you style unlocked state
+      } else {
+        toggleMarkerLockBtn.title = 'Lock markers position'
+        toggleMarkerLockBtn.innerHTML = '🔓 <span class="btn-text">Unlocked Markers</span>'
+        toggleMarkerLockBtn.classList.add('active') // Optional: add an 'active' class for unlocked state
+      }
+    }
+  }
+
+  /**
+   * NEW: Toggles the display size of markers.
+   */
+  toggleMarkerSize () {
+    const currentIndex = this.markerSizeCycle.indexOf(this.markerDisplaySizeKey)
+    const nextIndex = (currentIndex + 1) % this.markerSizeCycle.length
+    this.markerDisplaySizeKey = this.markerSizeCycle[nextIndex]
+
+    if (this.mapRenderer) {
+      this.mapRenderer.setMarkerDisplaySize(this.markerDisplaySizeKey)
+    }
+    localStorage.setItem('markerDisplaySize', this.markerDisplaySizeKey)
+    this.updateMarkerSizeButtonUI()
+    this.showNotification(`Marker size set to ${this.markerDisplaySizeKey}.`, 'info')
+    console.log('Marker size toggled. Current size:', this.markerDisplaySizeKey)
+  }
+
+  /**
+   * NEW: Restores the saved marker display size from localStorage.
+   */
+  restoreMarkerSizeState () {
+    const savedSize = localStorage.getItem('markerDisplaySize')
+    if (savedSize && this.markerSizeCycle.includes(savedSize)) {
+      this.markerDisplaySizeKey = savedSize
+    } else {
+      this.markerDisplaySizeKey = 'normal' // Default if invalid or not found
+    }
+
+    if (this.mapRenderer) {
+      this.mapRenderer.setMarkerDisplaySize(this.markerDisplaySizeKey)
+    }
+    this.updateMarkerSizeButtonUI() // Update button text/icon on load
+    console.log('Restored marker size state:', this.markerDisplaySizeKey)
+  }
+
+  /**
+   * NEW: Updates the text and icon of the marker size button based on current state.
+   */
+  updateMarkerSizeButtonUI () {
+    const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
+    if (toggleMarkerSizeBtn) {
+      const label = this.markerSizeLabelMap[this.markerDisplaySizeKey] || 'Size'
+      toggleMarkerSizeBtn.title = `Current Marker Size: ${this.markerDisplaySizeKey}`
+      toggleMarkerSizeBtn.innerHTML = `📏 <span class="btn-text">${label}</span>`
+    }
+  }
+
+  /**
+   * NEW: Toggles the crosshair visibility and saves the state.
+   */
+  toggleCrosshair () {
+    this.showCrosshair = !this.showCrosshair
+    if (this.mapRenderer) {
+      this.mapRenderer.toggleCrosshair(this.showCrosshair)
+    }
+    localStorage.setItem('showCrosshair', this.showCrosshair)
+    this.showNotification(`Crosshair ${this.showCrosshair ? 'enabled' : 'disabled'}.`, 'info')
+    console.log('Crosshair toggled. State:', this.showCrosshair)
+  }
+
+  /**
+   * NEW: Restores the saved state of the crosshair from localStorage.
+   */
+  restoreCrosshairState () {
+    const savedState = localStorage.getItem('showCrosshair')
+    if (savedState !== null) {
+      this.showCrosshair = (savedState === 'true') // localStorage stores strings
+      if (this.mapRenderer) {
+        this.mapRenderer.toggleCrosshair(this.showCrosshair)
+      }
+      console.log('Restored crosshair state:', this.showCrosshair)
+    }
+  }
+
+  /**
    * NEW: Method to toggle map controls and save state
    */
   toggleMapsControls () {
@@ -778,6 +940,7 @@ class ImageMapperApp {
   /**
    * Helper to detect if a click/touch event is on a marker.
    * Returns the marker object if found, otherwise null.
+   * MODIFIED: To support dynamic marker sizes.
    * @param {number} clientX - The clientX coordinate of the event.
    * @param {number} clientY - The clientY coordinate of the event.
    * @returns {Object|null} The marker object if hit, otherwise null.
@@ -791,8 +954,10 @@ class ImageMapperApp {
     const screenX = clientX - canvasRect.left
     const screenY = clientY - canvasRect.top
 
+    // MODIFIED: Get the current marker radius from mapRenderer
+    const currentMarkerSize = this.mapRenderer.getCurrentMarkerDisplaySize()
     // Define a hit area radius around the marker (e.g., marker radius + some padding)
-    const hitRadius = 15 // Based on drawMarker's radius = 12, add a little extra
+    const hitRadius = currentMarkerSize.radius + 5 // Use current radius plus 5px padding
 
     for (let i = this.markers.length - 1; i >= 0; i--) { // Iterate backwards to hit top-most marker first
       const marker = this.markers[i]
@@ -822,7 +987,8 @@ class ImageMapperApp {
 
     const clickedMarker = this.getMarkerAtPoint(event.clientX, event.clientY)
 
-    if (clickedMarker) {
+    // MODIFIED: Only allow marker dragging if markers are NOT locked
+    if (clickedMarker && !this.markersLocked) {
       this.interactionType = 'marker_drag'
       this.isDraggingMarker = true
       this.draggedMarkerId = clickedMarker.id
@@ -993,7 +1159,8 @@ class ImageMapperApp {
       const touch = event.changedTouches[0]
       const touchedMarker = this.getMarkerAtPoint(touch.clientX, touch.clientY)
 
-      if (touchedMarker) {
+      // MODIFIED: Only allow marker dragging if markers are NOT locked
+      if (touchedMarker && !this.markersLocked) {
         this.interactionType = 'marker_drag'
         this.isDraggingMarker = true
         this.draggedMarkerId = touchedMarker.id
@@ -1392,68 +1559,6 @@ class ImageMapperApp {
   }
 
   /**
-   * Display maps list (now uses a dedicated modal)
-   */
-  async displayMapsList () {
-    this.showLoading('Loading maps list...') // Added loading indicator
-    await this.loadMaps()
-
-    // --- DEBUG START ---
-    console.log('DEBUG: Maps retrieved from storage:', this.mapsList)
-    this.mapsList.forEach(map => {
-      console.log(`  Map ID: ${map.id}, Name: ${map.name}, has imageData: ${!!map.imageData}, imageData type: ${map.imageData ? map.imageData.constructor.name : 'N/A'}`)
-    })
-    // --- DEBUG END ---
-
-    // 1. Process maps to generate or retrieve thumbnails
-    const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
-      // Check if a thumbnail is already cached
-      let thumbnailDataUrl = this.thumbnailCache.get(map.id)
-
-      if (!thumbnailDataUrl && map.imageData && map.imageData instanceof Blob) {
-        // If not cached and map has image data, generate a new thumbnail
-        try {
-          thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100) // Max dimension 100px
-          if (thumbnailDataUrl) {
-            this.thumbnailCache.set(map.id, thumbnailDataUrl) // Cache the generated thumbnail
-          }
-        } catch (thumbError) {
-          console.warn(`Failed to generate thumbnail for map ${map.id}:`, thumbError)
-          thumbnailDataUrl = null // Fallback to initials
-        }
-      } else if (!map.imageData) {
-        // If map has no image data, ensure no thumbnail is set (will use initials fallback)
-        thumbnailDataUrl = null
-      }
-
-      // Return a new map object with the thumbnail data URL
-      return { ...map, thumbnailDataUrl }
-    }))
-
-    const currentActiveMapId = this.currentMap ? this.currentMap.id : null
-
-    try {
-      this.modalManager.createMapsListModal(
-        mapsWithThumbnails, // Pass the enhanced map list
-        currentActiveMapId,
-        async (mapId) => {
-          // Callback when a map is selected from the list
-          await this.switchToMap(mapId)
-        },
-        () => {
-          // Callback when the modal is closed without selection
-          this.updateAppStatus('Ready')
-        }
-      )
-
-      this.updateAppStatus('Maps list displayed')
-    } catch (error) {
-      console.error('Error showing map list:', error)
-      this.showErrorMessage('Failed to load maps', error.message)
-    }
-  }
-
-  /**
    * Format file size for display
    */
   formatFileSize (bytes) {
@@ -1621,10 +1726,7 @@ class ImageMapperApp {
   /**
    * Display a map on the canvas
    * @param {Object} mapData - Map metadata from storage. Now includes imageData.
-   */
-  /**
-   * Display a map on the canvas
-   * @param {Object} mapData - Map metadata from storage. Now includes imageData.
+   * MODIFIED: To correctly determine and pass `hasPhotos` status to markers using getMarkerPhotoCount.
    */
   async displayMap (mapData) {
     if (!mapData) {
@@ -1636,14 +1738,10 @@ class ImageMapperApp {
       console.log('Displaying map:', mapData.name)
       this.updateAppStatus(`Loading map: ${mapData.name}`)
 
-      // Check if we have the file blob for this map in memory (from current session)
       let imageBlob = this.uploadedFiles.get(mapData.id)
-
       if (!imageBlob && mapData.imageData) {
-        // If not in memory, try to get it from mapData.imageData (loaded from IndexedDB)
         imageBlob = mapData.imageData
         console.log('Displaying map: Loaded image data from storage.')
-        // Optionally, store in uploadedFiles for current session\'s faster access
         this.uploadedFiles.set(mapData.id, imageBlob)
       }
 
@@ -1657,11 +1755,23 @@ class ImageMapperApp {
 
       this.currentMap = mapData
 
-      // NEW: Load markers for the current map
-      this.markers = await this.storage.getMarkersForMap(this.currentMap.id)
-      this.mapRenderer.setMarkers(this.markers)
+      // MODIFIED: Load markers for the current map and use getMarkerPhotoCount for hasPhotos status
+      const fetchedMarkers = await this.storage.getMarkersForMap(this.currentMap.id)
+      this.markers = await Promise.all(fetchedMarkers.map(async marker => {
+        const photoCount = await this.storage.getMarkerPhotoCount(marker.id)
+        return {
+          ...marker,
+          // IMPORTANT: The photoIds array on the marker object from IndexedDB might not be perfectly current
+          // if photos were added/deleted without explicitly updating the marker object itself.
+          // However, hasPhotos is now correctly determined by directly counting photos.
+          hasPhotos: photoCount > 0
+          // Retain photoIds from the marker object if it exists, for modals etc.
+          // It will be updated when adding/deleting photos anyway.
+        }
+      }))
 
-      this.mapRenderer.render() // Ensure the map and markers are rendered
+      this.mapRenderer.setMarkers(this.markers)
+      this.mapRenderer.render()
 
       this.updateAppStatus(`Map displayed: ${mapData.name}`)
     } catch (error) {
@@ -1850,6 +1960,7 @@ class ImageMapperApp {
 
   /**
    * Sets up the process for adding photos to a specific marker.
+   * MODIFIED: To ensure marker's `hasPhotos` status is updated and re-rendered.
    * @param {string} markerId - The ID of the marker to add photos to.
    */
   async setupAddPhotosForMarker (markerId) {
@@ -1864,26 +1975,14 @@ class ImageMapperApp {
       for (const file of selectedFiles) {
         this.updateAppStatus(`Processing photo: ${file.name}...`)
 
-        // --- DEBUGGING START ---
-        console.log('DEBUG: Original file name:', file.name)
-        console.log('DEBUG: Original file type:', file.type)
-        console.log('DEBUG: Original file size:', file.size, 'bytes')
-        // --- DEBUGGING END ---
-
         const processOptions = {
           maxWidth: this.imageCompressionSettings.photo.maxWidth,
           maxHeight: this.imageCompressionSettings.photo.maxHeight,
           quality: this.imageCompressionSettings.photo.quality,
-          outputFormat: 'image/jpeg' // <--- CHANGE IS HERE: ALWAYS force JPEG for associated images
+          outputFormat: 'image/jpeg'
         }
-        console.log('DEBUG: Processing options:', processOptions)
 
         const processedImageBlob = await this.imageProcessor.processImage(file, processOptions)
-
-        // --- DEBUGGING START ---
-        console.log('DEBUG: Processed Image Blob Type:', processedImageBlob.type)
-        console.log('DEBUG: Processed Image Blob Size:', processedImageBlob.size, 'bytes')
-        // --- DEBUGGING END ---
 
         const thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(processedImageBlob, this.imageCompressionSettings.thumbnail.maxSize, 'image/jpeg', this.imageCompressionSettings.thumbnail.quality)
         const photoData = {
@@ -1891,7 +1990,7 @@ class ImageMapperApp {
           imageData: processedImageBlob,
           thumbnailData: thumbnailDataUrl,
           fileName: file.name,
-          fileType: 'image/jpeg', // <--- Also update this to reflect actual stored type
+          fileType: 'image/jpeg',
           fileSize: processedImageBlob.size
         }
         const savedPhoto = await this.storage.addPhoto(photoData)
@@ -1906,6 +2005,15 @@ class ImageMapperApp {
           const updatedPhotoIds = [...new Set([...(marker.photoIds || []), ...photoIdsToAdd])]
           await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
           this.showNotification(`${photoIdsToAdd.length} photo(s) added to marker.`, 'success')
+
+          // NEW: Update local markers array and re-render map for visual change
+          const localMarker = this.markers.find(m => m.id === markerId)
+          if (localMarker) {
+            localMarker.photoIds = updatedPhotoIds // Update local photoIds
+            localMarker.hasPhotos = (updatedPhotoIds.length > 0) // Update local hasPhotos status (will be true)
+          }
+          this.mapRenderer.setMarkers(this.markers) // Pass updated local array
+          this.mapRenderer.render() // Re-render to reflect new color if needed
         }
       }
     } catch (error) {
@@ -1918,6 +2026,7 @@ class ImageMapperApp {
 
   /**
    * Deletes a photo from a marker and from storage.
+   * MODIFIED: To ensure marker's `hasPhotos` status is updated and re-rendered.
    * @param {string} markerId - The ID of the marker the photo is associated with.
    * @param {string} photoId - The ID of the photo to delete.
    */
@@ -1930,6 +2039,15 @@ class ImageMapperApp {
         const updatedPhotoIds = marker.photoIds.filter(id => id !== photoId)
         await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
         console.log(`Removed photoId ${photoId} from marker ${markerId}`)
+
+        // NEW: Update local markers array and re-render map for visual change
+        const localMarker = this.markers.find(m => m.id === markerId)
+        if (localMarker) {
+          localMarker.photoIds = updatedPhotoIds // Update local photoIds
+          localMarker.hasPhotos = (updatedPhotoIds.length > 0) // Update local hasPhotos status
+        }
+        this.mapRenderer.setMarkers(this.markers) // Pass updated local array
+        this.mapRenderer.render() // Re-render to reflect new color if needed
       } else {
         console.warn(`Marker ${markerId} not found when trying to delete photo ${photoId} reference.`)
       }

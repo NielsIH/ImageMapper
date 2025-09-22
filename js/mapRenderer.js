@@ -21,6 +21,16 @@ class MapRenderer {
     this.minScale = 0.1
     this.showDebugInfo = false
     this.markers = [] // NEW: Array to hold marker data
+    this.showCrosshair = false // NEW: Control crosshair visibility
+    this.markersAreEditable = false // NEW: Control if markers are rendered as editable
+    // NEW: Marker size settings
+    this.markerSizeSettings = {
+      normal: { radius: 12, fontSizeFactor: 1.0 },
+      large: { radius: 18, fontSizeFactor: 1.2 },
+      extraLarge: { radius: 24, fontSizeFactor: 1.4 }
+    }
+    // NEW: Currently active marker size
+    this.markerCurrentDisplaySizeKey = 'normal' // Default size
 
     // Setup canvas immediately if container is visible
     if (this.canvas.offsetParent !== null) {
@@ -205,6 +215,9 @@ class MapRenderer {
   /**
    * Render the current map on canvas
    */
+  /**
+   * Render the current map on canvas
+   */
   render () {
     if (!this.canvas || !this.ctx) return
 
@@ -220,6 +233,12 @@ class MapRenderer {
     } else {
       this.renderEmptyState()
     }
+
+    // NEW: Draw crosshair if enabled
+    if (this.showCrosshair) {
+      this.drawCrosshair()
+    }
+
     // Draw debug info (optional), always last to be on top
     if (this.showDebugInfo) {
       this.renderDebugInfo()
@@ -327,6 +346,45 @@ class MapRenderer {
       this.ctx.fillText(line, padding, y)
       y += lineHeight
     })
+  }
+
+  /**
+   * NEW: Draw a crosshair at the center of the canvas.
+   */
+  drawCrosshair () {
+    const centerX = this.canvas.width / 2
+    const centerY = this.canvas.height / 2
+    const crosshairSize = 15 // Length of each arm of the cross
+    const crosshairThickness = 1
+    const crosshairColor = 'rgba(255, 0, 0, 0.7)' // Semi-transparent red
+
+    this.ctx.save()
+
+    this.ctx.strokeStyle = crosshairColor
+    this.ctx.lineWidth = crosshairThickness
+
+    // Horizontal line
+    this.ctx.beginPath()
+    this.ctx.moveTo(centerX - crosshairSize, centerY)
+    this.ctx.lineTo(centerX + crosshairSize, centerY)
+    this.ctx.stroke()
+
+    // Vertical line
+    this.ctx.beginPath()
+    this.ctx.moveTo(centerX, centerY - crosshairSize)
+    this.ctx.lineTo(centerX, centerY + crosshairSize)
+    this.ctx.stroke()
+
+    this.ctx.restore()
+  }
+
+  /**
+   * NEW: Toggle the visibility of the crosshair.
+   * @param {boolean} visible - Whether the crosshair should be visible.
+   */
+  toggleCrosshair (visible) {
+    this.showCrosshair = visible
+    this.render() // Re-render to show/hide the crosshair
   }
 
   /**
@@ -456,7 +514,7 @@ class MapRenderer {
   }
 
   /**
-   * NEW: Set the markers to be rendered.
+   * Set the markers to be rendered.
    * @param {Array} markersArray - An array of marker objects.
    */
   setMarkers (markersArray) {
@@ -466,32 +524,107 @@ class MapRenderer {
   }
 
   /**
+   * Render all current markers on the canvas.
+   */
+  /**
    * NEW: Render all current markers on the canvas.
+   * MODIFIED: Pass `marker.hasPhotos` to `drawMarker`.
    */
   renderMarkers () {
     if (!this.markers || this.markers.length === 0) return
 
     this.markers.forEach((marker, index) => {
-      // Convert map (image) coordinates to screen (canvas) coordinates
+      // Check if the marker is currently within the visible canvas viewport before drawing too
       const screenCoords = this.mapToScreen(marker.x, marker.y)
-      if (screenCoords) {
-        this.drawMarker(screenCoords.x, screenCoords.y, index + 1) // Pass index + 1 for numbering
+      if (
+        screenCoords &&
+        screenCoords.x > -20 && screenCoords.x < this.canvas.width + 20 &&
+        screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
+      ) {
+        // Pass the editable state AND hasPhotos status to drawMarker
+        // Ensure marker.hasPhotos is a boolean
+        this.drawMarker(screenCoords.x, screenCoords.y, index + 1, this.markersAreEditable, !!marker.hasPhotos)
       }
     })
   }
 
   /**
+   * NEW: Set whether markers should be rendered as editable.
+   * @param {boolean} editable - True if markers should appear editable (unlocked), false otherwise (locked).
+   */
+  setMarkersEditable (editable) {
+    if (this.markersAreEditable !== editable) {
+      this.markersAreEditable = editable
+      this.render() // Re-render to update marker appearance
+    }
+  }
+
+  /**
+   * NEW: Get the properties of the currently active marker display size.
+   * @returns {Object} An object containing radius and fontSizeFactor.
+   */
+  getCurrentMarkerDisplaySize () {
+    return this.markerSizeSettings[this.markerCurrentDisplaySizeKey]
+  }
+
+  /**
+   * NEW: Set the display size of the markers.
+   * @param {string} sizeKey - 'normal', 'large', or 'extraLarge'.
+   */
+  setMarkerDisplaySize (sizeKey) {
+    if (this.markerSizeSettings[sizeKey]) {
+      this.markerCurrentDisplaySizeKey = sizeKey
+      this.render() // Re-render to show updated marker sizes
+      console.log('MapRenderer: Marker display size set to:', sizeKey)
+    } else {
+      console.warn('MapRenderer: Invalid marker size key:', sizeKey, '. Keeping current size.')
+    }
+  }
+
+  /**
    * NEW: Draw a single marker on the canvas.
+   * Modified to differentiate between locked/unlocked states and with/without photos.
    * @param {number} x - Screen X coordinate of the marker center.
    * @param {number} y - Screen Y coordinate of the marker center.
    * @param {number} number - Optional number to display on the marker.
+   * @param {boolean} isEditable - If true, draw the marker in an 'unlocked' style.
+   * @param {boolean} hasPhotos - If true, draw the marker with a 'has photos' style.
    */
-  drawMarker (x, y, number) {
-    const radius = 12 // Marker circle radius
+  drawMarker (x, y, number, isEditable, hasPhotos) {
+    // Get the current radius and font size from settings
+    const currentSize = this.markerSizeSettings[this.markerCurrentDisplaySizeKey]
+    const radius = currentSize.radius
+    const fontSize = radius * currentSize.fontSizeFactor
     const borderWidth = 2
-    const borderColor = '#dc2626' // Red-600
-    const fillColor = '#ef4444' // Red-500
-    const textColor = '#ffffff' // White
+    let borderColor
+    let fillColor
+    let textColor
+
+    if (isEditable) { // Unlocked/Editable State
+      if (hasPhotos) {
+        // Unlocked, Has Photos (Current Red)
+        borderColor = '#dc2626' // Red-600
+        fillColor = '#ef4444' // Red-500
+        textColor = '#ffffff' // White
+      } else {
+        // Unlocked, No Photos (Orange/Yellow - calling attention)
+        borderColor = '#f59e0b' // Amber-500
+        fillColor = '#fbbf24' // Amber-400
+        textColor = '#1f2937' // Dark Gray text for contrast
+      }
+    } else { // Locked State
+      if (hasPhotos) {
+        // Locked, Has Photos (Dark Gray)
+        borderColor = '#4b5563' // Gray-600
+        fillColor = '#6b7280' // Gray-500
+        textColor = '#ffffff' // White
+      } else {
+        // Locked, No Photos (Light Gray - "needs attention but is locked")
+        borderColor = '#9ca3af' // Gray-400
+        fillColor = '#d1d5db' // Gray-300
+        textColor = '#374151' // Darker Gray text for contrast
+      }
+    }
 
     this.ctx.save()
 
@@ -504,20 +637,12 @@ class MapRenderer {
     this.ctx.strokeStyle = borderColor
     this.ctx.stroke()
 
-    // Draw the marker "tail" (optional, for a pin look)
-    // this.ctx.beginPath();
-    // this.ctx.moveTo(x, y + radius);
-    // this.ctx.lineTo(x, y + radius + 10); // Extend 10px downwards
-    // this.ctx.lineWidth = borderWidth;
-    // this.ctx.strokeStyle = borderColor;
-    // this.ctx.stroke();
-
     // Draw the number inside the marker
-    this.ctx.font = `${radius}px Arial, sans-serif`
+    this.ctx.font = `${fontSize}px Arial, sans-serif` // Use dynamic font size
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
     this.ctx.fillStyle = textColor
-    this.ctx.fillText(String(number), x, y)
+    this.ctx.fillText(String(number), x, y + 1) // +1 to visually center text better
 
     this.ctx.restore()
   }

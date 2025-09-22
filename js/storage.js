@@ -528,6 +528,38 @@ class MapStorage {
   }
 
   /**
+   * NEW: Get the number of photos associated with a specific marker.
+   * @param {string} markerId - The ID of the marker.
+   * @param {IDBTransaction} [transaction] - Optional existing transaction.
+   * @returns {Promise<number>} - The count of photos for the marker.
+   */
+  async getMarkerPhotoCount (markerId, transaction = null) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      let t = transaction
+      if (!t) {
+        t = this.db.transaction([this.photoStoreName], 'readonly')
+      }
+      const store = t.objectStore(this.photoStoreName)
+      const index = store.index('markerId')
+      // Use count() for efficiency, instead of getAll()
+      const request = index.count(markerId)
+
+      request.onsuccess = () => {
+        resolve(request.result) // result is the count
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get photo count for marker', request.error)
+        reject(new Error(`Failed to load photo count: ${request.error}`))
+      }
+    })
+  }
+
+  /**
    * Update an existing marker
    * @param {string} markerId - Marker ID
    * @param {Object} updates - Object with properties to update
