@@ -230,7 +230,7 @@ body {
     visibility: visible !important; /* Keep visible */
     /* Only hide the text within buttons, not the whole control group */
     pointer-events: auto !important; /* Allow interaction with icon buttons */
-    gap: 0 !important; /* Zero out gap to pack buttons tightly */
+    /* gap: 0 !important; */
     filter: brightness(0.8); /* Subtle dimming for visual feedback */
 }
 
@@ -341,7 +341,7 @@ body {
     justify-content: center !important;
     align-items: center !important;
     flex-shrink: 0 !important;
-    gap: 0 !important;
+    /* gap: 0 !important; */
 }
 
 /* Explicitly hide the text span inside control buttons when wrapper is minimized */
@@ -1443,6 +1443,7 @@ div.modal-footer button#btn-delete-marker {
   justify-content: center;
   padding: var(--spacing-md); /* Some padding around the image */
   background: var(--bg-dark); /* Ensure body also has dark background */
+  position: relative;
 }
 
 .image-viewer-modal .full-size-image {
@@ -1450,6 +1451,42 @@ div.modal-footer button#btn-delete-marker {
   max-height: 100%;
   object-fit: contain; /* Ensures image fits within bounds without cropping */
   display: block; /* Remove extra space below image */
+}
+/* This wrapper acts as the positioning context for the overlay button */
+.image-viewer-modal .image-viewer-image-wrapper {
+  position: relative; /* CRUCIAL: Makes this the positioning parent for its absolute children */
+  display: inline-block; /* Makes the wrapper only as wide as the image it contains */
+  max-width: 100%; /* Ensures the wrapper doesn't exceed modal-body width */
+  max-height: 100%; /* Ensures the wrapper doesn't exceed modal-body height */
+}
+
+/* Styling for the delete button overlaying the image */
+.image-viewer-modal .delete-photo-overlay-btn {
+  position: absolute; /* Position relative to the .image-viewer-image-wrapper */
+  top: 5px; /* Distance from the top edge of the image */
+  right: 5px; /* Distance from the right edge of the image */
+  
+  background-color: rgba(220, 38, 38, 0.9); /* Opaque red background */
+  color: white; /* White 'X' */
+  border: none;
+  border-radius: 50%; /* Circular shape */
+  
+  width: 30px; /* Size of the button */
+  height: 30px;
+  font-size: 1.2rem; /* Size of the 'X' icon */
+  line-height: 1; /* Helps vertical centering */
+  
+  display: flex; /* Use flexbox to perfectly center the 'X' */
+  justify-content: center;
+  align-items: center;
+  
+  cursor: pointer;
+  z-index: 10; /* Make sure it's above the image */
+}
+
+/* Optional: Slight hover effect for the overlay button */
+.image-viewer-modal .delete-photo-overlay-btn:hover {
+  background-color: rgba(220, 38, 38, 1); /* Fully opaque red on hover */
 }
 
 /* Responsive adjustments for image viewer modal */

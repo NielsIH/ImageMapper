@@ -1214,21 +1214,28 @@ class ModalManager {
    * Creates and displays a modal for viewing a full-size image.
    * @param {string} imageUrl - The URL of the image to display (can be Data URL or object URL).
    * @param {string} [imageTitle='Image Viewer'] - An optional title for the image.
+   * @param {string} photoId - The ID of the photo being viewed.
+   * @param {Function} onDeleteImage - Callback when the delete button is clicked (receives photoId).
    * @param {Function} onClose - Callback when the modal is closed.
    * @returns {HTMLElement} - The created modal element.
    */
-  createImageViewerModal (imageUrl, imageTitle = 'Image Viewer', onClose) {
+  createImageViewerModal (imageUrl, imageTitle = 'Image Viewer', photoId, onDeleteImage, onClose) {
     console.log('ModalManager: Creating new Image Viewer Modal.')
     const modalHtml = `
-      <div class="modal" id="image-viewer-modal">
+      <div class="modal image-viewer-modal" id="image-viewer-modal">
         <div class="modal-backdrop"></div>
         <div class="modal-content image-viewer-content">
           <div class="modal-header">
             <h3 class="image-viewer-title">${imageTitle}</h3>
-            <button class="modal-close" type="button" aria-label="Close">×</button>
+            <div class="modal-header-actions">
+                <button class="modal-close" type="button" aria-label="Close">×</button>
+            </div>
           </div>
           <div class="modal-body image-viewer-body">
-            <img src="${imageUrl}" alt="${imageTitle}" class="full-size-image" />
+            <div class="image-viewer-image-wrapper">
+                <img src="${imageUrl}" alt="${imageTitle}" class="full-size-image" />
+                <button class="btn btn-tiny btn-danger delete-photo-overlay-btn" id="btn-delete-image-viewer" type="button" title="Delete Image">✕</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1252,6 +1259,20 @@ class ModalManager {
 
     modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
     modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
+
+    // Event listener for the delete image button
+    const deleteImageButton = modal.querySelector('#btn-delete-image-viewer')
+    if (deleteImageButton) {
+      deleteImageButton.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent click from bubbling up
+        if (onDeleteImage && confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+          onDeleteImage(photoId)
+        }
+      })
+    }
+
+    // REMOVE any previous event listener logic for imageWrapper/fullSizeImage if you had it.
+    // We are deliberately keeping the delete button *always visible* and *not* reacting to hover/tap for now.
 
     requestAnimationFrame(() => {
       modal.classList.add('show')

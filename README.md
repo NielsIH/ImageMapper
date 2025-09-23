@@ -76,6 +76,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Map naming and descriptions (including editing in map management modal)
 - ✅ Map list management (CRUD operations, including active map selection, deletion, export)
 - ✅ Local storage of map metadata (using IndexedDB)
+- ✅ **NEW: "Clear All App Data" function for complete data reset**
 
 ### Phase 1C: Map Display Engine ✅
 - ✅ Canvas-based map rendering
@@ -96,13 +97,13 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Marker description editing
 - ✅ Marker deletion
 - ✅ Image association with markers (uploading photos to markers)
+- ✅ **NEW: Direct image deletion from the full-size image viewer modal**
 - ✅ Note-taking functionality (marker description)
 - ✅ Coordinate tracking (display in marker details)
 
 ### Phase 2: Export and Sync
 - ✅ Data export in multiple formats (HTML report implemented)
 - ✅ Import and export of maps with markers and images
-
 
 ## Technical Stack
 
@@ -123,6 +124,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - Settings modal is not implemented
 - Import and export settings
 - Quality settings for images (that were added to markers)
+- **NEW: PWA screen orientation locking needs implementation (e.g., `screen.orientation.lock()` in JS)**
 
 ### Key Design Decisions
 - **Offline-first approach**: Everything must work without internet

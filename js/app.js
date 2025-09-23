@@ -2312,6 +2312,36 @@ class ImageMapperApp {
     }
   }
 
+  async deletePhotoFromImageViewer (photoId, markerId) {
+    console.log(`App: Deleting photo ${photoId} for marker ${markerId} from image viewer.`)
+    this.showLoading('Deleting image...')
+    try {
+      // Close the image viewer modal first to prevent further interaction
+      this.modalManager.closeTopModal() // This will also revoke the object URL
+
+      // Call the existing method to handle the actual deletion from storage and UI updates
+      await this.deletePhotoFromMarker(markerId, photoId)
+
+      // After deletion and successful UI update, refresh the marker details modal if it's still open
+      // This ensures the photo list in the marker details modal is also updated.
+      if (this.modalManager.getTopModalId() === 'marker-details-modal') {
+        // Re-open/refresh the marker details modal with the latest data
+        await this.showMarkerDetails(markerId)
+      } else {
+        // If marker details modal is not open, just re-render map if marker's photo status changed
+        this.mapRenderer.render()
+      }
+
+      this.showNotification('Image deleted successfully.', 'success')
+      this.updateAppStatus('Image deleted.')
+    } catch (error) {
+      console.error('App: Failed to delete photo from image viewer:', error)
+      this.showErrorMessage('Delete Photo Error', `Failed to delete image: ${error.message}`)
+    } finally {
+      this.hideLoading()
+    }
+  }
+
   /**
    * Handles the request to view a full-size photo.
    * Fetches the photo data, creates an Object URL, and displays it in a modal.
@@ -2321,40 +2351,43 @@ class ImageMapperApp {
     this.showLoading('Loading image...') // Assuming you have showLoading
     try {
       const photo = await this.storage.getPhoto(photoId)
-      if (!photo || !photo.imageData) {
-        console.error('Photo data not found for ID:', photoId)
-        // Replaced showToast with your existing error notification
-        this.showErrorMessage('Image Load Error', 'Image data not found.')
+      if (!photo || !photo.imageData || !photo.markerId) { // Check for photo.markerId
+        console.error('Photo data or markerId not found for ID:', photoId)
+        this.showErrorMessage('Image Load Error', 'Image data or associated marker ID not found.')
         return
       }
 
       const imageBlob = photo.imageData // Directly use the imageData Blob
 
-      // Revoke any previous object URL to prevent memory leaks
-      if (this.currentImageViewerUrl) {
-        URL.revokeObjectURL(this.currentImageViewerUrl)
-      }
+      // The modalManager.closeModal already handles revoking currentObjectUrl if the modal ID is 'image-viewer-modal'.
+      // So, this.currentImageViewerUrl tracking here is less critical for memory management,
+      // but if you also use it for other purposes, keep it.
+      // For now, removing the direct revoke here as modalManager handles it on close.
+      // if (this.currentImageViewerUrl) {
+      //   URL.revokeObjectURL(this.currentImageViewerUrl)
+      // }
 
       // Create a new object URL for the image Blob
-      this.currentImageViewerUrl = URL.createObjectURL(imageBlob)
+      // Store it in modalManager, as modalManager is responsible for its lifecycle
+      this.modalManager.currentObjectUrl = URL.createObjectURL(imageBlob)
 
       this.modalManager.createImageViewerModal(
-        this.currentImageViewerUrl,
+        this.modalManager.currentObjectUrl, // Pass the new object URL
         photo.fileName || 'Image', // Use filename as title
+        photo.id, // NEW: Pass the photo ID
+        async (idToDelete) => { // NEW: Pass the onDeleteImage callback
+          // This callback will be called by modalManager when delete button is pressed
+          await this.deletePhotoFromImageViewer(idToDelete, photo.markerId)
+        },
         () => {
           // Callback when the image viewer modal closes
           this.updateAppStatus('Image viewer closed.')
-          // Revoke the object URL immediately after the modal is closed
-          if (this.currentImageViewerUrl) {
-            URL.revokeObjectURL(this.currentImageViewerUrl)
-            this.currentImageViewerUrl = null
-          }
+          // Revocation is already handled by modalManager.closeModal
         }
       )
       this.updateAppStatus(`Viewing image: ${photo.fileName}`)
     } catch (error) {
       console.error('Error displaying photo:', error)
-      // Replaced showToast with your existing error notification
       this.showErrorMessage('Image Load Error', `Failed to load image: ${error.message}`)
     } finally {
       this.hideLoading() // Assuming you have hideLoading
