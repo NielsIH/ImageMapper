@@ -1,0 +1,199 @@
+/* Map display */
+.map-display {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #f0f0f0;
+  cursor: grab;
+}
+
+.map-container:active {
+  cursor: grabbing;
+}
+
+.map-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  touch-action: none;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Map Controls Overlay */
+.map-controls-wrapper {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    flex-direction: row;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+    z-index: 10;
+    padding: var(--spacing-sm);
+    background-color: var(--bg-dark); 
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    cursor: default;
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+    max-width: fit-content;
+    min-width: var(--touch-target);
+}
+
+.toggle-controls-btn {
+    background-color: transparent;
+    border: none;
+    color: var(--bg-primary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    align-self: center;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.3s ease-in-out, color 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: var(--touch-target);
+    height: var(--touch-target);
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+
+.toggle-controls-btn:hover {
+    color: var(--primary-color);
+}
+
+.toggle-controls-btn .icon {
+    display: block;
+}
+
+.map-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    transition: max-width 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s ease-out;
+    max-width: 300px;
+    opacity: 1;
+    visibility: visible;
+    overflow: hidden;
+}
+
+.map-controls-wrapper.minimized .map-controls {
+    max-width: var(--touch-target) !important; 
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    filter: brightness(0.8);
+}
+
+.map-controls-wrapper.minimized .toggle-controls-btn .icon {
+    transform: rotate(180deg); 
+}
+
+.zoom-controls {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary); 
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    flex-shrink: 0; 
+}
+
+.zoom-btn {
+    width: var(--touch-target);
+    height: var(--touch-target);
+    border: none;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.zoom-btn:hover {
+    background: var(--bg-secondary);
+}
+
+.zoom-btn:active {
+    background: var(--border-color);
+}
+
+.zoom-btn:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.control-btn {
+    box-shadow: var(--shadow);
+    min-height: var(--touch-target);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: inherit;
+    flex-shrink: 0;
+    width: 150px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-primary.control-btn { 
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+.btn-primary.control-btn:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.btn-secondary.control-btn { 
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+.btn-secondary.control-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--secondary-color);
+}
+
+.map-controls-wrapper.minimized .control-btn {
+    width: var(--touch-target) !important;
+    height: var(--touch-target) !important;
+    padding: 0 !important; 
+    font-size: 1.2rem !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+}
+
+.map-controls-wrapper.minimized .control-btn .btn-text {
+    display: none !important;
+}

@@ -1,0 +1,25 @@
+/* Main CSS file that imports all modular stylesheets */
+
+/* Base styles and CSS variables */
+@import 'base.css';
+
+/* Layout components */
+@import 'layout.css';
+
+/* Map display */
+@import 'map-display.css';
+
+/* Components: buttons, forms, toggles */
+@import 'components.css';
+
+/* Modals */
+@import 'modals.css';
+
+/* Utility classes */
+@import 'utilities.css';
+
+/* Responsive design */
+@import 'responsive.css';
+
+/* Notifications */
+@import 'notifications.css';

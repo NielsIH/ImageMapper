@@ -1,0 +1,70 @@
+/* Responsive design */
+@media (max-width: 768px) {
+  .header {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .app-title {
+    font-size: 1.125rem;
+  }
+  
+  .welcome-content {
+    padding: var(--spacing-md);
+  }
+  
+  .welcome-icon {
+    font-size: 3rem;
+  }
+  
+  .map-controls-wrapper {
+    bottom: auto;
+    right: var(--spacing-sm);
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+  }
+  
+  .control-btn {
+    font-size: 0.75rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .header-actions .btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+  }
+  
+  .footer {
+    font-size: 0.6875rem;
+  }
+  
+  .btn-large {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+  }
+  
+  .map-controls-wrapper {
+    bottom: auto;
+    right: var(--spacing-xs);
+    padding: var(--spacing-xs);
+  }
+}
+
+/* Print styles */
+@media print {
+  .header,
+  .footer,
+  .map-controls,
+  .modal {
+    display: none;
+  }
+  
+  .app-container {
+    height: auto;
+  }
+  
+  .main-content {
+    overflow: visible;
+  }
+}
