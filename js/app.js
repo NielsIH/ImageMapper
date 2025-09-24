@@ -31,6 +31,10 @@ class ImageMapperApp {
     this.uploadedFiles = new Map() // Store file references for rendering
     this.thumbnailCache = new Map()
     this.imageProcessor = new ImageProcessor()
+    // NEW: Load defaultImageQuality from localStorage for photos
+    const savedPhotoQuality = parseFloat(localStorage.getItem('defaultPhotoQuality'))
+    const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality // Default to 0.5 (50%) if not found
+
     this.imageCompressionSettings = {
       map: {
         maxWidth: 1920,
@@ -40,7 +44,7 @@ class ImageMapperApp {
       photo: { // For images attached to markers
         maxWidth: 1000,
         maxHeight: 1000,
-        quality: 0.5
+        quality: initialPhotoQuality // <--- Use loaded value here
       },
       thumbnail: { // For very small thumbnails, like in lists
         maxSize: 100, // Max dimension (either width or height)
@@ -59,6 +63,9 @@ class ImageMapperApp {
     this.mapCurrentRotation = 0 // Current map rotation in degrees (0, 90, 180, 270)
     // Define the cycle for rotation in degrees
     this.rotationCycle = [0, 90, 180, 270]
+    // NEW: App Behavior Settings
+    this.autoCloseMarkerDetails = localStorage.getItem('autoCloseMarkerDetails') === 'true' || false
+    this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
 
     // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
@@ -189,37 +196,11 @@ class ImageMapperApp {
     if (settingsBtn) {
       settingsBtn.addEventListener('click', () => this.showSettings())
     }
-    const btnImportData = document.getElementById('btn-import-data')
-    const fileInputImport = document.getElementById('file-input-import')
-
-    if (btnImportData) {
-      btnImportData.addEventListener('click', () => {
-        // Trigger the hidden file input click when the button is clicked
-        fileInputImport.click()
-      })
-    }
-
-    if (fileInputImport) {
-      fileInputImport.addEventListener('change', async (event) => {
-        const file = event.target.files[0]
-        if (file) {
-          await this.handleImportFile(file) // A new method we'll create next
-        }
-        // Clear the file input value to allow importing the same file again if needed
-        event.target.value = ''
-      })
-    }
 
     // Add first map button
     const addFirstMapBtn = document.getElementById('btn-add-first-map')
     if (addFirstMapBtn) {
       addFirstMapBtn.addEventListener('click', () => this.showUploadModal()) // <<< Changed to call showUploadModal directly
-    }
-
-    // Map list button (to open NEW consolidated Map Management Modal)
-    const mapListBtn = document.getElementById('btn-map-list')
-    if (mapListBtn) {
-      mapListBtn.addEventListener('click', () => this.showMapManagementModal()) // << NEW call
     }
 
     // Zoom controls
@@ -254,12 +235,6 @@ class ImageMapperApp {
     const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
     if (toggleMarkerSizeBtn) {
       toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
-    }
-
-    // Toggle Crosshair button
-    const toggleCrosshairBtn = document.getElementById('btn-toggle-crosshair')
-    if (toggleCrosshairBtn) {
-      toggleCrosshairBtn.addEventListener('click', () => this.toggleCrosshair())
     }
 
     // Toggle Map Controls button
@@ -506,18 +481,182 @@ class ImageMapperApp {
   }
 
   // ========================================
-  // Button Action Handlers (Placeholder)
+  // Button Action Handlers
   // ========================================
 
   /**
-     * Show settings modal (placeholder for future implementation)
-     */
-  showSettings () {
-    console.log('Settings clicked - to be implemented in future phase')
-    this.updateAppStatus('Settings - Coming soon')
+   * Displays the App Settings modal.
+   * @param {string} [initialTab='general-settings'] - The ID of the tab to initially open.
+   */
+  async showSettings (initialTab = 'general-settings') { // <--- Added initialTab parameter
+    this.showLoading('Loading settings...', false) // Show loading indicator
+    try {
+      await this.loadMaps() // Ensure mapsList is up-to-date in preparation for map management section
 
-    // Placeholder alert for now
-    alert('Settings feature will be implemented in a future phase.\n\nCurrent version: Phase 1A - PWA Foundation')
+      // Prepare maps with thumbnails for display in settings modal
+      const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
+        let thumbnailDataUrl = this.thumbnailCache.get(map.id)
+        // If no thumbnail in cache and map data is a Blob (i.e., new map or not yet processed)
+        if (!thumbnailDataUrl && map.imageData instanceof Blob) {
+          try {
+            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100) // 100px size
+            if (thumbnailDataUrl) {
+              this.thumbnailCache.set(map.id, thumbnailDataUrl)
+            }
+          } catch (thumbError) {
+            console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
+            thumbnailDataUrl = null
+          }
+        } else if (!map.imageData) {
+          // If map.imageData is null or undefined, explicitly set thumbnail to null
+          thumbnailDataUrl = null
+        }
+        // Return map object with thumbnailDataUrl (new property added for display)
+        return { ...map, thumbnailDataUrl }
+      }))
+      const currentActiveMapId = this.currentMap ? this.currentMap.id : null
+
+      const settingsCallbacks = {
+        onClearAllAppData: () => this.clearAllAppData(), // Already implemented for danger zone
+
+        // Maps Management Callbacks:
+        onMapSelected: async (mapId) => {
+          await this.switchToMap(mapId)
+          this.updateAppStatus(`Switched to map: ${this.currentMap.name}`)
+        },
+        onMapDelete: async (mapId) => {
+          await this.deleteMap(mapId)
+          // showSettings will be called again by onSettingsModalRefresh after deletion
+        },
+        onAddNewMap: () => {
+          this.showUploadModal() // Calls the existing method to show the map upload modal
+        },
+        onExportHtmlMap: async (mapId) => {
+          await this.exportHtmlReport(mapId) // Calls your existing method
+        },
+        onExportJsonMap: async (mapId) => {
+          await this.exportJsonMap(mapId) // Calls your existing method
+        },
+        onSettingsModalRefresh: (tabToReopen) => {
+          // This callback is triggered after an action (like map deletion)
+          // that requires re-rendering the maps list within the settings modal.
+          // We close the current settings modal and immediately re-open it
+          // to the specified tab to show the updated list.
+          if (this.modalManager.getTopModalId() === 'settings-modal') {
+            this.modalManager.closeTopModal() // Close current instance
+          }
+          // Re-open settings modal, ensuring the Maps Management tab is active
+          this.showSettings(tabToReopen)
+        },
+        // NEW: Data Management Callbacks
+        onImportData: async (file) => {
+          await this.handleImportFile(file)
+          this.updateAppStatus('Data import complete.', 'success') // Set status as success
+          // Trigger a refresh of the settings modal to show the updated map list
+          // The onSettingsModalRefresh callback will handle closing and re-opening the settings modal
+          // to the 'maps-management-settings' tab, which now contains the newly imported map.
+          settingsCallbacks.onSettingsModalRefresh('maps-management-settings') // <--- ADD THIS LINE
+        },
+        // NEW: Map Display Callbacks
+        isCrosshairEnabled: () => this.isCrosshairEnabled(), // <--- Calls the new getter
+        onToggleCrosshair: (enabled) => {
+          this.toggleCrosshair(enabled) // Calls the updated App.toggleCrosshair
+        },
+        // NEW: Image Processing Callbacks
+        getPhotoQuality: () => this.getPhotoQuality(),
+        setPhotoQuality: (qualityPercentage) => {
+          this.setPhotoQuality(qualityPercentage)
+        },
+        // NEW: App Behavior Callbacks
+        getAutoCloseMarkerDetails: () => this.getAutoCloseMarkerDetails(),
+        setAutoCloseMarkerDetails: (value) => {
+          this.setAutoCloseMarkerDetails(value)
+        },
+        getAllowDuplicatePhotos: () => this.getAllowDuplicatePhotos(),
+        setAllowDuplicatePhotos: (value) => {
+          this.setAllowDuplicatePhotos(value)
+        }
+      }
+      // Create and display the settings modal
+      this.modalManager.createSettingsModal(
+        settingsCallbacks,
+        mapsWithThumbnails, // Pass prepared maps data
+        currentActiveMapId, // Pass active map ID
+        () => { // onClose callback for the settings modal itself
+          this.updateAppStatus('Settings closed')
+        },
+        initialTab // Pass the initial tab to open
+      )
+      this.updateAppStatus('Settings displayed')
+    } catch (error) {
+      console.error('App: Error showing settings modal:', error)
+      this.showErrorMessage('Failed to open settings', error.message)
+    } finally {
+      this.hideLoading() // Hide loading indicator regardless of success/failure
+    }
+  }
+
+  /**
+   * Returns the current photo quality setting (for images attached to markers).
+   * @returns {number} Photo quality as a decimal (0.1-1.0).
+   */
+  getPhotoQuality () {
+    return this.imageCompressionSettings.photo.quality
+  }
+
+  /**
+   * Sets a new photo quality and persists it.
+   * @param {number} quality - The new photo quality as a percentage (10-100).
+   */
+  setPhotoQuality (qualityPercentage) {
+    // Convert percentage (10-100) to decimal (0.1-1.0)
+    const decimalQuality = qualityPercentage / 100
+
+    // Ensure quality is within valid range (0.1 to 1.0)
+    const clampedQuality = Math.max(0.1, Math.min(1.0, decimalQuality))
+
+    this.imageCompressionSettings.photo.quality = clampedQuality
+    localStorage.setItem('defaultPhotoQuality', clampedQuality) // Persist the decimal value
+    this.showNotification(`Image quality for markers set to ${qualityPercentage}%.`, 'info')
+    console.log('Image quality for markers set to:', clampedQuality)
+  }
+
+  /**
+   * Returns whether the marker details modal should auto-close after adding photos.
+   * @returns {boolean}
+   */
+  getAutoCloseMarkerDetails () {
+    return this.autoCloseMarkerDetails
+  }
+
+  /**
+   * Sets whether the marker details modal should auto-close after adding photos and persists it.
+   * @param {boolean} value - true to auto-close, false otherwise.
+   */
+  setAutoCloseMarkerDetails (value) {
+    this.autoCloseMarkerDetails = value
+    localStorage.setItem('autoCloseMarkerDetails', value)
+    this.showNotification(`Auto-close marker details: ${this.autoCloseMarkerDetails ? 'Enabled' : 'Disabled'}.`, 'info')
+    console.log('Auto-close marker details:', this.autoCloseMarkerDetails)
+  }
+
+  /**
+   * Returns whether adding duplicate photos to markers is allowed.
+   * @returns {boolean}
+   */
+  getAllowDuplicatePhotos () {
+    return this.allowDuplicatePhotos
+  }
+
+  /**
+   * Sets whether adding duplicate photos to markers is allowed and persists it.
+   * @param {boolean} value - true to allow, false otherwise.
+   */
+  setAllowDuplicatePhotos (value) {
+    this.allowDuplicatePhotos = value
+    localStorage.setItem('allowDuplicatePhotos', value)
+    this.showNotification(`Allow duplicate photos: ${this.allowDuplicatePhotos ? 'Enabled' : 'Disabled'}.`, 'info')
+    console.log('Allow duplicate photos:', this.allowDuplicatePhotos)
   }
 
   /**
@@ -554,109 +693,6 @@ class ImageMapperApp {
       this.hideLoading() // Ensure loading indicator is hidden
     }
   }
-
-  /**
-   * Orchestrates displaying the comprehensive Maps Management Modal.
-   * This includes fetching maps, generating thumbnails, and handling all map actions within the modal.
-   */
-  async showMapManagementModal () {
-    // Check if a map management modal is already active via the central ModalManager
-    // This helps prevent opening multiple if another part of the app is also triggering it
-    // without proper closure.
-    if (this.modalManager.getTopModalId() === 'map-management-modal') {
-      return
-    }
-    this.showLoading('Loading map management...', false)
-    try {
-      await this.loadMaps() // Make sure this.mapsList is populated
-      const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
-        let thumbnailDataUrl = this.thumbnailCache.get(map.id)
-        if (!thumbnailDataUrl && map.imageData instanceof Blob) { // Check for Blob type before processing
-          try {
-            // Generate thumbnail from map.imageData (Blob)
-            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100) // 100px size
-            if (thumbnailDataUrl) {
-              this.thumbnailCache.set(map.id, thumbnailDataUrl)
-            }
-          } catch (thumbError) {
-            console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
-            thumbnailDataUrl = null
-          }
-        } else if (!map.imageData) {
-          // If map.imageData is null or undefined (e.g., in an imported map, or older data)
-          thumbnailDataUrl = null
-        }
-        // Return map object with thumbnailDataUrl (new property)
-        return { ...map, thumbnailDataUrl }
-      }))
-
-      const currentActiveMapId = this.currentMap ? this.currentMap.id : null
-
-      // CORRECTED CALL TO createMapManagementModal
-      // Ensure parameters match the updated signature in modals.js
-      const mapManagementModalInstance = this.modalManager.createMapManagementModal(
-        mapsWithThumbnails,
-        currentActiveMapId,
-        async (mapId) => { // onMapSelected callback
-          await this.switchToMap(mapId)
-          // The modal.closeModal() is handled internally by modalManager during click,
-          // which then triggers the final onClose callback below.
-        },
-        async (mapId) => { // onMapDelete callback
-          await this.deleteMap(mapId)
-          // Ensure the currently open modal is closed/cleaned up if needed before re-opening
-          this.modalManager.closeModal(mapManagementModalInstance)
-          // Re-show the map management modal with the updated list
-          this.showMapManagementModal()
-        },
-        async () => { // onAddNewMap callback - simplified for direct call
-          this.modalManager.closeModal(mapManagementModalInstance)
-          this.showUploadModal() // Assuming this opens the upload modal
-        },
-        // onExportHtmlMap callback (was onExportMap)
-        async (mapId) => {
-          this.modalManager.closeModal(mapManagementModalInstance) // Close modal before export
-          await this.exportHtmlReport(mapId) // Call the correct HTML export method
-        },
-        // onExportJsonMap callback (NEW)
-        async (mapId) => {
-          this.modalManager.closeModal(mapManagementModalInstance) // Close modal before export
-          await this.exportJsonMap(mapId) // Call the new JSON export method
-        },
-        () => { // Final onClose callback passed to createMapManagementModal (triggered by any closing event)
-          this.updateAppStatus('Ready')
-        },
-        () => { // onModalReady callback (triggered when modal is shown after animation)
-          this.hideLoading()
-        },
-        async () => { // <--- NEW PARAMETER: onClearAllData callback
-          await this.clearAllAppData()
-        }
-      )
-      this.updateAppStatus('Map management displayed')
-    } catch (error) {
-      console.error('App: Error showing map management modal:', error)
-      this.showErrorMessage('Failed to open map management', error.message)
-      this.hideLoading()
-    }
-  }
-
-  //   async showMapManagementModal () {
-  //     this.updateAppStatus('Loading map list...')
-  //     const maps = await this.loadMaps()
-  //     this.updateAppStatus('Map list loaded.')
-
-  //     this.modalManager.createMapManagementModal(
-  //       maps,
-  //       this.currentMapId,
-  //       async (mapId) => this.selectMap(mapId), // REAL Callback
-  //       async (mapId) => this.deleteMap(mapId), // REAL Callback
-  //       () => console.log('Add New Map'), // Dummy for now
-  //       async (mapId) => console.log('Export HTML:', mapId), // Dummy for now
-  //       async (mapId) => console.log('Export JSON:', mapId), // Dummy for now
-  //       () => this.updateAppStatus('Ready') // REAL Callback (assuming it's this one)
-  //     )
-  // }
 
   /**
    * Delete a map from storage and update UI.
@@ -990,16 +1026,29 @@ class ImageMapperApp {
   }
 
   /**
-   * NEW: Toggles the crosshair visibility and saves the state.
+   * Toggles the visibility of the crosshair on the map.
+   * If 'forceState' is provided, sets it to that state instead of toggling.
+   * @param {boolean} [forceState] - Optional. If provided, sets crosshair visibility to this state.
    */
-  toggleCrosshair () {
-    this.showCrosshair = !this.showCrosshair
+  toggleCrosshair (forceState) { // JavaScript Standard Style: no semicolons
+    const newState = typeof forceState === 'boolean' ? forceState : !this.showCrosshair
+
+    this.showCrosshair = newState
     if (this.mapRenderer) {
-      this.mapRenderer.toggleCrosshair(this.showCrosshair)
+      this.mapRenderer.toggleCrosshair(this.showCrosshair) // Pass the explicit state
     }
     localStorage.setItem('showCrosshair', this.showCrosshair)
     this.showNotification(`Crosshair ${this.showCrosshair ? 'enabled' : 'disabled'}.`, 'info')
     console.log('Crosshair toggled. State:', this.showCrosshair)
+  }
+
+  /**
+   * Returns the current state of the crosshair visibility.
+   * This is a getter needed for the settings UI to display the correct initial state.
+   * @returns {boolean}
+   */
+  isCrosshairEnabled () {
+    return this.showCrosshair
   }
 
   /**
@@ -1512,13 +1561,49 @@ class ImageMapperApp {
   // ========================================
 
   /**
-     * Show a simple notification (for development)
-     */
-  showNotification (message, type = 'info') {
-    console.log(`${type.toUpperCase()}: ${message}`)
-    this.updateAppStatus(message)
+   * Show a proper toast notification to the user.
+   * @param {string} message - The message to display.
+   * @param {'info'|'success'|'warning'|'error'} [type='info'] - The type of notification.
+   * @param {number} [duration=3000] - Duration in milliseconds before it starts to fade out.
+   */
+  showNotification (message, type = 'info', duration = 3000) {
+    console.log(`${type.toUpperCase()} Notification: ${message}`)
+    this.updateAppStatus(message) // Keep updating app status for console/debug
 
-    // In future phases, this could show a proper toast notification
+    const notificationContainer = document.getElementById('notification-container')
+    if (!notificationContainer) {
+      console.warn('Notification container not found. Skipping toast notification.')
+      return
+    }
+
+    const toast = document.createElement('div')
+    toast.classList.add('notification-toast', type)
+
+    // Add an icon based on type (you can use whatever icon system you prefer, e.g., emojis or Font Awesome)
+    let icon = ''
+    switch (type) {
+      case 'success': icon = '✅'; break
+      case 'warning': icon = '⚠️'; break
+      case 'error': icon = '❌'; break
+      case 'info':
+      default: icon = 'ℹ️'; break
+    }
+
+    toast.innerHTML = `<span class="icon">${icon}</span> <span class="message">${message}</span>`
+
+    // Append to container
+    notificationContainer.appendChild(toast)
+
+    // Set a timeout to remove the toast after its animation completes (duration + fadeOut animation time)
+    // The CSS animation has 0.3s fadeSlideIn, 2.5s delay, 0.5s fadeOut = 3.3s total animation
+    // So, duration + animation delay + fadeout time
+    const totalDisplayTime = duration + 500 // 500ms for fadeOut animation
+    setTimeout(() => {
+      // It's possible the user closed it manually or it was removed by another action, so check if it still exists
+      if (toast.parentNode) {
+        toast.remove()
+      }
+    }, totalDisplayTime)
   }
 
   /**
@@ -1963,7 +2048,6 @@ class ImageMapperApp {
 
       const allPhotosForMarker = await this.storage.getPhotosForMarker(marker.id)
       const validPhotos = allPhotosForMarker.filter(photo => (marker.photoIds || []).includes(photo.id))
-      console.log('Photos for marker:', validPhotos)
 
       const displayX = marker.x.toFixed(0)
       const displayY = marker.y.toFixed(0)
@@ -1984,8 +2068,15 @@ class ImageMapperApp {
             this.modalManager.closeTopModal()
           }
           await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to fully close
-          await this.setupAddPhotosForMarker(marker.id)
-          await this.showMarkerDetails(marker.id) // Correctly calling itself by original name
+
+          const photosWereAdded = await this.setupAddPhotosForMarker(marker.id)
+          console.log('App: onAddPhotos photosWereAdded:', photosWereAdded)
+
+          if (photosWereAdded && this.getAutoCloseMarkerDetails()) {
+            this.showNotification('Marker details modal automatically closed after adding photos.', 'info')
+          } else {
+            await this.showMarkerDetails(marker.id)
+          }
         },
         // onEditMarker callback (REVISED: This now directly triggers edit mode in modal)
         async (markerIdToEdit) => {
@@ -2000,12 +2091,10 @@ class ImageMapperApp {
               description: newDescription,
               lastModified: new Date()
             })
-            // Update local markers array for immediate UI refresh
             const localMarker = this.markers.find(m => m.id === markerIdToSave)
             if (localMarker) {
               localMarker.description = newDescription
             }
-            // NEW: Update the modal's displayed description directly
             this.modalManager.updateMarkerDetailsDescription(markerIdToSave, newDescription)
             this.showNotification('Description updated.', 'success')
             console.log(`Marker ${markerIdToSave} description saved.`)
@@ -2023,14 +2112,15 @@ class ImageMapperApp {
           await this.deleteMarker(markerIdToDelete)
         },
         // onDeletePhoto callback
-        async (markerIdToDeleteFrom, photoIdToDelete) => {
-          console.log(`Delete photo ${photoIdToDelete} from marker ${markerIdToDeleteFrom} clicked`)
+        async (markerIdFromModal, photoIdFromModal) => { // <--- These arguments are provided by the modal
           this.modalManager.closeTopModal()
-          await this.deletePhotoFromMarker(markerIdToDeleteFrom, photoIdToDelete)
-          await this.showMarkerDetails(markerIdToDeleteFrom) // Correctly calling itself by original name
+          await this.deletePhotoFromMarker(markerIdFromModal, photoIdFromModal)
+          await this.showMarkerDetails(markerIdFromModal) // Correctly calling itself by original name
         },
-        // NEW: onViewPhoto callback (placed before onClose as per ModalManager signature)
-        (photoId) => this.handleViewPhoto(photoId), // This is the new line
+        // onViewPhoto callback
+        async (photoIdFromModal) => { // <--- This argument is provided by the modal
+          await this.handleViewPhoto(photoIdFromModal)
+        },
         // onClose callback
         () => {
           console.log('Marker details modal closed.')
@@ -2084,25 +2174,38 @@ class ImageMapperApp {
    */
   async setupAddPhotosForMarker (markerId) {
     this.showLoading('Adding photos...')
+    let photosAdded = false
     try {
       const selectedFiles = await this.fileManager.selectFiles(true, true)
       if (!selectedFiles || selectedFiles.length === 0) {
         this.showNotification('Photo selection cancelled.', 'info')
-        return
+        return false // Indicate no photos were added
       }
+
       const photoIdsToAdd = []
+      // Fetch all photos currently on the active map once before the loop
+      // MODIFIED: Use this.currentMap.id to get photos for the active map
+      const allPhotosOnMap = await this.storage.getPhotosForMap(this.currentMap.id)
+
       for (const file of selectedFiles) {
         this.updateAppStatus(`Processing photo: ${file.name}...`)
+        const isDuplicateAllowedSetting = this.getAllowDuplicatePhotos()
 
+        if (!isDuplicateAllowedSetting) { // Only do check IF setting says NO duplicates
+          const isDuplicateFound = allPhotosOnMap.some(p => p.fileName === file.name)
+          // If a duplicate is found ANYWHERE on the map, skip this file
+          if (isDuplicateFound) {
+            this.showNotification(`Skipping duplicate photo: ${file.name} (already exists on this map)`, 'warning')
+            continue // Skip this file
+          }
+        }
         const processOptions = {
           maxWidth: this.imageCompressionSettings.photo.maxWidth,
           maxHeight: this.imageCompressionSettings.photo.maxHeight,
           quality: this.imageCompressionSettings.photo.quality,
           outputFormat: 'image/jpeg'
         }
-
         const processedImageBlob = await this.imageProcessor.processImage(file, processOptions)
-
         const thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(processedImageBlob, this.imageCompressionSettings.thumbnail.maxSize, 'image/jpeg', this.imageCompressionSettings.thumbnail.quality)
         const photoData = {
           markerId,
@@ -2115,7 +2218,6 @@ class ImageMapperApp {
         const savedPhoto = await this.storage.addPhoto(photoData)
         photoIdsToAdd.push(savedPhoto.id)
       }
-
       // Update the marker with the new photo IDs
       if (photoIdsToAdd.length > 0) {
         const marker = await this.storage.getMarker(markerId)
@@ -2124,7 +2226,6 @@ class ImageMapperApp {
           const updatedPhotoIds = [...new Set([...(marker.photoIds || []), ...photoIdsToAdd])]
           await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
           this.showNotification(`${photoIdsToAdd.length} photo(s) added to marker.`, 'success')
-
           // NEW: Update local markers array and re-render map for visual change
           const localMarker = this.markers.find(m => m.id === markerId)
           if (localMarker) {
@@ -2133,6 +2234,7 @@ class ImageMapperApp {
           }
           this.mapRenderer.setMarkers(this.markers) // Pass updated local array
           this.mapRenderer.render() // Re-render to reflect new color if needed
+          photosAdded = true // <--- Set flag to true if photos were successfully added
         }
       }
     } catch (error) {
@@ -2141,6 +2243,7 @@ class ImageMapperApp {
     } finally {
       this.hideLoading()
     }
+    return photosAdded // <--- Return the flag
   }
 
   /**
@@ -2150,6 +2253,7 @@ class ImageMapperApp {
    * @param {string} photoId - The ID of the photo to delete.
    */
   async deletePhotoFromMarker (markerId, photoId) {
+    console.log('app.js: deletePhotoFromMarker received markerId:', markerId, 'photoIdToDelete:', photoId) // <--- ADD THIS LOG
     this.showLoading('Removing photo...')
     try {
       // 1. Get the marker and remove the photoId from its photoIds array
@@ -2257,80 +2361,93 @@ class ImageMapperApp {
   }
 
   /**
-     * Handles the file selected by the user for import.
-     * @param {File} file The JSON file to import.
-     */
+ * Handles the file selected by the user for import.
+ * @param {File} file The JSON file to import.
+ * @returns {Promise<Object|null>} A promise that resolves with the imported map object if successful, otherwise null.
+ */
   async handleImportFile (file) {
     this.updateAppStatus(`Importing data from "${file.name}"...`)
     try {
-      const reader = new FileReader()
-      reader.onload = async (e) => {
-        try {
-          const jsonData = e.target.result
-          const { map, markers, photos } = await MapDataExporterImporter.importData(jsonData, ImageProcessor)
-          // Save imported data to storage using the new save methods
-          await this.storage.saveMap(map)
-          for (const marker of markers) {
-            await this.storage.saveMarker(marker)
-          }
-          for (const photo of photos) {
-            await this.storage.savePhoto(photo)
-          }
-          this.updateAppStatus(`Data from "${file.name}" imported successfully.`, 'success')
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
 
-          if (map && map.id) {
-            // 1. Reload the internal maps list in App instance
-            await this.loadMaps() // Assuming this populates this.mapsList
+        reader.onload = (e) => { // <--- NO LONGER ASYNC HERE
+        // The actual processing must be awaited within this handler
+          (async () => { // <--- Wrap the processing in an immediately invoked async function expression
+            try {
+              const jsonData = e.target.result
+              const { map, markers, photos } = await MapDataExporterImporter.importData(jsonData, ImageProcessor)
+              await this.storage.saveMap(map)
+              for (const marker of markers) {
+                await this.storage.saveMarker(marker)
+              }
+              for (const photo of photos) {
+                await this.storage.savePhoto(photo)
+              }
 
-            // 2. Set the newly imported map as active and load it onto the canvas
-            //    'switchToMap' will now find the map in the updated this.mapsList
-            await this.switchToMap(map.id)
-            console.log('Imported map loaded and set as active.')
+              // Reload maps *after* saving but *before* resolving
+              await this.loadMaps() // <= This must complete before resolve
 
-            // 3. Refresh the map list in the UI (by showing the modal)
-            //    This ensures the map management modal is up-to-date if opened
-            await this.showMapManagementModal()
-          }
+              this.updateAppStatus(`Data from "${file.name}" imported successfully.`, 'success')
+              if (map && map.id) {
+                await this.switchToMap(map.id)
+                console.log('Imported map loaded and set as active.')
+              }
 
-          alert(`Map "${map.name}" and its associated data imported successfully! It is now the active map.`)
-        } catch (importError) {
-          console.error('App: Error processing imported data:', importError)
-          alert(`Error processing imported data: ${importError.message}`)
-          this.updateAppStatus('Import failed', 'error')
+              resolve(map) // ONLY resolve AFTER all awaits here successfully completed
+            } catch (importError) {
+              console.error('App: Error processing imported data:', importError)
+              alert(`Error processing imported data: ${importError.message}`)
+              this.updateAppStatus('Import failed', 'error')
+              reject(importError) // Reject if error in processing
+            }
+          })() // IIFE invoked
         }
-      }
-      reader.onerror = (e) => {
-        console.error('App: Error reading file:', e)
-        alert('Error reading file.')
-        this.updateAppStatus('File read failed', 'error')
-      }
-      reader.readAsText(file)
+
+        reader.onerror = (e) => {
+          console.error('App: Error reading file:', e)
+          alert('Error reading file.')
+          this.updateAppStatus('File read failed', 'error')
+          reject(new Error('File read failed'))
+        }
+
+        reader.readAsText(file)
+      })
     } catch (error) {
       console.error('App: Unexpected error during file import setup:', error)
       alert('Unexpected error during file import setup.')
       this.updateAppStatus('Import setup failed', 'error')
+      // Errors here occur *before* the FileReader is even set up
+      return Promise.reject(error) // <--- Return a rejected Promise for consistency
     }
   }
 
+  /**
+   * Handles deletion of a photo initiated from the image viewer modal.
+   * @param {string} photoId - The ID of the photo to delete.
+   * @param {string} markerId - The ID of the marker this photo belongs to.
+   */
   async deletePhotoFromImageViewer (photoId, markerId) {
     console.log(`App: Deleting photo ${photoId} for marker ${markerId} from image viewer.`)
     this.showLoading('Deleting image...')
     try {
-      // Close the image viewer modal first to prevent further interaction
-      this.modalManager.closeTopModal() // This will also revoke the object URL
+      // 1. Close the image viewer modal first
+      this.modalManager.closeTopModal() // This also revokes the object URL
 
-      // Call the existing method to handle the actual deletion from storage and UI updates
+      // 2. Call the existing method to handle the actual deletion from storage and UI updates
       await this.deletePhotoFromMarker(markerId, photoId)
 
-      // After deletion and successful UI update, refresh the marker details modal if it's still open
-      // This ensures the photo list in the marker details modal is also updated.
-      if (this.modalManager.getTopModalId() === 'marker-details-modal') {
-        // Re-open/refresh the marker details modal with the latest data
-        await this.showMarkerDetails(markerId)
-      } else {
-        // If marker details modal is not open, just re-render map if marker's photo status changed
-        this.mapRenderer.render()
+      // 3. CRITICAL FIX: Explicitly close any existing marker details modal *before* displaying updated one
+      const existingMarkerDetailsModal = document.getElementById('marker-details-modal')
+      if (existingMarkerDetailsModal) {
+        // Use closeModal (which handles transitions) with the specific modal element
+        await this.modalManager.closeModal(existingMarkerDetailsModal)
+        console.log('App: Closed existing marker details modal before refreshing.')
       }
+
+      // 4. After deletion and successful UI update, re-open the marker details modal with the latest data
+      //    This ensures the photo list in the marker details modal is also updated.
+      await this.showMarkerDetails(markerId) // This will create and display a new, updated modal.
 
       this.showNotification('Image deleted successfully.', 'success')
       this.updateAppStatus('Image deleted.')
@@ -2348,6 +2465,7 @@ class ImageMapperApp {
    * @param {string} photoId - The ID of the photo to view.
    */
   async handleViewPhoto (photoId) {
+    console.log('app.js: handleViewPhoto received photoId:', photoId)
     this.showLoading('Loading image...') // Assuming you have showLoading
     try {
       const photo = await this.storage.getPhoto(photoId)

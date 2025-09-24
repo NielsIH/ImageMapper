@@ -35,15 +35,9 @@
             <header class="header">
                 <h1 class="app-title">Image Mapper</h1>
                 <div class="header-actions">
-                    <button class="btn btn-secondary" id="btn-map-list" title="Map List & Management">
-                        🗺️ <span class="btn-text">Manage Maps</span>
-                    </button>
-                    <button class="btn btn-secondary" id="btn-import-data" title="Import Map Data (JSON)">
-                        📥 <span class="btn-text">Import Data</span>
-                        <input type="file" id="file-input-import" accept=".json" style="display: none" />
-                    </button>
                     <button class="btn btn-secondary" id="btn-settings">
-                        ⚙️ <span class="btn-text">Settings</span></button>
+                        ⚙️ <span class="btn-text">Settings</span>
+                    </button>
                 </div>
             </header>
 
@@ -76,15 +70,9 @@
                         <!-- Original map-controls div, now contained -->
                         <div class="map-controls">
                             <div class="zoom-controls">
-                            <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
-                            <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+                                <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+                                <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
                             </div>
-                            <button
-                                class="btn btn-secondary control-btn"
-                                id="btn-toggle-map-rotation"
-                                title="Rotate Map: 0°">
-                                🔄 <span class="btn-text">Rotate 0°</span>
-                            </button>
                             <button class="btn btn-primary control-btn" id="btn-place-marker" title="Place New Marker">
                                 📌 <span class="btn-text">Place Marker</span>
                             </button>
@@ -101,12 +89,11 @@
                                 title="Toggle Marker Size: Normal">
                                 📏 <span class="btn-text">Normal Size</span>
                             </button>
-                            <!-- NEW: Toggle Crosshair Button -->
                             <button
                                 class="btn btn-secondary control-btn"
-                                id="btn-toggle-crosshair"
-                                title="Toggle Crosshair">
-                                ➕ <span class="btn-text">Crosshair</span>
+                                id="btn-toggle-map-rotation"
+                                title="Rotate Map: 0°">
+                                🔄 <span class="btn-text">Rotate 0°</span>
                             </button>
                         </div>
                     </div>
@@ -130,6 +117,9 @@
                 <p class="loading-text" id="loading-text">Loading...</p>
             </div>
         </div>
+
+        <!-- Notification container for toast messages -->
+        <div id="notification-container"></div>
 
         <!-- Service Worker Registration -->
         <script>

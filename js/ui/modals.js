@@ -29,218 +29,6 @@ class ModalManager {
   }
 
   /**
-     * Creates a comprehensive Map Management Modal...
-     * @param {Array<Object>} maps - Array of map metadata objects...
-     * @param {string|null} activeMapId - ID of the currently active map.
-     * @param {Function} onMapSelected - Callback when a map is selected...
-     * @param {Function} onMapDelete - Callback when a map's delete button...
-     * @param {Function} onAddNewMap - Callback when the '+ Add New Map' button...
-     * @param {Function} onExportHtmlMap - Callback when the 'Export HTML Report' button...
-     * @param {Function} onExportJsonMap - Callback when the 'Export JSON Data' button...
-     * @param {Function} onClose - Callback when the modal is closed.
-     * @param {Function} [onModalReady] - Optional callback when modal is fully displayed/ready.
-     * @param {Function} onClearAllData - NEW: Callback when 'Clear All App Data' button is clicked.
-     * @returns {HTMLElement} - Modal element.
-     */
-  createMapManagementModal (
-    maps,
-    activeMapId,
-    onMapSelected,
-    onMapDelete,
-    onAddNewMap,
-    onExportHtmlMap,
-    onExportJsonMap,
-    onClose,
-    onModalReady,
-    onClearAllData // <--- NEW PARAMETER HERE
-  ) {
-    console.log('ModalManager: Creating new Map Management Modal.')
-    const modalHtml = `
-      <div class="modal" id="map-management-modal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Manage Your Maps</h3>
-            <button class="modal-close" type="button" aria-label="Close">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="maps-management-container">
-              ${
-                  maps.length === 0
-                      ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
-                      : `
-                <div class="maps-list-container">
-                  <ul class="maps-list">
-                    ${maps
-                        .map(
-                            (map) => `
-                      <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${
-                                map.id !== activeMapId ? 'clickable' : ''
-                            }" data-map-id="${map.id}">
-                        <div class="map-card-content">
-                          <div class="map-thumbnail-container">
-                            ${
-                                map.thumbnailDataUrl
-                                    ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />`
-                                    : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`
-                            }
-                          </div>
-                          <div class="map-info">
-                            <span class="map-name">${map.name}</span>
-                            <span class="map-details">${map.width} × ${map.height} px</span>
-                            ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
-                          </div>
-                        </div>
-                        <div class="map-item-actions-wrapper">
-<button class="btn btn-primary btn-small map-action-btn export-map-btn" data-map-id="${
-                                map.id
-                            }" title="Export HTML Report">
-<span class="icon">🗒️</span> <span class="btn-text">Report</span>
-</button>
-<button class="btn btn-secondary btn-small map-action-btn export-json-map-btn" data-map-id="${
-                                map.id
-                            }" title="Export Map Data as JSON">
-<span class="icon">💾</span> <span class="btn-text">Export JSON</span>
-</button>
-<button class="btn btn-danger btn-small map-action-btn delete-map-btn" data-map-id="${map.id}" title="Delete Map">
-<span class="icon">🗑️</span> <span class="btn-text">Delete</span>
-</button>
-</div>
-                      </li>
-                    `
-                        )
-                        .join('')}
-                  </ul>
-                </div>
-              `
-              }
-            </div>
-          </div>
-          
-          <div class="modal-footer">
-            <div class="modal-actions">
-                <button class="btn btn-primary add-new-map-btn" type="button">
-                    ➕ Add New Map
-                </button>
-                <button id="btn-clear-all-data" class="btn btn-warning">Clear All Data</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `
-
-    const parser = new DOMParser()
-    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
-    const modal = modalDoc.querySelector('.modal')
-    if (!modal) {
-      console.error('Failed to create map management modal element.')
-      if (onClose) onClose()
-      return null
-    }
-
-    document.body.appendChild(modal)
-    this.activeModals.add(modal)
-
-    // --- Event Listeners ---
-    const closeModal = () => {
-      this.closeModal(modal)
-      if (onClose) onClose()
-    }
-    // Close
-    modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
-    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
-
-    // Select map (list item click)
-    // Adjusted to prevent clicks on buttons from triggering map selection
-    modal.querySelectorAll('.map-list-item.clickable').forEach((item) => {
-      item.addEventListener('click', (e) => {
-        // Only trigger map selection if the click is directly on the content, not buttons
-        if (!e.target.closest('.map-action-btn')) {
-          const mapId = item.dataset.mapId
-          if (onMapSelected) {
-            onMapSelected(mapId)
-            this.closeModal(modal)
-          }
-        }
-      })
-    })
-
-    // Delete map button listener
-    modal.querySelectorAll('.delete-map-btn').forEach((button) => {
-      button.addEventListener('click', async (e) => {
-        // Keep async
-        e.stopPropagation()
-        const mapId = button.dataset.mapId
-        if (confirm('Are you sure you want to delete this map? This cannot be undone!')) {
-          if (onMapDelete) {
-            await onMapDelete(mapId)
-          }
-        }
-      })
-    })
-
-    // Export HTML map button listener (original 'Export' button)
-    modal.querySelectorAll('.export-map-btn').forEach(button => {
-      button.addEventListener('click', async (e) => { // Keep async
-        e.stopPropagation()
-        const mapId = button.dataset.mapId
-        if (onExportHtmlMap) { // Changed to onExportHtmlMap
-          await onExportHtmlMap(mapId)
-        }
-      })
-    })
-
-    // Export JSON Data button listener
-    modal.querySelectorAll('.export-json-map-btn').forEach(button => {
-      button.addEventListener('click', async (e) => { // Keep async
-        e.stopPropagation()
-        const mapId = button.dataset.mapId
-        if (onExportJsonMap) { // Call new onExportJsonMap callback
-          await onExportJsonMap(mapId)
-        }
-      })
-    })
-
-    // Add New Map button listener - no change needed, it already uses stopPropagation
-    modal.querySelector('.add-new-map-btn')?.addEventListener('click', (e) => {
-      e.stopPropagation()
-      if (onAddNewMap) {
-        onAddNewMap()
-        this.closeModal(modal)
-      }
-    })
-    // Add listener for the new Clear All Data button
-    const btnClearAllData = modal.querySelector('#btn-clear-all-data')
-    if (btnClearAllData) {
-      btnClearAllData.addEventListener('click', async () => {
-        // Confirmation is handled by app.js's clearAllAppData, so just call it
-        if (onClearAllData) {
-          await onClearAllData()
-          this.closeModal(modal)
-        }
-      })
-    }
-
-    // Populate map initials if no thumbnail - no change needed
-    modal.querySelectorAll('.map-initials').forEach((initialsDiv) => {
-      const mapId = initialsDiv.closest('.map-list-item')?.dataset.mapId
-      const map = maps.find((m) => m.id === mapId)
-      if (map) {
-        initialsDiv.textContent = map.name.substring(0, 2).toUpperCase()
-      }
-    })
-
-    requestAnimationFrame(() => {
-      modal.classList.add('show')
-      if (onModalReady) {
-        onModalReady()
-      }
-    })
-
-    return modal
-  }
-
-  /**
      * Create upload modal for map file selection
      * @param {Function} onUpload - Callback when file is uploaded
      * @param {Function} onCancel - Callback when upload is cancelled
@@ -1101,7 +889,7 @@ class ModalManager {
       button.addEventListener('click', (e) => {
         e.stopPropagation()
         const photoId = button.dataset.photoId
-        console.log('Delete photo button clicked for photoId:', photoId)
+        console.log('modals.js (delete): Button clicked. Extracted photoId:', photoId, 'MarkerDetails ID:', markerDetails.id)
         if (onDeletePhoto && confirm('Are you sure you want to remove this photo from the marker?')) {
           onDeletePhoto(markerDetails.id, photoId)
         }
@@ -1113,7 +901,7 @@ class ModalManager {
       thumbnail.addEventListener('click', (e) => {
         e.stopPropagation()
         const photoId = thumbnail.dataset.photoId
-        console.log('Photo thumbnail clicked for photoId:', photoId)
+        console.log('modals.js (view): Thumbnail clicked. Extracted photoId:', photoId)
         if (onViewPhoto) {
           onViewPhoto(photoId)
         }
@@ -1277,6 +1065,417 @@ class ModalManager {
     requestAnimationFrame(() => {
       modal.classList.add('show')
     })
+    return modal
+  }
+
+  /**
+   * Creates and displays the App Settings modal with tabbed sections.
+   * @param {Object} callbacks - An object containing callbacks for various settings actions.
+   * @param {Array<Object>} maps - Array of map metadata objects for Maps Management.
+   * @param {string|null} activeMapId - ID of the currently active map.
+   * @param {Function} [onClose] - Callback when the modal is closed.
+   * @param {string} [initialTab='general-settings'] - The ID of the tab to open initially.
+   * @returns {HTMLElement} - The created modal element.
+   */
+  createSettingsModal (callbacks, maps, activeMapId, onClose, initialTab = 'general-settings') { // <--- Signature updated
+    console.log('ModalManager: Creating new Settings Modal.')
+
+    // --- Generate Maps Management HTML content ---
+    const mapsListHtml =
+        maps.length === 0
+          ? '<p class="text-center text-secondary">No maps available yet. Add your first map!</p>'
+          : `
+              <div class="maps-list-container">
+                <ul class="maps-list">
+                  ${maps
+                      .map(
+                          (map) => `
+                    <li class="map-list-item ${map.id === activeMapId ? 'active' : ''} ${
+                              map.id !== activeMapId ? 'clickable' : ''
+                          }" data-map-id="${map.id}">
+                      <div class="map-card-content">
+                        <div class="map-thumbnail-container">
+                          ${
+                              map.thumbnailDataUrl // Use prepared thumbnailDataUrl
+                                  ? `<img src="${map.thumbnailDataUrl}" alt="Map thumbnail" class="map-thumbnail" />`
+                                  : `<div class="map-initials">${map.name.substring(0, 2).toUpperCase()}</div>`
+                          }
+                        </div>
+                        <div class="map-info">
+                          <span class="map-name">${map.name}</span>
+                          <span class="map-details">${map.width} × ${map.height} px</span>
+                          ${map.id === activeMapId ? '<span class="active-status">Active</span>' : ''}
+                        </div>
+                      </div>
+                      <div class="map-item-actions-wrapper">
+                        <button class="btn btn-primary btn-small map-action-btn export-map-btn" data-map-id="${
+                              map.id
+                          }" title="Export HTML Report">
+                          <span class="icon">🗒️</span> <span class="btn-text">Report</span>
+                        </button>
+                        <button class="btn btn-secondary btn-small map-action-btn export-json-map-btn" data-map-id="${
+                              map.id
+                          }" title="Export Map Data as JSON">
+                          <span class="icon">💾</span> <span class="btn-text">Export JSON</span>
+                        </button>
+                        <button class="btn btn-danger btn-small map-action-btn delete-map-btn" data-map-id="${map.id}" title="Delete Map">
+                          <span class="icon">🗑️</span> <span class="btn-text">Delete</span>
+                        </button>
+                      </div>
+                    </li>
+                  `
+                      )
+                      .join('')}
+                </ul>
+              </div>
+            `
+    // --- End Maps Management HTML content ---
+
+    const modalHtml = `
+      <div class="modal" id="settings-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content large-modal">
+          <div class="modal-header">
+            <h3 class="modal-title">App Settings</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="settings-tabs">
+              <div class="tab-buttons">
+                <button class="tab-button" data-tab="general-settings">General</button>
+                <button class="tab-button" data-tab="app-behavior-settings">App Behavior</button>
+                <button class="tab-button" data-tab="map-display-settings">Map Display</button>
+                <button class="tab-button" data-tab="image-processing-settings">Image Processing</button>
+                <button class="tab-button" data-tab="data-management-settings">Data Management</button>
+                <button class="tab-button" data-tab="maps-management-settings">Maps Management</button>
+                <button class="tab-button" data-tab="danger-zone-settings">Danger Zone</button>
+              </div>
+              <div class="tab-content">
+                <!-- General Settings Tab -->
+                <div id="general-settings" class="tab-pane">
+                  <h4>General Settings</h4>
+                  <p>Nothing yet.</p>
+                </div>
+
+                <!-- App Behavior Settings Tab -->
+                <div id="app-behavior-settings" class="tab-pane">
+                  <h4>App Behavior Settings</h4>
+                  <div class="form-group">
+                    <label class="checkbox-label toggle-switch-label">
+                      <input type="checkbox" id="auto-close-marker-details" />
+                      <span class="toggle-switch-slider"></span>
+                      Auto-close marker details after adding photo(s)
+                    </label>
+                    <small class="text-secondary mt-xs">
+                      Automatically close the marker details modal after successfully adding photos.
+                    </small>
+                  </div>
+                  <div class="form-group mt-md">
+                    <label class="checkbox-label toggle-switch-label">
+                      <input type="checkbox" id="allow-duplicate-photos" />
+                      <span class="toggle-switch-slider"></span>
+                      Allow adding duplicate photos to markers
+                    </label>
+                    <small class="text-secondary mt-xs">
+                      Enable to allow the same photo file to be associated with multiple markers.
+                    </small>
+                  </div>
+                </div>
+
+                <!-- Map Display Settings Tab -->
+            <div id="map-display-settings" class="tab-pane">
+              <h4>Map Display Settings</h4>
+              <div class="form-group">
+                <label class="checkbox-label toggle-switch-label">
+                  <input type="checkbox" id="toggle-crosshair-settings" />
+                  <span class="toggle-switch-slider"></span>
+                  Show Crosshair
+                </label>
+                <small class="text-secondary mt-xs">
+                  Enable or disable the crosshair overlay on the map canvas.
+                </small>
+              </div>
+              <p>User-Defined Marker Sizes (to be implemented later)</p>
+            </div>
+
+                <!-- Image Processing Settings Tab -->
+            <div id="image-processing-settings" class="tab-pane">
+              <h4>Image Processing Settings</h4>
+              <div class="form-group">
+                <label for="image-quality-slider">Default Image Quality (%)</label>
+                <input type="range" id="image-quality-slider" min="10" max="100" step="5" class="form-control" />
+                <span id="image-quality-value" class="text-secondary text-right"></span>
+                <small class="text-secondary mt-xs">
+                  Adjust the compression quality for images added to markers (10% = lowest, 100% = highest).
+                </small>
+              </div>
+            </div>
+
+                <!-- Data Management Settings Tab -->
+                <div id="data-management-settings" class="tab-pane">
+                  <h4>Data Management</h4>
+                  <p class="text-secondary mb-md">Import map data or other application data.</p>
+                  <div class="form-group">
+                    <label for="file-input-import-settings" class="btn btn-secondary btn-large">
+                        📥 <span class="btn-text">Import Map Data (JSON)</span>
+                    </label>
+                    <input type="file" id="file-input-import-settings" accept=".json" style="display: none" />
+                    <small class="text-secondary mt-xs">
+                      Select a JSON file containing exported map data to import into the application.
+                    </small>
+                  </div>
+                </div>
+
+                <!-- Maps Management Settings Tab -->
+                <div id="maps-management-settings" class="tab-pane">
+                  <h4>Maps Management</h4>
+                  <p class="text-secondary mb-md">Manage your maps: select, delete, or export specific map data.</p>
+                  <div class="map-management-content">
+                    ${mapsListHtml} <!-- INSERT MAPS LIST HTML HERE -->
+                    <div class="modal-footer no-border">
+                        <div class="modal-actions full-width">
+                            <button class="btn btn-primary add-new-map-btn" type="button">
+                                ➕ Add New Map
+                            </button>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Danger Zone Settings Tab -->
+                <div id="danger-zone-settings" class="tab-pane">
+                  <h4>Danger Zone</h4>
+                  <p class="text-secondary mb-md">
+                    Proceed with caution. These actions are irreversible and will permanently delete data.
+                  </p>
+                  <div class="form-group">
+                    <button class="btn btn-danger btn-large" id="btn-clear-all-app-data" type="button">
+                      Clear All App Data
+                    </button>
+                    <small class="text-secondary mt-xs">
+                      This will delete all maps, markers, and associated images from this device.
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create settings modal element.')
+      if (onClose) onClose()
+      return null
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    // --- Close Button & Backdrop Listeners ---
+    const closeModal = () => {
+      this.closeModal(modal)
+      if (onClose) onClose()
+    }
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal)
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal)
+
+    // --- Tab Switching Logic ---
+    const tabButtons = modal.querySelectorAll('.tab-button')
+    const tabPanes = modal.querySelectorAll('.tab-pane')
+
+    const activateTab = (tabId) => {
+      tabButtons.forEach(button => {
+        if (button.dataset.tab === tabId) {
+          button.classList.add('active')
+        } else {
+          button.classList.remove('active')
+        }
+      })
+
+      tabPanes.forEach(pane => {
+        if (pane.id === tabId) {
+          pane.classList.add('active')
+        } else {
+          pane.classList.remove('active')
+        }
+      })
+    }
+
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        activateTab(button.dataset.tab)
+      })
+    })
+
+    requestAnimationFrame(() => {
+      activateTab(initialTab)
+      modal.classList.add('show')
+    })
+
+    // Add listener for Clear All App Data button
+    const btnClearAllAppData = modal.querySelector('#btn-clear-all-app-data')
+    if (btnClearAllAppData) {
+      btnClearAllAppData.addEventListener('click', () => {
+        if (callbacks.onClearAllAppData) {
+          callbacks.onClearAllAppData()
+          this.closeModal(modal)
+        }
+      })
+    }
+
+    // --- MAPS MANAGEMENT LISTENERS (NEW) ---
+    // Select map (list item click)
+    modal.querySelectorAll('.map-list-item.clickable').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        if (!e.target.closest('.map-action-btn')) { // Ensure click is not on action buttons
+          const mapId = item.dataset.mapId
+          if (callbacks.onMapSelected) {
+            callbacks.onMapSelected(mapId)
+            this.closeModal(modal) // Close settings modal after map selection
+          }
+        }
+      })
+    })
+    // --- IMAGE PROCESSING LISTENERS (NEW) ---
+    const imageQualitySlider = modal.querySelector('#image-quality-slider')
+    const imageQualityValueSpan = modal.querySelector('#image-quality-value')
+
+    if (imageQualitySlider && imageQualityValueSpan) {
+      // Initialize slider and display value (convert decimal to percentage)
+      const currentQualityDecimal = callbacks.getPhotoQuality ? callbacks.getPhotoQuality() : 0.5 // Default to 0.5 (50%)
+      const currentQualityPercentage = Math.round(currentQualityDecimal * 100)
+
+      imageQualitySlider.value = currentQualityPercentage
+      imageQualityValueSpan.textContent = `${currentQualityPercentage}%`
+
+      imageQualitySlider.addEventListener('input', () => {
+        imageQualityValueSpan.textContent = `${imageQualitySlider.value}%`
+      })
+
+      imageQualitySlider.addEventListener('change', () => {
+        if (callbacks.setPhotoQuality) {
+          callbacks.setPhotoQuality(parseInt(imageQualitySlider.value, 10))
+        }
+      })
+    }
+
+    // Delete map button listener
+    modal.querySelectorAll('.delete-map-btn').forEach((button) => {
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation() // Prevent map selection
+        const mapId = button.dataset.mapId
+        if (confirm('Are you sure you want to delete this map? This cannot be undone!')) {
+          if (callbacks.onMapDelete) {
+            await callbacks.onMapDelete(mapId)
+            // After deletion, refresh the settings modal to show updated map list
+            this.closeModal(modal).then(() => { // Ensure modal is closed before re-opening
+              callbacks.onSettingsModalRefresh('maps-management-settings') // Callback to re-open settings modal to same tab
+            })
+          }
+        }
+      })
+    })
+
+    // Export HTML map button listener
+    modal.querySelectorAll('.export-map-btn').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const mapId = button.dataset.mapId
+        if (callbacks.onExportHtmlMap) {
+          this.closeModal(modal) // Close modal before export
+          await callbacks.onExportHtmlMap(mapId)
+        }
+      })
+    })
+
+    // Export JSON Data button listener
+    modal.querySelectorAll('.export-json-map-btn').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const mapId = button.dataset.mapId
+        if (callbacks.onExportJsonMap) {
+          this.closeModal(modal) // Close modal before export
+          await callbacks.onExportJsonMap(mapId)
+        }
+      })
+    })
+
+    // Add New Map button listener
+    modal.querySelector('.add-new-map-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      if (callbacks.onAddNewMap) {
+        this.closeModal(modal) // Close settings modal
+        callbacks.onAddNewMap() // Call the App's showUploadModal
+      }
+    })
+    // --- END MAPS MANAGEMENT LISTENERS ---
+
+    // Populate map initials if no thumbnail - no change needed
+    modal.querySelectorAll('.map-initials').forEach((initialsDiv) => {
+      const mapId = initialsDiv.closest('.map-list-item')?.dataset.mapId
+      const map = maps.find((m) => m.id === mapId)
+      if (map) {
+        initialsDiv.textContent = map.name.substring(0, 2).toUpperCase()
+      }
+    })
+    // --- DATA MANAGEMENT LISTENERS (NEW) ---
+    const fileInputImportSettings = modal.querySelector('#file-input-import-settings')
+    if (fileInputImportSettings) {
+      fileInputImportSettings.addEventListener('change', async (event) => {
+        const file = event.target.files[0]
+        if (file) {
+          if (callbacks.onImportData) {
+            await callbacks.onImportData(file)
+            // Optionally close the settings modal after import, or let the callback handle it
+            // this.closeModal(modal)
+          }
+        }
+        // Clear the file input value to allow importing the same file again if needed
+        event.target.value = ''
+      })
+    }
+    // --- MAP DISPLAY LISTENERS (NEW) ---
+    const toggleCrosshairSettings = modal.querySelector('#toggle-crosshair-settings')
+    if (toggleCrosshairSettings) {
+      // Initialize checkbox state from current app setting
+      if (callbacks.isCrosshairEnabled) {
+        toggleCrosshairSettings.checked = callbacks.isCrosshairEnabled()
+      }
+      toggleCrosshairSettings.addEventListener('change', () => {
+        if (callbacks.onToggleCrosshair) {
+          // Pass the new checked state to the callback
+          callbacks.onToggleCrosshair(toggleCrosshairSettings.checked)
+        }
+      })
+    }
+    // --- APP BEHAVIOR LISTENERS (NEW) ---
+    const autoCloseMarkerDetails = modal.querySelector('#auto-close-marker-details')
+    const allowDuplicatePhotos = modal.querySelector('#allow-duplicate-photos')
+
+    if (autoCloseMarkerDetails && callbacks.getAutoCloseMarkerDetails) {
+      autoCloseMarkerDetails.checked = callbacks.getAutoCloseMarkerDetails()
+      autoCloseMarkerDetails.addEventListener('change', () => {
+        if (callbacks.setAutoCloseMarkerDetails) {
+          callbacks.setAutoCloseMarkerDetails(autoCloseMarkerDetails.checked)
+        }
+      })
+    }
+
+    if (allowDuplicatePhotos && callbacks.getAllowDuplicatePhotos) {
+      allowDuplicatePhotos.checked = callbacks.getAllowDuplicatePhotos()
+      allowDuplicatePhotos.addEventListener('change', () => {
+        if (callbacks.setAllowDuplicatePhotos) {
+          callbacks.setAllowDuplicatePhotos(allowDuplicatePhotos.checked)
+        }
+      })
+    }
+
     return modal
   }
 }

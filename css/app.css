@@ -163,7 +163,6 @@ body {
     position: absolute;
     top: var(--spacing-md); /* Correct for top positioning */
     right: var(--spacing-md);
-    /* display: flex; */
     flex-direction: row; /* Arrange toggle button and map controls side-by-side */
     gap: var(--spacing-sm); /* Spacing between toggle button and actual controls */
     align-items: flex-start; /* Align primary axis items to the start (top) */
@@ -420,6 +419,62 @@ body {
 .btn.btn-small {
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: 0.75rem;
+}
+/* --- Generic Toggle Switch Styles --- */
+.toggle-switch-label {
+  position: relative;
+  display: inline-block;
+  width: 60px; /* Width of the switch */
+  height: 34px; /* Height of the switch */
+  margin-bottom: 0; /* Override form-group margin for label */
+  cursor: pointer;
+  padding-left: 70px; /* Space for the actual switch slider */
+  height: 34px; /* Align text vertically */
+  line-height: 34px; /* Align text vertically */
+  user-select: none;
+  white-space: nowrap;
+}
+
+.toggle-switch-label input[type="checkbox"] {
+  opacity: 0; /* Hide default checkbox */
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--secondary-color); /* Inactive color */
+  border-radius: 34px; /* Rounded slider */
+  transition: .4s;
+}
+
+.toggle-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 26px; /* Size of the circle (slider knob) */
+  width: 26px;
+  left: 4px; /* Position from left */
+  bottom: 4px; /* Position from bottom */
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+
+input:checked + .toggle-switch-slider {
+  background-color: var(--primary-color); /* Active color */
+}
+
+input:focus + .toggle-switch-slider {
+  box-shadow: 0 0 1px var(--primary-color);
+}
+
+input:checked + .toggle-switch-slider:before {
+  transform: translateX(26px); /* Move knob to the right when checked */
 }
 
 /* Loading overlay */
@@ -1546,6 +1601,7 @@ div.modal-footer button#btn-delete-marker {
   .main-content {
     overflow: visible;
   }
+}
 
   /* --- Modals - General Styling (may merge with existing modal styles if conflict) --- */
 .modal {
@@ -1662,6 +1718,124 @@ div.modal-footer button#btn-delete-marker {
   gap: var(--spacing-sm);
   justify-content: flex-end;
   width: 100%; /* Ensure actions take full width in footer */
+}
+
+/* Settings Modal Specific Styles*/
+.large-modal {
+    width: 900px; 
+    max-width: 95vw;
+    max-height: 95vh;
+}
+
+.settings-tabs {
+    display: flex;
+    flex-direction: row; /* Stack content side by side for tabs */
+    height: 100%; /* Take full height of modal-body */
+    border: 1px solid var(--border-color); /* Add a subtle overall border for the tab area */
+    border-radius: 8px;
+    overflow: hidden; /* Ensure content respects border-radius */
+    background: var(--bg-secondary);
+}
+
+.settings-tabs .tab-buttons {
+    display: flex;
+    flex-direction: column; /* Vertical tabs */
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
+    padding: var(--spacing-sm) 0;
+}
+
+.settings-tabs .tab-button {
+    background: none;
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent; /* Indicator for active tab */
+    min-height: var(--touch-target);
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+.settings-tabs .tab-button:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.settings-tabs .tab-button.active {
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+    font-weight: 600;
+    border-left-color: var(--primary-color);
+}
+/* Hide inactive tab panes */
+.settings-tabs .tab-pane:not(.active) {
+    display: none;
+}
+
+.settings-tabs .tab-content {
+    flex-grow: 1; /* Tab content takes remaining space */
+    padding: var(--spacing-lg);
+    overflow-y: auto; /* Scroll individual tab content if it overflows */
+    background: var(--bg-secondary);
+}
+
+.settings-tabs .tab-pane h4 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Responsive adjustments for Settings Modal */
+@media (max-width: 768px) {
+    .large-modal {
+        width: 98vw;
+        max-width: 98vw;
+        max-height: 98vh;
+        margin: var(--spacing-xs);
+        border-radius: 0;
+    }
+
+    .settings-tabs {
+        flex-direction: column; /* Stack tabs vertically on smaller screens */
+    }
+
+    .settings-tabs .tab-buttons {
+        flex-direction: row; /* Horizontal tabs for mobile */
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0; /* Remove vertical padding */
+        overflow-x: auto; /* Allow horizontal scrolling if many tabs */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: none; /* Hide scrollbar for Firefox */
+        -ms-overflow-style: none;  /* Hide scrollbar for IE/Edge */
+    }
+    .settings-tabs .tab-buttons::-webkit-scrollbar { /* Hide scrollbar for Chrome/Safari */
+        display: none;
+    }
+
+    .settings-tabs .tab-button {
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-left: none; /* Remove left indicator */
+        border-bottom: 3px solid transparent; /* Use bottom indicator */
+        text-align: center;
+        flex-grow: 1; /* Distribute space evenly */
+    }
+    
+    .settings-tabs .tab-button.active {
+        border-left-color: transparent; /* Remove left indicator */
+        border-bottom-color: var(--primary-color); /* Use bottom indicator */
+    }
+
+    .settings-tabs .tab-content {
+        padding: var(--spacing-md);
+    }
 }
 
 /* --- Upload Modal Specific Styles --- */
@@ -2186,6 +2360,76 @@ textarea.form-control {
     font-size: 0.9rem;
     padding: var(--spacing-sm) var(--spacing-md);
   }
+ }
+/* --- Notification / Toast Styles --- */
+#notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000; /* Ensure it's above everything else */
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Space between multiple notifications */
+  pointer-events: none; /* Allows clicks to pass through */
 }
 
+.notification-toast {
+  background-color: var(--bg-primary); /* Base background */
+  color: var(--text-primary);
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  min-width: 250px;
+  max-width: 350px;
+  opacity: 0; /* Start hidden for fade-in */
+  transform: translateY(-20px); /* Start slightly above for slide-in */
+  animation: fadeSlideIn 0.3s ease-out forwards, fadeOut 0.5s ease-in 2.5s forwards; /* 2.5s delay before fadeOut */
+  pointer-events: auto; /* Re-enable pointer events for the toast itself (e.g., if we add a close button later) */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Specific styles for notification types */
+.notification-toast.info {
+  border-left: 5px solid var(--primary-color);
+}
+
+.notification-toast.success {
+  border-left: 5px solid var(--success-color);
+}
+
+.notification-toast.warning {
+  border-left: 5px solid var(--warning-color);
+}
+
+.notification-toast.error {
+  border-left: 5px solid var(--danger-color);
+}
+
+.notification-toast .icon {
+  font-size: 1.2em; /* Adjust icon size */
+}
+
+/* Animations */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
 }

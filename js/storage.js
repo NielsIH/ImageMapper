@@ -824,6 +824,59 @@ class MapStorage {
     })
   }
 
+  /**
+   * Get all photos for a specific map across all its markers.
+   * @param {string} mapId - The ID of the map.
+   * @returns {Promise<Array>} - Array of photo objects for the given map.
+   */
+  async getPhotosForMap (mapId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      ;(async () => {
+        try {
+          const transaction = this.db.transaction([this.markerStoreName, this.photoStoreName], 'readonly')
+          const markerStore = transaction.objectStore(this.markerStoreName)
+          const photoStore = transaction.objectStore(this.photoStoreName)
+
+          // 1. Get all markers for the given mapId
+          const markers = await new Promise((resolve, reject) => {
+            const markersRequest = markerStore.index('mapId').getAll(mapId)
+
+            markersRequest.onsuccess = () => resolve(markersRequest.result || [])
+            markersRequest.onerror = (e) => reject(e)
+          })
+          const allPhotoIds = new Set()
+          markers.forEach(marker => {
+            if (marker.photoIds) {
+              marker.photoIds.forEach(photoId => allPhotoIds.add(photoId))
+            }
+          })
+
+          // 2. Fetch all unique photo objects based on collected photoIds
+
+          const photoPromises = Array.from(allPhotoIds).map(photoId => {
+            return new Promise((resolve, reject) => {
+              const photoRequest = photoStore.get(photoId)
+
+              photoRequest.onsuccess = () => resolve(photoRequest.result)
+              photoRequest.onerror = (e) => reject(e)
+            })
+          })
+
+          const photos = (await Promise.all(photoPromises)).filter(photo => photo != null)
+          console.log(`MapStorage: Retrieved ${photos.length} photos for map ${mapId}`)
+          resolve(photos)
+        } catch (error) {
+          console.error('MapStorage: Failed to get photos for map', error)
+          reject(new Error(`Failed to load photos for map: ${error.message}`))
+        }
+      })()
+    })
+  }
+
   // ========================================\n
   // Remaining Utility Methods\n
   // ========================================\n

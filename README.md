@@ -1,3 +1,4 @@
+README.md
 # Image Mapper PWA
 
 A Progressive Web App for mapping photos and images to specific locations on any map or floor plan. Perfect for construction sites, archaeological surveys, property inspections, event planning, and more. Designed to work offline for use in any environment.
@@ -98,12 +99,23 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Marker deletion
 - ✅ Image association with markers (uploading photos to markers)
 - ✅ **NEW: Direct image deletion from the full-size image viewer modal**
+- ✅ **NEW: Implemented comprehensive map-wide duplicate photo detection.**
 - ✅ Note-taking functionality (marker description)
 - ✅ Coordinate tracking (display in marker details)
 
 ### Phase 2: Export and Sync
 - ✅ Data export in multiple formats (HTML report implemented)
 - ✅ Import and export of maps with markers and images
+
+### Phase 3: App Settings & Customization ✅
+- ✅ Comprehensive, tabbed settings modal for centralized configuration.
+- ✅ Image Processing settings: Configurable quality for photos added to markers.
+- ✅ App Behavior settings: Toggle for auto-closing marker details after adding photos.
+- ✅ App Behavior settings: Toggle for allowing/preventing duplicate photos on a map.
+- ✅ Map Management features migrated into settings modal with full CRUD operations for maps (select, import, export, delete).
+- ✅ Data Management features (Import/Export data) integrated into settings modal.
+- ✅ Clear All App Data moved to "Danger Zone" tab within settings.
+- ✅ Crosshair visibility toggle and persistence integrated into Map Display settings.
 
 ## Technical Stack
 
@@ -120,11 +132,9 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 
 ## Development Notes
 
-### Current Limitations (Phase 1D)
-- Settings modal is not implemented
-- Import and export settings
-- Quality settings for images (that were added to markers)
-- **NEW: PWA screen orientation locking needs implementation (e.g., `screen.orientation.lock()` in JS)**
+### Current Limitations
+- **PWA screen orientation locking needs implementation (e.g., `screen.orientation.lock()` in JS)**
+- User-defined marker sizes are still to be implemented.
 
 ### Key Design Decisions
 - **Offline-first approach**: Everything must work without internet
