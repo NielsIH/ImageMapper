@@ -1150,6 +1150,16 @@ class ModalManager {
                 <button class="tab-button" data-tab="maps-management-settings">Maps Management</button>
                 <button class="tab-button" data-tab="danger-zone-settings">Danger Zone</button>
               </div>
+              <!-- NEW: Mobile Tab Selector (Dropdown) -->
+<select class="settings-tab-selector" aria-label="Select Settings Category">
+    <option value="general-settings">General</option>
+    <option value="app-behavior-settings">App Behavior</option>
+    <option value="map-display-settings">Map Display</option>
+    <option value="image-processing-settings">Image Processing</option>
+    <option value="data-management-settings">Data Management</option>
+    <option value="maps-management-settings">Maps Management</option>
+    <option value="danger-zone-settings">Danger Zone</option>
+</select>
               <div class="tab-content">
                 <!-- General Settings Tab -->
                 <div id="general-settings" class="tab-pane">
@@ -1297,7 +1307,6 @@ class ModalManager {
           button.classList.remove('active')
         }
       })
-
       tabPanes.forEach(pane => {
         if (pane.id === tabId) {
           pane.classList.add('active')
@@ -1305,6 +1314,11 @@ class ModalManager {
           pane.classList.remove('active')
         }
       })
+      // Also update the dropdown if it's visible, to ensure consistency
+      const mobileTabSelector = modal.querySelector('.settings-tab-selector')
+      if (mobileTabSelector) {
+        mobileTabSelector.value = tabId
+      }
     }
 
     tabButtons.forEach(button => {
@@ -1312,6 +1326,15 @@ class ModalManager {
         activateTab(button.dataset.tab)
       })
     })
+    // --- NEW: Mobile Tab Selector (Dropdown) Logic ---
+    const mobileTabSelector = modal.querySelector('.settings-tab-selector')
+    if (mobileTabSelector) {
+      mobileTabSelector.addEventListener('change', (event) => {
+        activateTab(event.target.value)
+      })
+      // Set initial selected option for the dropdown
+      mobileTabSelector.value = initialTab
+    }
 
     requestAnimationFrame(() => {
       activateTab(initialTab)

@@ -1794,48 +1794,63 @@ div.modal-footer button#btn-delete-marker {
 
 /* Responsive adjustments for Settings Modal */
 @media (max-width: 768px) {
-    .large-modal {
-        width: 98vw;
-        max-width: 98vw;
-        max-height: 98vh;
-        margin: var(--spacing-xs);
-        border-radius: 0;
-    }
+  .large-modal {
+    width: 98vw;
+    max-width: 98vw;
+    max-height: 98vh;
+    margin: var(--spacing-xs);
+    border-radius: 0;
+  }
+  .settings-tabs {
+    flex-direction: column; /* Stack the dropdown/content vertically */
+    /* Remove border-radius on mobile for full screen modal feel */
+    border-radius: 0;
+     /* Ensure the tab content can scroll if needed, but the structure is column */
+    overflow: auto;
+  }
+  /* Hide the original tab buttons on small screens */
+  .settings-tabs .tab-buttons {
+    display: none;
+  }
 
-    .settings-tabs {
-        flex-direction: column; /* Stack tabs vertically on smaller screens */
-    }
+  /* Style for the new mobile dropdown tab selector */
+  .settings-tab-selector {
+    display: block; /* Show only on mobile sizes */
+    width: 100%;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md); /* Space below the dropdown */
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    -webkit-appearance: none; /* Remove default browser styling */
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M287%2C185.4L156.4%2C54.7c-9.5-9.5-24.8-9.5-34.3%2C0L5.3%2C185.4c-9.5%2C9.5-9.5%2C24.8%2C0%2C34.3l11%2C11c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0L145.7%2C125c9.5-9.5%2C24.8-9.5%2C34.3%2C0l94.3%2C94.3c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0l11-11C296.6%2C210.2%2C296.6%2C194.9%2C287%2C185.4z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
+    background-repeat: no-repeat;
+    background-position: right .7em top 50%;
+    background-size: .65em auto;
+    cursor: pointer;
+  }
+  /* Invert color of arrow for dark mode if needed, assuming dark text by default */
+  [data-theme="dark"] .settings-tab-selector {
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFF%22%20d%3D%22M287%2C185.4L156.4%2C54.7c-9.5-9.5-24.8-9.5-34.3%2C0L5.3%2C185.4c-9.5%2C9.5-9.5%2C24.8%2C0%2C34.3l11%2C11c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0L145.7%2C125c9.5-9.5%2C24.8-9.5%2C34.3%2C0l94.3%2C94.3c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0l11-11C296.6%2C210.2%2C296.6%2C194.9%2C287%2C185.4z%22%2F%3E%3C%2Fsvg%3E');
+  }
 
-    .settings-tabs .tab-buttons {
-        flex-direction: row; /* Horizontal tabs for mobile */
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        padding: 0; /* Remove vertical padding */
-        overflow-x: auto; /* Allow horizontal scrolling if many tabs */
-        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-        scrollbar-width: none; /* Hide scrollbar for Firefox */
-        -ms-overflow-style: none;  /* Hide scrollbar for IE/Edge */
-    }
-    .settings-tabs .tab-buttons::-webkit-scrollbar { /* Hide scrollbar for Chrome/Safari */
-        display: none;
-    }
+  .settings-tabs .tab-content {
+    padding: var(--spacing-md);
+    /* Ensure content height is managed well without external full-height flex */
+    flex-grow: 1;
+    overflow-y: auto; /* Allow internal scrolling if content is too long */
+  }
+}
 
-    .settings-tabs .tab-button {
-        padding: var(--spacing-sm) var(--spacing-md);
-        border-left: none; /* Remove left indicator */
-        border-bottom: 3px solid transparent; /* Use bottom indicator */
-        text-align: center;
-        flex-grow: 1; /* Distribute space evenly */
-    }
-    
-    .settings-tabs .tab-button.active {
-        border-left-color: transparent; /* Remove left indicator */
-        border-bottom-color: var(--primary-color); /* Use bottom indicator */
-    }
-
-    .settings-tabs .tab-content {
-        padding: var(--spacing-md);
-    }
+/* Make sure the select is hidden on desktop */
+@media (min-width: 769px) {
+  .settings-tab-selector {
+    display: none; /* Hide the dropdown on larger screens */
+  }
 }
 
 /* --- Upload Modal Specific Styles --- */
