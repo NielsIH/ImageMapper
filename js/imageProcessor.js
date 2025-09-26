@@ -4,7 +4,7 @@
 
 /* global Image, document, FileReader, createImageBitmap, Blob */
 
-class ImageProcessor {
+export class ImageProcessor {
   /**
    * Converts an image Blob directly to a Base64 Data URL.
    * Useful for images that don't need resizing or specific processing.

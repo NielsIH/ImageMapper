@@ -8,7 +8,7 @@
  */
 
 /* global document, window, Image */
-class FileManager {
+export class FileManager {
   constructor () {
     // Supported file formats
     this.supportedFormats = [
@@ -387,6 +387,3 @@ class FileManager {
     return input
   }
 }
-
-// Export for use in other modules
-window.FileManager = FileManager

@@ -3,6 +3,8 @@
  * Phase 1B: Storage testing and debugging
  */
 
+/* global window, document, localStorage, confirm, alert */
+
 // Global helper functions that are always available (even after F5)
 window.enableDevButtons = function () {
   localStorage.setItem('imagemapper-dev-buttons', 'true')

@@ -570,9 +570,6 @@ textarea.form-control {
   align-items: center;
   cursor: pointer;
   z-index: 10;
-  opacity: 0;
-  transform: scale(0.8);
-  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .image-viewer-modal .delete-photo-overlay-btn:hover {
@@ -764,6 +761,113 @@ div.modal-footer button#btn-add-photos,
 div.modal-footer button#btn-delete-marker {
   min-width: 100px;
 }
+/* Search Modal Specific Styles */
+.search-modal .modal-content {
+  max-width: 700px;
+}
+
+.search-controls {
+  display: flex;
+  flex-direction: column; /* Default to column for small screens */
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.search-input-group {
+  display: flex;
+  flex-grow: 1;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+.search-input-wrapper {
+  position: relative; /* ESSENTIAL for absolute positioning of the 'X' button */
+  flex-grow: 1; /* Allow the wrapper to take up available space */
+  display: flex; /* Make it a flex container to ensure input takes full width */
+  align-items: center; /* Align input and 'X' button vertically */
+}
+.search-input-group .form-control {
+  flex-grow: 1;
+  min-height: var(--touch-target);
+  font-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.search-file-input-group {
+  display: flex; /* Make it a flex container to align the button */
+  justify-content: flex-start; /* Align button to start on small screens */
+  align-items: center; /* Vertically center button */
+}
+
+
+
+/* Ensure the button within search-file-input-group looks like a button */
+.search-file-input-group .btn {
+  width: 100%; /* Full width button on small screens */
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+.clear-search-text-btn {
+  position: absolute; /* Position it relative to .search-input-wrapper */
+  right: var(--spacing-sm); /* Position from the right edge */
+  top: 50%;
+  transform: translateY(-50%); /* Vertically center */
+  background: transparent; /* Make background transparent */
+  border: none;
+  font-size: 1.25rem; /* Size of the 'x' */
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0; /* Remove padding */
+  line-height: 1;
+  width: 1.5rem; /* Make it a square touch target */
+  height: 1.5rem;
+  display: flex; /* Use flex to perfectly center the 'x' text */
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%; /* Make it round */
+  transition: color 0.2s ease, background-color 0.2s ease;
+  z-index: 10; /* Ensure it's above the input field */
+  -webkit-appearance: none; /* Remove default button styles */
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.clear-search-text-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
+
+
+.search-results-message {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: var(--spacing-md);
+}
+
+.search-results-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  margin-top: var(--spacing-md);
+}
+
+.search-results-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
 
 /* Responsive adjustments for modals */
 @media (max-width: 768px) {
@@ -787,14 +891,21 @@ div.modal-footer button#btn-delete-marker {
   }
 
   .map-list-item {
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    padding: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    flex-wrap: nowrap; /* Prevent map card content itself from wrapping */
+    justify-content: space-between; /* Space content and actions */
+    align-items: center; /* Vertically align content and buttons */
   }
   
   .map-list-item.active {
     padding: calc(var(--spacing-sm) - 1px);
+  }
+  .map-item-actions-wrapper {
+    /* MODIFIED: Ensure it's a flex container for buttons */
+    display: flex;
+    flex-wrap: nowrap; /* CRITICAL: Prevent wrapping onto multiple lines */
+    gap: var(--spacing-xs); /* Use smaller gap for mobile buttons */
+    justify-content: flex-end; /* Align buttons to the right */
+    width: auto; /* Allow wrapper to size based on content, not necessarily 100% */
   }
 
   .map-item-actions-wrapper .map-action-btn .btn-text {
@@ -802,10 +913,30 @@ div.modal-footer button#btn-delete-marker {
   }
   
   .map-item-actions-wrapper .map-action-btn {
-    padding: var(--spacing-sm);
-    min-width: var(--touch-target);
-    min-height: var(--touch-target);
+    /* MODIFIED: Allow buttons to shrink and grow proportionally, but prioritize shrinking */
+    flex: 1 1 auto; /* Allow shrinking and growing relative to content, but can shrink more */
+    min-width: 32px; /* A reasonable minimum for an icon-only touch target */
+    max-width: 60px; /* Prevent them from becoming too wide if text is present (though btn-text is hidden) */
+    padding: var(--spacing-sm); /* Keep good touch target padding */
+    font-size: 0.85rem; /* Slightly smaller font size if text needs to be shown for debugging/consistency */
   }
+  .map-card-content {
+      flex-shrink: 1; /* Allow content info to shrink if needed to make space for buttons */
+      min-width: 0; /* Allow content to shrink below its intrinsic size */
+  }
+
+  .map-info {
+      min-width: 0; /* Allow map details to truncate if needed */
+      white-space: nowrap; /* Try to keep map info on one line if possible */
+      overflow: hidden;
+      text-overflow: ellipsis;
+  }
+
+  /* Ensure the icons for action buttons are visible and properly sized */
+  .map-action-btn { /* This style is defined higher up in this block, ensuring it's applied */
+    font-size: 1.1rem; /* Slightly larger icon for better visibility */
+  }
+
 
   .map-thumbnail-container {
     width: 50px;
@@ -859,6 +990,9 @@ div.modal-footer button#btn-delete-marker {
   .settings-tabs .tab-buttons {
     display: none;
   }
+  .settings-tabs .tab-pane h4 {
+    display: none; /* Hide tab titles when dropdown is visible */
+  }
 
   .settings-tab-selector {
     display: block;
@@ -891,32 +1025,111 @@ div.modal-footer button#btn-delete-marker {
   }
 
   .map-list-item {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: nowrap; 
+    align-items: center; 
+    justify-content: space-between; 
   }
 
-  .map-list-item .map-card-content {
-    width: 100%;
-    margin-bottom: var(--spacing-sm);
+  .map-card-content {
+    flex-shrink: 1; 
+    min-width: 0; 
+    margin-right: var(--spacing-xs); 
+  }
+  .map-info {
+    min-width: 0; 
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .map-item-actions-wrapper {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-xs);
-    /* width: 100%; */
-    justify-content: flex-start;
+    flex-wrap: nowrap; 
+    gap: var(--spacing-xs); 
+    justify-content: flex-end; 
+    align-items: center;
+    flex-shrink: 0; 
+    min-width: 0; 
+    /* Optional: If buttons still overflow on very narrow screens, add scrolling */
+    /* overflow-x: auto; */ 
+    /* -webkit-overflow-scrolling: touch; */
   }
 
   .map-item-actions-wrapper .map-action-btn {
-    flex: 1 1 auto;
-    min-width: 100px;
+    flex: 0 0 auto; 
+    min-width: 38px; 
+    min-height: 38px; 
+    padding: var(--spacing-xs); 
+    font-size: 1.1rem; 
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    line-height: 1; 
   }
+  .map-item-actions-wrapper .map-action-btn .btn-text {
+    display: none; /* Explicitly hide button text on mobile */
+  }
+
 
   .map-item-actions-wrapper .btn-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* Search Modal Responsive Adjustments */
+  .search-modal .modal-content {
+    max-width: 95vw;
+    margin: var(--spacing-sm);
+  }
+
+  .search-controls {
+    flex-direction: column; /* Stack vertically on small screens */
+    gap: var(--spacing-sm);
+    width:100%;
+  }
+  .search-input-group {
+    flex-direction: column;
+    align-items: stretch; /* This makes children stretch to full width */
+    width: 100%; /* Ensure it takes full width of search-controls */
+    gap: var(--spacing-sm); /* Gap between input wrapper and search button */
+  }
+  
+  /* Ensure the search-input-wrapper stretches horizontally */
+  .search-input-wrapper {
+    flex-grow: 1; /* Allow it to take available space */
+    width: 100%; /* Explicitly make it full width if parent allows */
+  }
+
+
+  .search-input-group .form-control {
+    font-size: 1.1rem; /* Larger font size for mobile */
+    padding: var(--spacing-md); /* Larger padding for touch targets */
+    padding-right: 3rem; /* More space for clear button on mobile */
+     min-height: 48px;
+    width: 100%; /* Explicitly make the input fill its wrapper */
+  }
+
+  .search-input-group .form-control {
+    font-size: 1.1rem;
+    padding: var(--spacing-md);
+    min-height: calc(var(--touch-target) + var(--spacing-sm));
+    padding-right: 3rem;
+  }
+
+  .search-input-group .btn {
+    width: 100%;
+  }
+  .clear-search-text-btn {
+    right: calc(var(--spacing-md) - var(--spacing-xs)); /* Adjust position for mobile larger padding */
+    width: 2rem; /* Larger touch target on mobile */
+    height: 2rem;
+    font-size: 1.5rem;
+  }
+
+
+  /* search-file-input-group now contains only the button */
+  .search-file-input-group {
+    justify-content: center; /* Center the button on small screens */
   }
 }
 
@@ -1004,7 +1217,7 @@ div.modal-footer button#btn-delete-marker {
     font-size: 0.85rem;
     padding: var(--spacing-sm);
   }
-
+  
   .modal-footer .add-new-map-btn {
     font-size: 0.95rem;
     padding: var(--spacing-sm) var(--spacing-md);
@@ -1035,4 +1248,37 @@ div.modal-footer button#btn-delete-marker {
   .settings-tab-selector {
     display: none;
   }
-  
+  /* Search Modal Desktop Adjustments */
+  .search-modal .modal-content {
+    width: 700px;
+  }
+
+  .search-controls {
+    flex-direction: row; /* Display search input group and file button group side-by-side */
+    align-items: center; /* Vertically align them */
+    justify-content: space-between; /* Distribute space between them */
+  }
+
+  .search-input-group {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1; /* Allows search input group to take available space */
+  }
+
+  .search-file-input-group {
+    /* Now just a container for a single button */
+    display: flex; /* Ensure it's a flex container for centering/alignment */
+    justify-content: flex-end; /* Align the button to the right */
+    flex-shrink: 0; /* Prevent it from shrinking too much */
+  }
+
+
+  .search-file-input-group .btn {
+    width: auto; /* Allow the button to size itself */
+    min-width: unset; /* Remove min-width if inherited and causing issues */
+  }
+
+  .search-results-container {
+    max-height: 500px;
+  }
+}

@@ -3,7 +3,7 @@
 // Utility class to generate a standalone HTML report for a given map, its markers, and associated photos.
 // The report includes embedded images and interactive features using only vanilla JS and CSS.
 
-class HtmlReportGenerator {
+export class HtmlReportGenerator {
   static HTML_REPORT_BASE_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
 <head>

@@ -3,7 +3,7 @@
  */
 
 /* global console, document, window, Image, URL */
-class MapRenderer {
+export class MapRenderer {
   constructor (canvasId) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
@@ -831,6 +831,3 @@ class MapRenderer {
     console.log('MapRenderer: Resources cleaned up')
   }
 }
-
-// Export for use in other modules
-window.MapRenderer = MapRenderer

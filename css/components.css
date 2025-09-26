@@ -69,6 +69,17 @@
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: 0.75rem;
 }
+.btn-yellow {
+  background-color: #f7d157; /* A common "Windows folder yellow" */
+  color: #333333; /* Darker text for contrast on yellow */
+  border-color: #f7d157;
+}
+
+.btn-yellow:hover {
+  filter: brightness(0.9); /* Darken slightly on hover */
+  background-color: #e0bb4f; /* Slightly darker yellow for hover */
+  border-color: #e0bb4f;
+}
 
 /* Toggle Switch Styles */
 .toggle-switch-label {

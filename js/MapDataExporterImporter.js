@@ -8,7 +8,7 @@
  * It handles the necessary conversions between Blob and Base64 formats
  * for image data to be included in JSON files.
  */
-class MapDataExporterImporter {
+export class MapDataExporterImporter {
   /**
      * Exports a map's data (map, markers, photos) to a JSON file.
      * It includes the main map image (map.imageData) and each photo's

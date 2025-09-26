@@ -9,7 +9,7 @@
  */
 
 /* global indexedDB */
-class MapStorage {
+export class MapStorage {
   constructor () {
     this.dbName = 'ImageMapperDB'
     this.version = 2 // Increment the database version for schema changes!
@@ -158,30 +158,44 @@ class MapStorage {
   }
 
   /**
-   * Get all maps from storage
-   * @returns {Promise<Array>} - Array of all map objects (including imageData)
+   * Get all maps from storage, enriched with marker count.
+   * This method fetches raw map data and calculates marker counts.
+   * Thumbnail Data URL generation is left to the application logic (e.g., App.js).
+   * @returns {Promise<Array<Object>>} - Array of all map objects, each including a 'markerCount' property.
    */
-  async getAllMaps () {
+  async getAllMaps () { // Modified to include markerCount and full map object
     if (!this.db) {
       throw new Error('Storage not initialized')
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.mapStoreName], 'readonly')
-      const store = transaction.objectStore(this.mapStoreName)
-      const request = store.getAll()
+    const transaction = this.db.transaction([this.mapStoreName, this.markerStoreName], 'readonly')
+    const mapStore = transaction.objectStore(this.mapStoreName)
+    const markerStore = transaction.objectStore(this.markerStoreName) // Need marker store for count
 
-      request.onsuccess = () => {
-        const maps = request.result || []
-        console.log(`MapStorage: Retrieved ${maps.length} maps`)
-        resolve(maps)
-      }
-
-      request.onerror = () => {
-        console.error('MapStorage: Failed to get maps', request.error)
-        reject(new Error(`Failed to load maps: ${request.error}`))
-      }
+    // Fetch all raw map objects
+    const allMapsRaw = await new Promise((resolve, reject) => {
+      const request = mapStore.getAll()
+      request.onsuccess = () => resolve(request.result || [])
+      request.onerror = () => reject(request.error)
     })
+
+    // Enrich each map with its marker count
+    const mapsWithDetails = await Promise.all(allMapsRaw.map(async (map) => {
+      const markers = await new Promise((resolve, reject) => {
+        const request = markerStore.index('mapId').getAll(map.id)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+      const markerCount = markers.length
+
+      return {
+        ...map, // Spread the entire raw map object
+        markerCount // Add or overwrite markerCount property
+      }
+    }))
+
+    console.log(`MapStorage: Retrieved ${mapsWithDetails.length} maps with marker counts.`)
+    return mapsWithDetails
   }
 
   /**
@@ -425,6 +439,7 @@ class MapStorage {
       map.description.toLowerCase().includes(term)
     )
   }
+
   // ========================================\n
   // NEW: Marker Storage Methods\n
   // ========================================\n
@@ -1155,6 +1170,3 @@ class MapStorage {
            this.db.objectStoreNames.contains(this.photoStoreName)
   }
 }
-
-// Export for use in other modules
-window.MapStorage = MapStorage

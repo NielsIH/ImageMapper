@@ -5,17 +5,21 @@
 
 /* global
         alert
-        MapStorage
-        FileManager
-        ModalManager
-        MapRenderer
-        ImageProcessor
-        HtmlReportGenerator
-        MapDataExporterImporter
         Image
         localStorage
         FileReader
         */
+
+// --- Module Imports ---
+import { MapStorage } from './storage.js'
+import { FileManager } from './fileManager.js'
+import { MapRenderer } from './mapRenderer.js'
+import { ImageProcessor } from './imageProcessor.js'
+import { HtmlReportGenerator } from './HtmlReportGenerator.js'
+import { MapDataExporterImporter } from './MapDataExporterImporter.js'
+import { SearchManager } from './searchManager.js' // NEW import
+import { ModalManager } from './ui/modals.js' // Note the path for ModalManager
+// --- End Module Imports ---
 
 class ImageMapperApp {
   constructor () {
@@ -24,6 +28,15 @@ class ImageMapperApp {
     this.storage = new MapStorage()
     this.fileManager = new FileManager()
     this.modalManager = new ModalManager()
+    this.searchManager = new SearchManager(this.modalManager, {
+      searchMaps: (query) => this.searchMaps(query),
+      switchToMap: (mapId) => this.switchToMap(mapId),
+      deleteMap: (mapId) => this.deleteMap(mapId),
+      exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
+      exportJsonMap: (mapId) => this.exportJsonMap(mapId),
+      onSearchFileSelect: () => this.handleSearchFileSelection(),
+      onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type)
+    })
     this.mapRenderer = new MapRenderer('map-canvas')
     this.currentMap = null
     this.mapsList = []
@@ -191,6 +204,11 @@ class ImageMapperApp {
      * Set up button click listeners
      */
   setupButtonListeners () {
+    // Search button
+    const searchBtn = document.getElementById('btn-search')
+    if (searchBtn) {
+      searchBtn.addEventListener('click', () => this.searchManager.openSearchModal())
+    }
     // Settings button
     const settingsBtn = document.getElementById('btn-settings')
     if (settingsBtn) {
@@ -485,44 +503,41 @@ class ImageMapperApp {
   // ========================================
 
   /**
-   * Displays the App Settings modal.
-   * @param {string} [initialTab='general-settings'] - The ID of the tab to initially open.
-   */
-  async showSettings (initialTab = 'general-settings') { // <--- Added initialTab parameter
-    this.showLoading('Loading settings...', false) // Show loading indicator
+* Displays the App Settings modal.
+* @param {string} [initialTab='general-settings'] - The ID of the tab to initially open.
+*/
+  async showSettings (initialTab = 'general-settings') {
+    this.showLoading('Loading settings...', false)
     try {
-      await this.loadMaps() // Ensure mapsList is up-to-date in preparation for map management section
-
-      // Prepare maps with thumbnails for display in settings modal
-      const mapsWithThumbnails = await Promise.all(this.mapsList.map(async (map) => {
-        let thumbnailDataUrl = this.thumbnailCache.get(map.id)
-        // If no thumbnail in cache and map data is a Blob (i.e., new map or not yet processed)
-        if (!thumbnailDataUrl && map.imageData instanceof Blob) {
-          try {
-            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, 100) // 100px size
-            if (thumbnailDataUrl) {
-              this.thumbnailCache.set(map.id, thumbnailDataUrl)
-            }
-          } catch (thumbError) {
-            console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
-            thumbnailDataUrl = null
-          }
-        } else if (!map.imageData) {
-          // If map.imageData is null or undefined, explicitly set thumbnail to null
-          thumbnailDataUrl = null
-        }
-        // Return map object with thumbnailDataUrl (new property added for display)
-        return { ...map, thumbnailDataUrl }
-      }))
+      // Load maps from storage (now returns maps with markerCount)
+      this.mapsList = await this.storage.getAllMaps() // No change needed here for app.loadMaps
+      // Prepare maps with thumbnails and marker counts for display
+      const mapsWithDetails = await this._getPreparedMapsForDisplay(this.mapsList)
+      // Separate active map for sorting
+      let activeMap = null
       const currentActiveMapId = this.currentMap ? this.currentMap.id : null
+      if (currentActiveMapId) {
+        const activeMapIndex = mapsWithDetails.findIndex(map => map.id === currentActiveMapId)
+        if (activeMapIndex !== -1) {
+          activeMap = mapsWithDetails.splice(activeMapIndex, 1)[0]
+        }
+      }
+      // Sort remaining maps by name alphabetically
+      mapsWithDetails.sort((a, b) => a.name.localeCompare(b.name))
+      // Prepend active map if it exists
+      if (activeMap) {
+        mapsWithDetails.unshift(activeMap)
+      }
 
       const settingsCallbacks = {
         onClearAllAppData: () => this.clearAllAppData(), // Already implemented for danger zone
-
         // Maps Management Callbacks:
         onMapSelected: async (mapId) => {
           await this.switchToMap(mapId)
           this.updateAppStatus(`Switched to map: ${this.currentMap.name}`)
+          if (this.modalManager.getTopModalId() === 'settings-modal') {
+            this.modalManager.closeTopModal()
+          }
         },
         onMapDelete: async (mapId) => {
           await this.deleteMap(mapId)
@@ -548,19 +563,20 @@ class ImageMapperApp {
           // Re-open settings modal, ensuring the Maps Management tab is active
           this.showSettings(tabToReopen)
         },
+        // NEW: Pass the consolidated image viewer callback
+        onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type), // <-- NEW LINE
+
         // NEW: Data Management Callbacks
         onImportData: async (file) => {
           await this.handleImportFile(file)
           this.updateAppStatus('Data import complete.', 'success') // Set status as success
           // Trigger a refresh of the settings modal to show the updated map list
-          // The onSettingsModalRefresh callback will handle closing and re-opening the settings modal
-          // to the 'maps-management-settings' tab, which now contains the newly imported map.
-          settingsCallbacks.onSettingsModalRefresh('maps-management-settings') // <--- ADD THIS LINE
+          settingsCallbacks.onSettingsModalRefresh('maps-management-settings')
         },
         // NEW: Map Display Callbacks
-        isCrosshairEnabled: () => this.isCrosshairEnabled(), // <--- Calls the new getter
+        isCrosshairEnabled: () => this.isCrosshairEnabled(),
         onToggleCrosshair: (enabled) => {
-          this.toggleCrosshair(enabled) // Calls the updated App.toggleCrosshair
+          this.toggleCrosshair(enabled)
         },
         // NEW: Image Processing Callbacks
         getPhotoQuality: () => this.getPhotoQuality(),
@@ -580,7 +596,7 @@ class ImageMapperApp {
       // Create and display the settings modal
       this.modalManager.createSettingsModal(
         settingsCallbacks,
-        mapsWithThumbnails, // Pass prepared maps data
+        mapsWithDetails, // Pass prepared maps data including markerCount
         currentActiveMapId, // Pass active map ID
         () => { // onClose callback for the settings modal itself
           this.updateAppStatus('Settings closed')
@@ -593,6 +609,100 @@ class ImageMapperApp {
       this.showErrorMessage('Failed to open settings', error.message)
     } finally {
       this.hideLoading() // Hide loading indicator regardless of success/failure
+    }
+  }
+
+  /**
+     * Prepares an array of map objects for display in the UI.
+     * This includes generating/retrieving thumbnail Data URLs and ensuring marker counts are present.
+     * This method centralizes data preparation logic used by both settings modal and search results.
+     * @param {Array<Object>} rawMaps - An array of raw map objects (from Storage.getAllMaps(), which now includes markerCount).
+     * @returns {Promise<Array<Object>>} An array of map objects prepared for UI display.
+     * @private
+     */
+  async _getPreparedMapsForDisplay (rawMaps) {
+    return Promise.all(rawMaps.map(async (map) => {
+      let thumbnailDataUrl = this.thumbnailCache.get(map.id)
+      // If no thumbnail in cache and map data is a Blob (from storage)
+      if (!thumbnailDataUrl && map.imageData instanceof Blob) {
+        try {
+          // Use a smaller size for thumbnails displayed in lists
+          const mapThumbnailSettings = this.imageCompressionSettings.thumbnail
+          thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, mapThumbnailSettings.maxSize)
+          if (thumbnailDataUrl) {
+            this.thumbnailCache.set(map.id, thumbnailDataUrl)
+          }
+        } catch (thumbError) {
+          console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
+          thumbnailDataUrl = null
+        }
+      } else if (!map.imageData || !(map.imageData instanceof Blob)) {
+        // If map.imageData is null/undefined or not a Blob, explicitly set thumbnail to null
+        thumbnailDataUrl = null
+      }
+      // Return map object with the generated/cached thumbnailDataUrl
+      return { ...map, thumbnailDataUrl }
+    }))
+  }
+
+  /**
+     * Searches for maps based on a query.
+     * Fetches all maps, prepares them for display (including thumbnails),
+     * and then filters this prepared list based on the search query.
+     * @param {string} query The search term.
+     * @returns {Promise<Array<Object>>} An array of filtered map data, including thumbnailDataUrl.
+     */
+  async searchMaps (query) {
+    console.log('App: Performing map search for query:', query)
+    const lowerCaseQuery = query.toLowerCase()
+
+    // 1. Get all maps from storage (now includes markerCount from storage.getAllMaps())
+    const allMapsWithCounts = await this.storage.getAllMaps()
+
+    // 2. Prepare all maps with thumbnails, using the reusable method
+    const allMapsPrepared = await this._getPreparedMapsForDisplay(allMapsWithCounts)
+
+    // 3. Filter this prepared list based on the search query
+    const filteredMaps = allMapsPrepared.filter(map =>
+      map.name.toLowerCase().includes(lowerCaseQuery) ||
+            (map.description && map.description.toLowerCase().includes(lowerCaseQuery)) || // Existing
+            (map.fileName && map.fileName.toLowerCase().includes(lowerCaseQuery)) // NEW: Also search by fileName
+    )
+
+    console.log(`App: Found ${filteredMaps.length} maps matching query "${query}".`)
+    return filteredMaps
+  }
+
+  // NEW METHOD: to handle file selection specifically for search
+  async handleSearchFileSelection () {
+    try {
+      // Replicate the successful pattern: close modal, then delay
+      if (this.modalManager.getTopModalId() === 'search-modal') {
+        this.modalManager.closeTopModal()
+      }
+      await new Promise(resolve => setTimeout(resolve, 350)) // Ensure modal is truly gone
+
+      // Now, call fileManager.selectFiles. The file picker will appear.
+      const selectedFiles = await this.fileManager.selectFiles(false, true) // (allowMultiple = false, acceptImagesOnly = true)
+      this.showLoading('Processing file for search...')
+
+      if (selectedFiles === null || selectedFiles.length === 0) {
+        this.showNotification('File selection cancelled.', 'info')
+        return
+      }
+
+      const selectedFile = selectedFiles[0]
+
+      // Re-open the search modal if it was closed, to show results within it
+      // This will also trigger the performSearch logic if initialQuery is set
+      this.searchManager.openSearchModal(selectedFile.name)
+    } catch (error) {
+      console.error('Error selecting file for search:', error)
+      this.showErrorMessage('File Selection Error', `Failed to select file for search: ${error.message}`)
+      // Re-open the search modal if an error occurred after closing it
+      this.searchManager.openSearchModal()
+    } finally {
+      this.hideLoading() // Always hide loading in the end
     }
   }
 
@@ -2119,7 +2229,7 @@ class ImageMapperApp {
         },
         // onViewPhoto callback
         async (photoIdFromModal) => { // <--- This argument is provided by the modal
-          await this.handleViewPhoto(photoIdFromModal)
+          await this.handleViewImageInViewer(photoIdFromModal, 'photo')
         },
         // onClose callback
         () => {
@@ -2454,6 +2564,74 @@ class ImageMapperApp {
     } catch (error) {
       console.error('App: Failed to delete photo from image viewer:', error)
       this.showErrorMessage('Delete Photo Error', `Failed to delete image: ${error.message}`)
+    } finally {
+      this.hideLoading()
+    }
+  }
+
+  // MODIFIED: Consolidated method to handle viewing any image (map or photo) in the viewer modal
+  async handleViewImageInViewer (id, type) {
+    console.log(`app.js: handleViewImageInViewer received ID: ${id}, type: ${type}`)
+    this.showLoading('Loading image...')
+    try {
+      let item
+      let imageBlob
+      let title
+      let onDeleteCallback = null
+      let photoIdForViewer = null
+
+      if (type === 'map') {
+        item = await this.storage.getMap(id)
+        if (!item || !item.imageData) {
+          console.error('Map data or image data not found for ID:', id)
+          this.showErrorMessage('Image Load Error', 'Map image data not found.')
+          return
+        }
+        imageBlob = item.imageData
+        title = item.name || item.fileName || 'Map Image'
+        // No delete option for maps from image viewer
+      } else if (type === 'photo') {
+        item = await this.storage.getPhoto(id)
+        if (!item || !item.imageData) { // Check for photo.markerId
+          console.error('Photo data or image data not found for ID:', id)
+          this.showErrorMessage('Image Load Error', 'Photo image data not found.')
+          return
+        }
+        imageBlob = item.imageData
+        title = item.fileName || 'Photo Image'
+        photoIdForViewer = item.id // Pass photo ID for viewer deletion context
+
+        // CORRECTED: Retrieve markerId directly from the fetched photo object
+        const markerIdFromPhoto = item.markerId
+        if (markerIdFromPhoto) {
+          onDeleteCallback = async (idToDelete) => {
+            await this.deletePhotoFromImageViewer(idToDelete, markerIdFromPhoto)
+          }
+        } else {
+          console.warn(`Photo ID ${id} has no associated markerId. Cannot provide delete functionality.`)
+        }
+      } else {
+        console.error('Unknown type for handleViewImageInViewer:', type)
+        this.showErrorMessage('Image Load Error', 'Invalid image type specified.')
+        return
+      }
+
+      // Create object URL and pass to modalManager
+      this.modalManager.currentObjectUrl = URL.createObjectURL(imageBlob)
+
+      this.modalManager.createImageViewerModal(
+        this.modalManager.currentObjectUrl,
+        title,
+        photoIdForViewer,
+        onDeleteCallback,
+        () => {
+          this.updateAppStatus('Image viewer closed.')
+        }
+      )
+      this.updateAppStatus(`Viewing image: ${title}`)
+    } catch (error) {
+      console.error('Error displaying image in viewer:', error)
+      this.showErrorMessage('Image Load Error', `Failed to load image: ${error.message}`)
     } finally {
       this.hideLoading()
     }
