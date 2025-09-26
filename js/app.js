@@ -2638,59 +2638,6 @@ class ImageMapperApp {
   }
 
   /**
-   * Handles the request to view a full-size photo.
-   * Fetches the photo data, creates an Object URL, and displays it in a modal.
-   * @param {string} photoId - The ID of the photo to view.
-   */
-  async handleViewPhoto (photoId) {
-    console.log('app.js: handleViewPhoto received photoId:', photoId)
-    this.showLoading('Loading image...') // Assuming you have showLoading
-    try {
-      const photo = await this.storage.getPhoto(photoId)
-      if (!photo || !photo.imageData || !photo.markerId) { // Check for photo.markerId
-        console.error('Photo data or markerId not found for ID:', photoId)
-        this.showErrorMessage('Image Load Error', 'Image data or associated marker ID not found.')
-        return
-      }
-
-      const imageBlob = photo.imageData // Directly use the imageData Blob
-
-      // The modalManager.closeModal already handles revoking currentObjectUrl if the modal ID is 'image-viewer-modal'.
-      // So, this.currentImageViewerUrl tracking here is less critical for memory management,
-      // but if you also use it for other purposes, keep it.
-      // For now, removing the direct revoke here as modalManager handles it on close.
-      // if (this.currentImageViewerUrl) {
-      //   URL.revokeObjectURL(this.currentImageViewerUrl)
-      // }
-
-      // Create a new object URL for the image Blob
-      // Store it in modalManager, as modalManager is responsible for its lifecycle
-      this.modalManager.currentObjectUrl = URL.createObjectURL(imageBlob)
-
-      this.modalManager.createImageViewerModal(
-        this.modalManager.currentObjectUrl, // Pass the new object URL
-        photo.fileName || 'Image', // Use filename as title
-        photo.id, // NEW: Pass the photo ID
-        async (idToDelete) => { // NEW: Pass the onDeleteImage callback
-          // This callback will be called by modalManager when delete button is pressed
-          await this.deletePhotoFromImageViewer(idToDelete, photo.markerId)
-        },
-        () => {
-          // Callback when the image viewer modal closes
-          this.updateAppStatus('Image viewer closed.')
-          // Revocation is already handled by modalManager.closeModal
-        }
-      )
-      this.updateAppStatus(`Viewing image: ${photo.fileName}`)
-    } catch (error) {
-      console.error('Error displaying photo:', error)
-      this.showErrorMessage('Image Load Error', `Failed to load image: ${error.message}`)
-    } finally {
-      this.hideLoading() // Assuming you have hideLoading
-    }
-  }
-
-  /**
    * Toggle debug info on map renderer
    */
   toggleMapDebugInfo () {

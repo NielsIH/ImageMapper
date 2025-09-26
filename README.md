@@ -1,4 +1,3 @@
-README.md
 # Image Mapper PWA
 
 A Progressive Web App for mapping photos and images to specific locations on any map or floor plan. Perfect for construction sites, archaeological surveys, property inspections, event planning, and more. Designed to work offline for use in any environment.
@@ -18,22 +17,48 @@ This phase establishes the basic PWA infrastructure and offline capabilities.
 ### Files Structure
 ```
 image-mapper/
-├── index.html              # Main app HTML
-├── manifest.json           # PWA configuration
-├── service-worker.js       # Offline functionality
-├── DEPLOYMENT.md           # Instructions for deployment
+├── DEPLOYMENT.md             # Instructions for deployment
+├── index.html                # Main app HTML
+├── manifest.json             # PWA configuration
+├── README.md                 # This file
+├── service-worker.js         # Offline functionality
+│
 ├── css/
-│   └── app.css             # Main stylesheet
-├── js/
-│   ├── app.js              # Main application logic
-│   ├── storage.js          # Handles IndexedDB interactions (MapStorage class)
-│   ├── fileManager.js      # Utility for file selection and processing
-│   ├── mapRenderer.js      # Manages canvas rendering, pan, zoom, markers
-│   ├── modals.js           # Manages UI for various modals (ModalManager class)
-│   ├── imageProcessor.js   # Utility for image manipulation and thumbnail generation
-│   └── HtmlReportGenerator.js # Generates HTML reports for map data
-├── icons/                  # PWA icons (to be added)
-└── README.md               # This file
+│   ├── base.css              # Base styles
+│   ├── components.css        # UI component styles
+│   ├── layout.css            # Layout-specific styles
+│   ├── main.css              # Main application styles
+│   ├── map-display.css       # Map display specific styles
+│   ├── modals.css            # Modal-specific styles
+│   ├── notifications.css     # Notification styles
+│   ├── responsive.css        # Responsive adjustments
+│   └── utilities.css         # Utility classes
+│
+├── icons/
+│   ├── apple-touch-icon.png
+│   ├── favicon-96x96.png
+│   ├── favicon.ico
+│   ├── favicon.svg
+│   ├── README.md             # Icon usage documentation
+│   ├── screenshot-narrow.png
+│   ├── screenshot-wide.png
+│   └── web-app-manifest-192x192.png
+│   └── web-app-manifest-512x512.png
+│
+└── js/
+    ├── app.js                # Main application logic
+    ├── debug.js              # Debugging utilities
+    ├── fileManager.js        # Utility for file selection and processing
+    ├── HtmlReportGenerator.js# Generates HTML reports for map data
+    ├── imageProcessor.js     # Utility for image manipulation and thumbnail generation
+    ├── MapDataExporterImporter.js # Handles importing/exporting map data
+    ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers
+    ├── searchManager.js      # Manages the search modal and its logic
+    ├── storage.js            # Handles IndexedDB interactions (MapStorage class)
+    │
+    └── ui/                   # UI-specific components
+        ├── modals.js         # Manages UI for various modals (ModalManager class)
+        └── uiRenderer.js     # Renders common UI components like card elements
 ```
 
 ## Getting Started
@@ -90,6 +115,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Marker lock/unlock toggle and persistence
 - ✅ Marker display size toggle and persistence
 - ✅ Map rotation (90-degree increments) and persistence
+- ✅ **NEW: Consolidated and enhanced image viewer modal for maps and photos.**
 
 ### Phase 1D: Marker System ✅
 - ✅ Click/tap to place markers at canvas center
@@ -116,12 +142,18 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Data Management features (Import/Export data) integrated into settings modal.
 - ✅ Clear All App Data moved to "Danger Zone" tab within settings.
 - ✅ Crosshair visibility toggle and persistence integrated into Map Display settings.
+- ✅ **NEW: Dedicated search modal for maps, markers, and photos.**
+- ✅ **NEW: Unified search across map names, descriptions, and file names.**
+- ✅ **NEW: Search by Image File (via selection) for map lookup.**
+- ✅ **NEW: "Clear Search" functionality (X button) within the search input.**
+- ✅ **NEW: Map thumbnail/image click in search results and settings list opens image viewer.**
 
 ## Technical Stack
 
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
 - **Storage**: IndexedDB for offline data, Cache API for files
 - **PWA**: Service Worker, Web App Manifest
+- **Bundler**: ES Modules (seamless modularity without complex build steps)
 
 ## Browser Support
 
@@ -135,12 +167,15 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 ### Current Limitations
 - **PWA screen orientation locking needs implementation (e.g., `screen.orientation.lock()` in JS)**
 - User-defined marker sizes are still to be implemented.
+- Marker drag boundaries (preventing dragging outside map limits) need implementation.
+- Photo Search (search photos directly by metadata/filename) is pending.
 
 ### Key Design Decisions
 - **Offline-first approach**: Everything must work without internet
 - **Touch-optimized**: 44px minimum touch targets
 - **Lightweight**: No external frameworks for core functionality
 - **Modular**: Clean separation between phases for iterative development
+- **ES Modules**: Modern JavaScript modularity for better maintainability and performance.
 
 ## Use Cases
 

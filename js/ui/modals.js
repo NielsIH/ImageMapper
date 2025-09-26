@@ -1007,14 +1007,14 @@ export class ModalManager {
   }
 
   /**
-     * Creates and displays a modal for viewing a full-size image.
-     * @param {string} imageUrl - The URL of the image to display (can be Data URL or object URL).
-     * @param {string} [imageTitle='Image Viewer'] - An optional title for the image.
-     * @param {string} photoId - The ID of the photo being viewed.
-     * @param {Function} onDeleteImage - Callback when the delete button is clicked (receives photoId).
-     * @param {Function} onClose - Callback when the modal is closed.
-     * @returns {HTMLElement} - The created modal element.
-     */
+ * Creates and displays a modal for viewing a full-size image.
+ * @param {string} imageUrl - The URL of the image to display (can be Data URL or object URL).
+ * @param {string} [imageTitle='Image Viewer'] - An optional title for the image.
+ * @param {string} photoId - The ID of the photo being viewed.
+ * @param {Function} onDeleteImage - Callback when the delete button is clicked (receives photoId).
+ * @param {Function} onClose - Callback when the modal is closed.
+ * @returns {HTMLElement} - The created modal element.
+ */
   createImageViewerModal (imageUrl, imageTitle = 'Image Viewer', photoId, onDeleteImage, onClose) {
     console.log('ModalManager: Creating new Image Viewer Modal.')
     const modalHtml = `
@@ -1030,7 +1030,7 @@ export class ModalManager {
           <div class="modal-body image-viewer-body">
             <div class="image-viewer-image-wrapper">
                 <img src="${imageUrl}" alt="${imageTitle}" class="full-size-image" />
-                <button class="btn btn-tiny btn-danger delete-photo-overlay-btn" id="btn-delete-image-viewer" type="button" title="Delete Image">✕</button>
+                ${onDeleteImage ? '<button class="btn btn-tiny btn-danger delete-photo-overlay-btn" id="btn-delete-image-viewer" type="button" title="Delete Image">✕</button>' : ''}
             </div>
           </div>
         </div>
@@ -1063,7 +1063,7 @@ export class ModalManager {
         e.stopPropagation() // Prevent click from bubbling up
         if (
           onDeleteImage &&
-                    confirm('Are you sure you want to delete this image? This action cannot be undone.')
+                  confirm('Are you sure you want to delete this image? This action cannot be undone.')
         ) {
           onDeleteImage(photoId)
         }

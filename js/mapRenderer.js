@@ -453,45 +453,50 @@ export class MapRenderer {
   }
 
   /**
-   * Convert screen coordinates to map coordinates.
-   * MODIFIED: Simplified - operates directly on the already rotated imageData.
-   * @param {number} screenX - Screen X coordinate (raw canvas pixel)
-   * @param {number} screenY - Screen Y coordinate (raw canvas pixel)
-   * @returns {Object} Map coordinates (x,y relative to top-left of the original, unrotated image)
-   */
+ * Convert screen coordinates to map coordinates.
+ * MODIFIED: Simplified - operates directly on the already rotated imageData.
+ * @param {number} screenX - Screen X coordinate (raw canvas pixel)
+ * @param {number} screenY - Screen Y coordinate (raw canvas pixel)
+ * @returns {Object} Map coordinates (x,y relative to top-left of the original, unrotated image)
+ */
   screenToMap (screenX, screenY) {
     if (!this.imageData || !this.originalImageData) return null
 
-    // First convert screen coords to coords on the *rotated* image bitmap (imageData.width/height)
-    const rotatedMapX = (screenX - this.offsetX) / this.scale
-    const rotatedMapY = (screenY - this.offsetY) / this.scale
+    // 1. Convert screen coords to coords on the *rotated* image bitmap (normalized between 0 and rotatedImage.width/height)
+    const rotatedImageCoordsX = (screenX - this.offsetX) / this.scale
+    const rotatedImageCoordsY = (screenY - this.offsetY) / this.scale
 
-    // Now convert from *rotated* map coords back to *original* map coords
     let mapX, mapY
     const originalWidth = this.originalImageData.naturalWidth
     const originalHeight = this.originalImageData.naturalHeight
 
     switch (this.currentMapRotation) {
       case 0:
-        mapX = rotatedMapX
-        mapY = rotatedMapY
+        mapX = rotatedImageCoordsX
+        mapY = rotatedImageCoordsY
         break
-      case 90: // Original (x,y) -> Rotated (OriginalHeight - y, x)
-        mapX = rotatedMapY
-        mapY = originalWidth - rotatedMapX
+      case 90:
+      // A point (x', y') on the rotated image corresponds to (y', originalHeight - x') on the *original* image
+      // rotatedImageCoordsX is x', rotatedImageCoordsY is y'
+        mapX = rotatedImageCoordsY
+        mapY = originalHeight - rotatedImageCoordsX
         break
-      case 180: // Original (x,y) -> Rotated (OriginalWidth - x, OriginalHeight - y)
-        mapX = originalWidth - rotatedMapX
-        mapY = originalHeight - rotatedMapY
+      case 180:
+      // A point (x', y') on the rotated image corresponds to (originalWidth - x', originalHeight - y') on the *original* image
+      // rotatedImageCoordsX is x', rotatedImageCoordsY is y'
+        mapX = originalWidth - rotatedImageCoordsX
+        mapY = originalHeight - rotatedImageCoordsY
         break
-      case 270: // Original (x,y) -> Rotated (y, OriginalWidth - x)
-        mapX = originalHeight - rotatedMapY
-        mapY = rotatedMapX
+      case 270:
+      // A point (x', y') on the rotated image corresponds to (originalWidth - y', x') on the *original* image
+      // rotatedImageCoordsX is x', rotatedImageCoordsY is y'
+        mapX = originalWidth - rotatedImageCoordsY
+        mapY = rotatedImageCoordsX
         break
       default:
-        // Should not happen, but default to simple conversion
-        mapX = rotatedMapX
-        mapY = rotatedMapY
+        console.warn('MapRenderer: screenToMap - Unknown rotation, defaulting to 0.')
+        mapX = rotatedImageCoordsX
+        mapY = rotatedImageCoordsY
     }
 
     return { x: mapX, y: mapY }

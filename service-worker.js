@@ -3,7 +3,7 @@
 // 🚨 IMPORTANT: You MUST update this version string whenever you deploy new changes!
 // This will force the service worker to update and clear old caches.
 // A good pattern is to use a date-based version like 'v2024-12-20-1'
-const CACHE_NAME = 'image-mapper-v2025-09-26-28' // Updated version
+const CACHE_NAME = 'image-mapper-v2025-09-26-30' // Updated version
 const STATIC_ASSETS = [
   './',
   './index.html',

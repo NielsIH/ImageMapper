@@ -41,7 +41,7 @@ export class UIRenderer {
         const hasMarkers = itemData.markerCount > 0
 
         const viewImageButton = callbacks.onViewImageInViewer
-          ? `<button class="btn map-action-btn view-map-image-btn" data-id="${itemData.id}" title="View Map Image">👁</button>`
+          ? `<button class="btn map-action-btn view-map-image-btn" data-id="${itemData.id}" title="View Map Image">👁️</button>`
           : ''
 
         const exportHtmlButton = hasMarkers // Conditional display for HTML Report
