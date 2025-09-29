@@ -21,7 +21,8 @@ export class MapRenderer {
     this.markers = []
     this.showCrosshair = false
     this.markersAreEditable = false
-
+    this._highlightedMarkerId = null
+    this._highlightTimeout = null
     // Map Rotation -- This is the actual rotation angle applied to the *image bitmap*
     this.currentMapRotation = 0 // Stored rotation in degrees (0, 90, 180, 270)
 
@@ -674,6 +675,102 @@ export class MapRenderer {
   }
 
   /**
+   * Pans the map to bring the specified map coordinates into view,
+   * optionally zooming to a target scale, respecting current map rotation.
+   * @param {number} mapX - The X coordinate in map (original image) space.
+   * @param {number} mapY - The Y coordinate in map (original image) space.
+   * @param {number} [targetScaleFactor=this.scale] - Desired zoom level.
+   *                                            If less than 1.0, it's a factor of current scale.
+   *                                            If 1.0 or greater, it's an absolute scale clamped.
+   */
+  panAndZoomToCoordinates (mapX, mapY, targetScaleFactor = this.scale) {
+    if (!this.imageData || !this.originalImageData) {
+      console.warn('MapRenderer: Cannot pan and zoom, no image data loaded.')
+      return
+    }
+
+    // Determine target scale
+    let newScale
+    if (targetScaleFactor < 1.0 && targetScaleFactor !== 0) { // Factor, e.g., 0.8
+      newScale = this.scale * targetScaleFactor
+    } else if (targetScaleFactor >= 1.0) { // Absolute target scale
+      newScale = targetScaleFactor
+    } else { // Fallback, use current scale
+      newScale = this.scale
+    }
+    // Clamp the new scale
+    newScale = Math.max(this.minScale, Math.min(this.maxScale, newScale))
+
+    // --- Extract the core transformed coordinates from mapToScreen logic ---
+    // This part of mapToScreen calculates where the mapX, mapY would be
+    // on the *rotated* image canvas at 1x scale, with 0 offset.
+    let rotatedMapX, rotatedMapY
+    const originalWidth = this.originalImageData.naturalWidth
+    const originalHeight = this.originalImageData.naturalHeight
+
+    switch (this.currentMapRotation) {
+      case 0:
+        rotatedMapX = mapX
+        rotatedMapY = mapY
+        break
+      case 90:
+        rotatedMapX = originalHeight - mapY
+        rotatedMapY = mapX
+        break
+      case 180:
+        rotatedMapX = originalWidth - mapX
+        rotatedMapY = originalHeight - mapY
+        break
+      case 270:
+        rotatedMapX = mapY
+        rotatedMapY = originalWidth - mapX
+        break
+      default:
+        rotatedMapX = mapX
+        rotatedMapY = mapY
+    }
+    // --- End extraction ---
+
+    // Now, calculate the new offsets directly.
+    // We want the point (rotatedMapX, rotatedMapY)
+    // when scaled by `newScale`, to appear at the center of the canvas.
+    // screen_center = rotated_point_scaled + new_offset
+    // new_offset = screen_center - rotated_point_scaled
+    this.offsetX = (this.canvas.width / 2) - (rotatedMapX * newScale)
+    this.offsetY = (this.canvas.height / 2) - (rotatedMapY * newScale)
+    this.scale = newScale
+
+    this.render()
+  }
+
+  /**
+   * Temporarily highlights a marker by its ID. The highlight fades after a few seconds.
+   * @param {string} markerId - The ID of the marker to highlight.
+   */
+  highlightMarker (markerId) {
+    // Clear any existing highlight and timeout
+    if (this._highlightTimeout) {
+      clearTimeout(this._highlightTimeout)
+      this._highlightTimeout = null
+    }
+    this._highlightedMarkerId = null // Clear previous highlight visually on next render if needed
+
+    const markerToHighlight = this.markers.find(m => m.id === markerId)
+    if (markerToHighlight) {
+      this._highlightedMarkerId = markerId
+      this.render() // Re-render immediately to show highlight
+
+      this._highlightTimeout = setTimeout(() => {
+        this._highlightedMarkerId = null // Remove highlight
+        this.render() // Re-render to remove highlight
+        this._highlightTimeout = null
+      }, 5000) // Highlight for 5 seconds
+    } else {
+      console.warn(`MapRenderer: Marker ${markerId} not found, cannot highlight.`)
+    }
+  }
+
+  /**
    * Set the markers to be rendered.
    * @param {Array} markersArray - An array of marker objects.
    */
@@ -739,6 +836,7 @@ export class MapRenderer {
 
   /**
    * Draw a single marker on the canvas.
+   * MODIFIED: Added highlight logic.
    * @param {number} x - Screen X coordinate of the marker center.
    * @param {number} y - Screen Y coordinate of the marker center.
    * @param {number} number - Optional number to display on the marker.
@@ -754,6 +852,7 @@ export class MapRenderer {
     let fillColor
     let textColor
 
+    // Determine base colors
     if (isEditable) { // Unlocked/Editable State
       if (hasPhotos) {
         borderColor = '#dc2626' // Red-600
@@ -777,6 +876,19 @@ export class MapRenderer {
     }
 
     this.ctx.save()
+
+    // NEW: Draw highlight circle if this marker is highlighted
+    if (this._highlightedMarkerId && this.markers.find(m => m.id === this._highlightedMarkerId)?.id === this.markers[number - 1]?.id) { // Crude check, better to pass marker object
+      const highlightRadius = radius * 1.5 // Larger radius for highlight
+      this.ctx.beginPath()
+      this.ctx.arc(x, y, highlightRadius, 0, Math.PI * 2, false)
+      this.ctx.strokeStyle = '#3b82f6' // Blue-500
+      this.ctx.lineWidth = 4 // Thicker highlight
+      this.ctx.stroke()
+
+      // Add a subtle pulsating effect (optional, might need CSS animation for canvas or separate overlay)
+      // For now, a static bold blue ring will suffice.
+    }
 
     // Draw the marker circle body
     this.ctx.beginPath()

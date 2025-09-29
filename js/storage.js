@@ -840,6 +840,109 @@ export class MapStorage {
   }
 
   /**
+   * Get all photos across all maps and markers, each enriched with its associated marker and map context.
+   *
+   * @returns {Promise<Array<Object>>} - Array of enriched photo objects. Each object
+   *   represents a unique photo record and includes:
+   *   {
+   *     id: photo.id,                  // The unique ID of the photo record
+   *     markerId: photo.markerId,      // The ID of the marker this photo record is attached to
+   *     mapId: map.id,                 // The ID of the map the marker belongs to
+   *     mapName: map.name,             // The name of the map
+   *     markerDescription: marker.description, // Description of the associated marker
+   *     fileName: photo.fileName,
+   *     thumbnailData: photo.thumbnailData,
+   *     imageData: photo.imageData,    // The full image blob (use with caution due to size)
+   *     // ... other original photo properties
+   *   }
+   */
+  async getAllPhotosWithContext () {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      ;(async () => {
+        try {
+          const transaction = this.db.transaction([this.photoStoreName, this.markerStoreName, this.mapStoreName], 'readonly')
+          const photoStore = transaction.objectStore(this.photoStoreName)
+          const markerStore = transaction.objectStore(this.markerStoreName)
+          const mapStore = transaction.objectStore(this.mapStoreName)
+
+          // Fetch all photos
+          const allPhotos = await new Promise((resolve, reject) => {
+            const req = photoStore.getAll()
+            req.onsuccess = () => resolve(req.result || [])
+            req.onerror = (e) => {
+              console.error('MapStorage: Error fetching all photos:', e)
+              reject(e)
+            }
+          })
+
+          const enrichedPhotos = []
+          for (const photo of allPhotos) {
+            // Each photo record has a single markerId
+            if (!photo.markerId) {
+              console.warn(`MapStorage: Photo record ${photo.id} does not have a markerId. Skipping enrichment.`)
+              continue
+            }
+
+            // Fetch the marker for this photo
+            const marker = await new Promise((resolve, reject) => {
+              const req = markerStore.get(photo.markerId)
+              req.onsuccess = () => resolve(req.result)
+              req.onerror = (e) => {
+                console.error(`MapStorage: Error fetching marker ${photo.markerId} for photo ${photo.id}:`, e)
+                reject(e)
+              }
+            })
+
+            if (!marker) {
+              console.warn(`MapStorage: Marker ${photo.markerId} not found for photo record ${photo.id}. Skipping enrichment.`)
+              continue
+            }
+            if (!marker.mapId) {
+              console.warn(`MapStorage: Marker ${marker.id} does not have a mapId. Skipping enrichment for photo record ${photo.id}.`)
+              continue
+            }
+
+            // Fetch the map for this marker
+            const map = await new Promise((resolve, reject) => {
+              const req = mapStore.get(marker.mapId)
+              req.onsuccess = () => resolve(req.result)
+              req.onerror = (e) => {
+                console.error(`MapStorage: Error fetching map ${marker.mapId} for marker ${marker.id}:`, e)
+                reject(e)
+              }
+            })
+
+            if (!map) {
+              console.warn(`MapStorage: Map ${marker.mapId} not found for marker ${marker.id} and photo record ${photo.id}. Skipping enrichment.`)
+              continue
+            }
+
+            enrichedPhotos.push({
+              // Spread all original photo properties
+              ...photo,
+              // Add context properties for easy access
+              mapId: map.id,
+              mapName: map.name,
+              markerDescription: marker.description || 'No marker description'
+              // Note: photo.markerId is already part of the original photo object
+            })
+          }
+
+          console.log(`MapStorage: Retrieved ${enrichedPhotos.length} enriched photo entries with context.`)
+          resolve(enrichedPhotos)
+        } catch (error) {
+          console.error('MapStorage: Failed to get all photos with context', error)
+          reject(new Error(`Failed to load enriched photo entries: ${error.message}`))
+        }
+      })()
+    })
+  }
+
+  /**
    * Get all photos for a specific map across all its markers.
    * @param {string} mapId - The ID of the map.
    * @returns {Promise<Array>} - Array of photo objects for the given map.

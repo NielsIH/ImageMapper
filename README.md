@@ -46,19 +46,19 @@ image-mapper/
 │   └── web-app-manifest-512x512.png
 │
 └── js/
-    ├── app.js                # Main application logic
+    ├── app.js                # Main application logic (modified)
     ├── debug.js              # Debugging utilities
     ├── fileManager.js        # Utility for file selection and processing
     ├── HtmlReportGenerator.js# Generates HTML reports for map data
     ├── imageProcessor.js     # Utility for image manipulation and thumbnail generation
     ├── MapDataExporterImporter.js # Handles importing/exporting map data
-    ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers
-    ├── searchManager.js      # Manages the search modal and its logic
-    ├── storage.js            # Handles IndexedDB interactions (MapStorage class)
+    ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers (modified)
+    ├── searchManager.js      # Manages the search modal and its logic (modified)
+    ├── storage.js            # Handles IndexedDB interactions (MapStorage class) (modified)
     │
     └── ui/                   # UI-specific components
         ├── modals.js         # Manages UI for various modals (ModalManager class)
-        └── uiRenderer.js     # Renders common UI components like card elements
+        └── uiRenderer.js     # Renders common UI components like card elements (modified)
 ```
 
 ## Getting Started
@@ -142,11 +142,14 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Data Management features (Import/Export data) integrated into settings modal.
 - ✅ Clear All App Data moved to "Danger Zone" tab within settings.
 - ✅ Crosshair visibility toggle and persistence integrated into Map Display settings.
-- ✅ **NEW: Dedicated search modal for maps, markers, and photos.**
-- ✅ **NEW: Unified search across map names, descriptions, and file names.**
-- ✅ **NEW: Search by Image File (via selection) for map lookup.**
-- ✅ **NEW: "Clear Search" functionality (X button) within the search input.**
-- ✅ **NEW: Map thumbnail/image click in search results and settings list opens image viewer.**
+- ✅ Dedicated search modal for maps, markers, and photos.
+- ✅ Unified search across map names, descriptions, and file names.
+- ✅ Search by Image File (via selection) for map lookup.
+- ✅ "Clear Search" functionality (X button) within the search input.
+- ✅ Map thumbnail/image click in search results and settings list opens image viewer.
+- ✅ **NEW: Photo search by filename and display in search results with thumbnails.**
+- ✅ **NEW: "Show on Map" action for photo search results, switching to map, panning to and highlighting the associated marker.**
+
 
 ## Technical Stack
 

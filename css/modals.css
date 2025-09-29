@@ -115,6 +115,20 @@
   width: 100%;
 }
 
+/* --- Generic Card List Styles --- */
+.search-results-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.search-results-section h4 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--spacing-xs);
+}
+
 /* Maps Management Modal Specific Styles */
 .maps-management-container {
   flex-grow: 1;
@@ -129,54 +143,64 @@
   margin: 0;
 }
 
-.maps-list {
+.maps-list, .photos-list { /* Apply common styling to both map and photo lists */
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm); /* Spacing between list items */
 }
 
-.map-list-item {
+.map-list-item, .photo-list-item { /* Styles common to all card items */
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-between; /* Pushes content and actions to opposite ends */
   padding: var(--spacing-sm) var(--spacing-md);
-  margin-bottom: var(--spacing-sm);
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: var(--shadow);
   transition: all 0.2s ease;
-  position: relative;
+  position: relative; /* For actions positioning if needed */
+  -webkit-tap-highlight-color: transparent;
 }
 
-.map-list-item:last-of-type {
+/* Remove specific bottom margin from maps-list-item now handled by gap in maps-list */
+.map-list-item {
   margin-bottom: 0;
 }
 
-.map-list-item.clickable {
+.map-list-item:last-of-type, .photo-list-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.map-list-item.clickable, .photo-list-item.clickable {
   cursor: pointer;
 }
 
-.map-list-item.clickable:hover {
+.map-list-item.clickable:hover, .photo-list-item.clickable:hover {
   background-color: var(--bg-secondary);
   transform: translateY(-2px);
 }
 
-.map-list-item.active {
+.map-list-item.active, .photo-list-item.active {
   border: 2px solid var(--primary-color);
   padding: calc(var(--spacing-sm) - 1px) calc(var(--spacing-md) - 1px);
   background-color: var(--bg-secondary);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-.map-card-content {
+.map-card-content, .photo-card-content { /* Common content wrapper */
   display: flex;
   align-items: center;
-  flex-grow: 1;
+  flex-grow: 1; /* Allow content to grow */
   gap: var(--spacing-md);
+  min-width: 0; /* IMPT: Allow flex item to shrink below intrinsic size */
+  overflow: hidden; /* Hide overflow for its children (text) */
 }
 
-.map-thumbnail-container {
+.map-thumbnail-container, .photo-thumbnail-container {
   width: 60px;
   height: 60px;
   flex-shrink: 0;
@@ -189,34 +213,45 @@
   box-shadow: var(--shadow);
 }
 
-.map-thumbnail {
+.map-thumbnail, .photo-thumbnail {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
 
-.map-initials {
+.map-initials, .photo-initials { /* Common initials display */
   font-size: 1.2rem;
   font-weight: bold;
   color: var(--text-secondary);
+  white-space: nowrap; /* Prevent initials from wrapping */
 }
 
-.map-info {
+
+.map-info, .photo-info { /* Common info section (name + details) */
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  min-width: 0; /* IMPT: Allow flex item to shrink below intrinsic size */
+  overflow: hidden; /* Hide overflow for its children (text) */
 }
 
-.map-name {
+.map-name, .photo-info .photo-name { /* Common name style */
   font-weight: 600;
   color: var(--text-primary);
   font-size: 1rem;
   margin-bottom: var(--spacing-xs);
+  white-space: nowrap; /* Prevent text from wrapping */
+  overflow: hidden; /* Hide overflowing text */
+  text-overflow: ellipsis; /* Show ellipsis for truncated text */
+  text-align: left;
 }
 
-.map-details {
+.map-details, .photo-details { /* Common details style */
   font-size: 0.8rem;
   color: var(--text-secondary);
+  white-space: nowrap; /* Prevent text from wrapping */
+  overflow: hidden; /* Hide overflowing text */
+  text-overflow: ellipsis; /* Show ellipsis for truncated text */
 }
 
 .active-status {
@@ -230,15 +265,15 @@
   align-self: flex-start;
 }
 
-.map-item-actions-wrapper {
+.map-item-actions-wrapper, .photo-item-actions-wrapper { /* Common actions wrapper */
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  flex-shrink: 0;
+  flex-shrink: 0; /* Prevent actions from shrinking */
   margin-left: var(--spacing-md);
 }
 
-.map-action-btn {
+.map-action-btn, .photo-action-btn { /* Common action button style */
   background: transparent;
   border: 1px solid var(--border-color);
   cursor: pointer;
@@ -253,26 +288,26 @@
   justify-content: center;
   gap: var(--spacing-xs);
   -webkit-tap-highlight-color: transparent;
-  font-size: 0.9rem;
+  font-size: 0.9rem; /* Default for desktop */
 }
 
-.map-action-btn:hover {
+.map-action-btn:hover, .photo-action-btn:hover {
   filter: brightness(0.95);
   box-shadow: var(--shadow);
 }
 
-.map-item-actions-wrapper .delete-map-btn {
+.map-item-actions-wrapper .delete-map-btn, .photo-item-actions-wrapper .delete-photo-btn {
   color: var(--danger-color);
   border-color: var(--danger-color);
 }
 
-.map-item-actions-wrapper .delete-map-btn:hover {
+.map-item-actions-wrapper .delete-map-btn:hover, .photo-item-actions-wrapper .delete-photo-btn:hover {
   background-color: var(--danger-color);
   color: white;
   filter: none;
 }
 
-.map-item-actions-wrapper .export-map-btn {
+.map-item-actions-wrapper .export-map-btn, .photo-item-actions-wrapper .export-photo-btn {
   color: var(--primary-color);
   border-color: var(--primary-color);
 }
@@ -285,6 +320,18 @@
 
 .map-action-btn .icon {
   font-size: 1.25rem;
+}
+/* Specific styles for new photo action buttons */
+.photo-item-actions-wrapper .view-photo-btn,
+.photo-item-actions-wrapper .show-on-map-btn {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+.photo-item-actions-wrapper .view-photo-btn:hover,
+.photo-item-actions-wrapper .show-on-map-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    background-color: var(--bg-secondary);
 }
 
 /* Upload Modal Specific Styles */
@@ -890,16 +937,15 @@ div.modal-footer button#btn-delete-marker {
     max-height: 55vh;
   }
 
-  .map-list-item {
-    flex-wrap: nowrap; /* Prevent map card content itself from wrapping */
-    justify-content: space-between; /* Space content and actions */
-    align-items: center; /* Vertically align content and buttons */
+  .map-list-item, .photo-list-item { /* Apply to all card types */
+    flex-wrap: nowrap; /* Prevent card content itself from wrapping */
+    min-height: 54px; /* Ensure a decent touch target for the whole card */
   }
   
   .map-list-item.active {
     padding: calc(var(--spacing-sm) - 1px);
   }
-  .map-item-actions-wrapper {
+  .map-item-actions-wrapper, .photo-item-actions-wrapper {
     /* MODIFIED: Ensure it's a flex container for buttons */
     display: flex;
     flex-wrap: nowrap; /* CRITICAL: Prevent wrapping onto multiple lines */
@@ -908,11 +954,11 @@ div.modal-footer button#btn-delete-marker {
     width: auto; /* Allow wrapper to size based on content, not necessarily 100% */
   }
 
-  .map-item-actions-wrapper .map-action-btn .btn-text {
-    display: none;
+  .map-action-btn .btn-text, .photo-action-btn .btn-text { /* NEW/MODIFIED */
+    display: none; /* Explicitly hide button text on mobile */
   }
   
-  .map-item-actions-wrapper .map-action-btn {
+  .map-item-actions-wrapper .map-action-btn, .photo-item-actions-wrapper .photo-action-btn {
     /* MODIFIED: Allow buttons to shrink and grow proportionally, but prioritize shrinking */
     flex: 1 1 auto; /* Allow shrinking and growing relative to content, but can shrink more */
     min-width: 32px; /* A reasonable minimum for an icon-only touch target */
@@ -920,12 +966,12 @@ div.modal-footer button#btn-delete-marker {
     padding: var(--spacing-sm); /* Keep good touch target padding */
     font-size: 0.85rem; /* Slightly smaller font size if text needs to be shown for debugging/consistency */
   }
-  .map-card-content {
+  .map-card-content, .photo-card-content {
       flex-shrink: 1; /* Allow content info to shrink if needed to make space for buttons */
       min-width: 0; /* Allow content to shrink below its intrinsic size */
   }
 
-  .map-info {
+  .map-info, .photo-info {
       min-width: 0; /* Allow map details to truncate if needed */
       white-space: nowrap; /* Try to keep map info on one line if possible */
       overflow: hidden;
@@ -933,32 +979,32 @@ div.modal-footer button#btn-delete-marker {
   }
 
   /* Ensure the icons for action buttons are visible and properly sized */
-  .map-action-btn { /* This style is defined higher up in this block, ensuring it's applied */
+  .map-action-btn, .photo-action-btn { /* This style is defined higher up in this block, ensuring it's applied */
     font-size: 1.1rem; /* Slightly larger icon for better visibility */
   }
 
 
-  .map-thumbnail-container {
+  .map-thumbnail-container, .photo-thumbnail-container {
     width: 50px;
     height: 50px;
   }
   
-  .map-initials {
+  .map-initials, .photo-initials {
     font-size: 1rem;
   }
 
-  .map-info {
+  .map-info, .photo-info {
     flex-basis: auto;
     flex-grow: 1;
     margin-right: var(--spacing-sm);
   }
   
-  .map-name {
+  .map-name, .photo-name {
     font-size: 0.95rem;
     margin-bottom: var(--spacing-xs);
   }
   
-  .map-details {
+  .map-details, .photo-details {
     font-size: 0.75rem;
   }
   
@@ -1150,7 +1196,7 @@ div.modal-footer button#btn-delete-marker {
     max-height: 50vh;
   }
 
-  .map-list-item {
+  .map-list-item, .photo-list-item { /* Apply to all card types */
     padding: var(--spacing-xs);
     margin-bottom: var(--spacing-xs);
   }
@@ -1159,21 +1205,21 @@ div.modal-footer button#btn-delete-marker {
     padding: calc(var(--spacing-xs) - 1px);
   }
 
-  .map-thumbnail-container {
+  .map-thumbnail-container, .photo-thumbnail-container {
     width: 40px;
     height: 40px;
   }
   
-  .map-initials {
+  .map-initials, .photo-initials {
     font-size: 0.9rem;
   }
 
-  .map-name {
+  .map-name, .photo-name {
     font-size: 0.85rem;
     margin-bottom: 0;
   }
   
-  .map-details {
+  .map-details, .photo-details {
     font-size: 0.65rem;
   }
   

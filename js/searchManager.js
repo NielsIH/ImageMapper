@@ -1,3 +1,4 @@
+// js/searchManager.js
 /**
  * @fileoverview Manages the search modal and its functionality.
  */
@@ -31,6 +32,7 @@ export class SearchManager {
     this.clearSearchTextBtn = modalElement.querySelector('#clear-search-text-btn')
     this.searchResultsContainer = modalElement.querySelector('#search-results-container')
     this.searchInitialMessage = modalElement.querySelector('#search-initial-message')
+    // this.searchOptionsContainer = modalElement.querySelector('#search-options-container') // Assuming this is part of the modal for future use
 
     this.handleSearchInput()
   }
@@ -68,6 +70,7 @@ export class SearchManager {
     this.clearSearchTextBtn = null
     this.searchResultsContainer = null
     this.searchInitialMessage = null
+    // this.searchOptionsContainer = null // Clean up this if used
     console.log('Search modal closed and SearchManager cleaned up.')
   }
 
@@ -120,55 +123,88 @@ export class SearchManager {
     this.searchResultsContainer.innerHTML = '<p class="text-secondary text-center">Searching...</p>'
     this.searchInitialMessage.classList.add('hidden')
 
+    // Fetch both map and photo results
     const mapResults = await this.appCallbacks.searchMaps(query)
+    const photoResults = await this.appCallbacks.searchPhotos(query) // NEW: Fetch photo results
 
-    this._displayResults(mapResults)
+    this._displayResults(mapResults, photoResults) // Modified to pass both
   }
 
-  _displayResults (mapResults) {
+  _displayResults (mapResults, photoResults) { // Modified to accept photoResults
     if (!this.searchResultsContainer || !this.searchInitialMessage) {
       console.error('SearchManager: Critical DOM elements not available for _displayResults. Skipped.')
       return
     }
     this.searchResultsContainer.innerHTML = ''
 
-    if (mapResults.length === 0) {
+    if (mapResults.length === 0 && photoResults.length === 0) { // Check both
       this.searchResultsContainer.innerHTML = '<p class="text-secondary text-center">No results found for your search.</p>'
       this.searchInitialMessage.classList.remove('hidden')
       return
     }
 
-    const mapsSection = document.createElement('div')
-    mapsSection.classList.add('search-results-section')
-    mapsSection.innerHTML = '<h4>Maps Found</h4>'
-    const mapsListUl = document.createElement('ul')
-    mapsListUl.classList.add('maps-list')
+    // --- Display Map Results ---
+    if (mapResults.length > 0) {
+      const mapsSection = document.createElement('div')
+      mapsSection.classList.add('search-results-section')
+      mapsSection.innerHTML = '<h4>Maps Found</h4>'
+      const mapsListUl = document.createElement('ul')
+      mapsListUl.classList.add('maps-list') // Keep this class for maps
 
-    mapResults.forEach(map => {
-      const mapCardCallbacks = {
-        onMapSelected: async (mapId) => {
-          await this.appCallbacks.switchToMap(mapId)
-          this.modalManager.closeTopModal()
-        },
-        onMapDelete: async (mapId) => {
-          if (confirm('Are you sure you want to delete this map? This cannot be undone!')) {
-            await this.appCallbacks.deleteMap(mapId)
-            this.performSearch()
+      mapResults.forEach(map => {
+        const mapCardCallbacks = {
+          onMapSelected: async (mapId) => {
+            await this.appCallbacks.switchToMap(mapId)
+            this.modalManager.closeTopModal()
+          },
+          onMapDelete: async (mapId) => {
+            if (confirm('Are you sure you want to delete this map? This cannot be undone!')) {
+              await this.appCallbacks.deleteMap(mapId)
+              this.performSearch()
+            }
+          },
+          onExportHtmlMap: async (mapId) => {
+            await this.appCallbacks.exportHtmlReport(mapId)
+          },
+          onExportJsonMap: async (mapId) => {
+            await this.appCallbacks.exportJsonMap(mapId)
+          },
+          onViewImageInViewer: (mapId, itemType) => this.appCallbacks.onViewImageInViewer(mapId, itemType)
+        }
+        const mapCard = UIRenderer.createCardElement(map, 'map', mapCardCallbacks, false)
+        mapsListUl.appendChild(mapCard)
+      })
+      mapsSection.appendChild(mapsListUl)
+      this.searchResultsContainer.appendChild(mapsSection)
+    }
+
+    // --- Display Photo Results --- NEW SECTION
+    if (photoResults.length > 0) {
+      const photosSection = document.createElement('div')
+      photosSection.classList.add('search-results-section')
+      photosSection.innerHTML = '<h4>Photos Found</h4>'
+      const photosListUl = document.createElement('ul')
+      photosListUl.classList.add('photos-list') // New class for photos
+
+      photoResults.forEach(photo => {
+        const photoCardCallbacks = {
+          onViewPhotoInViewer: async (photoData) => { // photoData includes mapId, markerId, photoId, etc.
+            await this.appCallbacks.onViewImageInViewer(photoData, 'photo') // Pass photoData and type
+          },
+          onShowPhotoOnMap: async (photoData) => { // photoData includes mapId, markerId, photoId
+            // This callback will handle switching map and centering marker
+            await this.appCallbacks.onShowPhotoOnMap(photoData)
+            this.modalManager.closeTopModal() // Close search modal after action
           }
-        },
-        onExportHtmlMap: async (mapId) => {
-          await this.appCallbacks.exportHtmlReport(mapId)
-        },
-        onExportJsonMap: async (mapId) => {
-          await this.appCallbacks.exportJsonMap(mapId)
-        },
-        onViewImageInViewer: (mapId, itemType) => this.appCallbacks.onViewImageInViewer(mapId, itemType) // NEW: Pass the map image viewer callback
-      }
-      const mapCard = UIRenderer.createCardElement(map, 'map', mapCardCallbacks, false)
-      mapsListUl.appendChild(mapCard)
-    })
-    mapsSection.appendChild(mapsListUl)
-    this.searchResultsContainer.appendChild(mapsSection)
+        }
+        // UIRenderer will need to be updated to handle 'photo' type cards
+        const photoCard = UIRenderer.createCardElement(photo, 'photo', photoCardCallbacks, false)
+        photosListUl.appendChild(photoCard)
+      })
+      photosSection.appendChild(photosListUl)
+      this.searchResultsContainer.appendChild(photosSection)
+    }
+
     this.searchInitialMessage.classList.add('hidden')
   }
 }

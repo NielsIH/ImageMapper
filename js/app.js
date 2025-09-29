@@ -30,13 +30,16 @@ class ImageMapperApp {
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
       searchMaps: (query) => this.searchMaps(query),
+      searchPhotos: (query) => this.searchPhotos(query), // NEW: Photo search callback
       switchToMap: (mapId) => this.switchToMap(mapId),
       deleteMap: (mapId) => this.deleteMap(mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
       onSearchFileSelect: () => this.handleSearchFileSelection(),
-      onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type)
+      onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type),
+      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData) // NEW: Show photo on map callback
     })
+
     this.mapRenderer = new MapRenderer('map-canvas')
     this.currentMap = null
     this.mapsList = []
@@ -703,6 +706,87 @@ class ImageMapperApp {
       this.searchManager.openSearchModal()
     } finally {
       this.hideLoading() // Always hide loading in the end
+    }
+  }
+
+  /**
+   * Searches for photos by filename (case-insensitive).
+   * @param {string} query - The search query.
+   * @returns {Promise<Array>} - An array of enriched photo objects matching the query.
+   */
+  async searchPhotos (query) {
+    if (!query) {
+      return []
+    }
+    const searchTerm = query.toLowerCase()
+    const allEnrichedPhotos = await this.storage.getAllPhotosWithContext()
+
+    // Generate thumbnails for each photo before returning them
+    const preparedPhotos = await Promise.all(allEnrichedPhotos.map(async (photo) => {
+      let thumbnailDataUrl = this.thumbnailCache.get(photo.id)
+      if (!thumbnailDataUrl && photo.imageData instanceof Blob) {
+        try {
+          const photoThumbnailSettings = this.imageCompressionSettings.thumbnail
+          thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(photo.imageData, photoThumbnailSettings.maxSize)
+          if (thumbnailDataUrl) {
+            this.thumbnailCache.set(photo.id, thumbnailDataUrl)
+          }
+        } catch (thumbError) {
+          console.warn(`App: Failed to generate thumbnail for photo ${photo.id}:`, thumbError)
+          thumbnailDataUrl = null
+        }
+      }
+      return { ...photo, thumbnailDataUrl }
+    }))
+
+    return preparedPhotos.filter(photo =>
+      photo.fileName.toLowerCase().includes(searchTerm)
+    )
+  }
+
+  /**
+   * Handles displaying a photo on its respective map, focusing on the associated marker.
+   * @param {Object} photoData - The enriched photo object containing mapId, markerId, etc.
+   */
+  async onShowPhotoOnMap (photoData) {
+    if (!photoData || !photoData.mapId || !photoData.markerId) {
+      console.error('App: Invalid photoData for onShowPhotoOnMap', photoData)
+      return
+    }
+
+    this.showLoading(`Showing photo ${photoData.fileName} on map ${photoData.mapName}...`)
+
+    try {
+      // 1. Switch to the map where the photo's marker is located
+      // This will also trigger mapRenderer to load and render the correct map.
+      await this.switchToMap(photoData.mapId)
+
+      // 2. Fetch the marker to get its coordinates
+      const marker = await this.storage.getMarker(photoData.markerId)
+      if (marker) {
+        // Close search modal if it's open, as we're navigating to the map
+        this.modalManager.closeTopModal() // This closes the search modal
+
+        // 3. Pan and zoom the map to center on the marker
+        // The `panAndZoomToCoordinates` method will be added to MapRenderer.
+        const targetZoomFactor = 1.5 // Example: zoom to 1.5 times the current scale, or an absolute scale
+        this.mapRenderer.panAndZoomToCoordinates(marker.x, marker.y, targetZoomFactor)
+
+        // 4. Highlight the marker to draw attention to it
+        // The `highlightMarker` method will be added to MapRenderer.
+        this.mapRenderer.highlightMarker(marker.id)
+
+        this.showNotification(`Focused on marker for photo "${photoData.fileName}"`, 'info')
+        console.log(`App: Focused on marker ${marker.id} on map ${photoData.mapId} for photo ${photoData.id}`)
+      } else {
+        console.warn(`App: Marker ${photoData.markerId} not found for photo ${photoData.id}. Cannot focus on marker.`)
+        this.showNotification(`Could not find marker for photo "${photoData.fileName}" on map.`, 'warning')
+      }
+    } catch (error) {
+      console.error(`App: Error showing photo ${photoData.id} on map:`, error)
+      this.showErrorMessage('Error Showing Photo on Map', `Failed to show photo on map: ${error.message}`)
+    } finally {
+      this.hideLoading()
     }
   }
 
