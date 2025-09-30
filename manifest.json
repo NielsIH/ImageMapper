@@ -1,8 +1,8 @@
 {
-  "name": "Image Mapper App",
-  "short_name": "Image Mapper",
+  "name": "SnapSpot App",
+  "short_name": "SnapSpot",
   "description": "Map photos and images to specific locations on any map or floor plan",
-  "id": "/ImageMapper/",
+  "id": "/SnapSpot/",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",

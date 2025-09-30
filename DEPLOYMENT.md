@@ -5,7 +5,7 @@
 ### 1. Create GitHub Repository
 1. Go to [GitHub.com](https://github.com) and sign in
 2. Click "New repository" (green button)
-3. Name it: `ImageMapper` (or your preferred name)
+3. Name it: `SnapSpot` (or your preferred name)
 4. Make it **Public** (required for free GitHub Pages)
 5. ✅ Check "Add a README file"
 6. Click "Create repository"
@@ -45,7 +45,7 @@ git push origin main
 6. Click **Save**
 
 ### 4. Get Your App URL
-- GitHub will show you the URL: `https://YOURUSERNAME.github.io/ImageMapper`
+- GitHub will show you the URL: `https://YOURUSERNAME.github.io/SnapSpot`
 - It may take 2-10 minutes to become available
 - Share this URL with your team
 

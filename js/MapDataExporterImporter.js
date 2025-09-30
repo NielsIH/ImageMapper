@@ -3,7 +3,7 @@
 /* global Blob, URL, crypto */ // Declare global objects used in this file
 
 /**
- * Utility class for managing the export and import of Image Mapper data.
+ * Utility class for managing the export and import of SnapSpot data.
  * This includes maps, markers, and their associated photo data.
  * It handles the necessary conversions between Blob and Base64 formats
  * for image data to be included in JSON files.
@@ -58,8 +58,8 @@ export class MapDataExporterImporter {
     // 4. Assemble the full export object
     const exportObject = {
       version: '1.0', // Data structure version for future compatibility
-      type: 'ImageMapperDataExport', // A unique identifier for this type of JSON file
-      sourceApp: 'ImageMapper PWA', // For informational purposes, identifies the source app
+      type: 'SnapSpotDataExport', // A unique identifier for this type of JSON file
+      sourceApp: 'SnapSpot PWA', // For informational purposes, identifies the source app
       timestamp: new Date().toISOString(), // UTC timestamp when the export was created
       map: exportMap,
       markers: exportMarkers,
@@ -76,7 +76,7 @@ export class MapDataExporterImporter {
     const a = document.createElement('a')
     a.href = url
     // Generate a user-friendly filename based on map name and date
-    a.download = `ImageMapper_Export_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `SnapSpot_Export_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -96,7 +96,7 @@ export class MapDataExporterImporter {
      * @param {object} ImageProcessorClass The ImageProcessor CLASS itself (not an instance) for base64ToBlob method.
      * @returns {Promise<{map: object, markers: Array<object>, photos: Array<object>}>} The imported data,
      *          with image data as Blobs and new UIDs, ready for storage.
-     * @throws {Error} If the JSON data is invalid or not an ImageMapper export.
+     * @throws {Error} If the JSON data is invalid or not an SnapSpot export.
      */
   static async importData (jsonString, ImageProcessorClass) {
     console.log('MapDataExporterImporter: Attempting to import data...')
@@ -107,8 +107,8 @@ export class MapDataExporterImporter {
       throw new Error('MapDataExporterImporter: Invalid JSON file. Could not parse data. Error: ' + error.message)
     }
 
-    if (importObject.type !== 'ImageMapperDataExport' || importObject.version !== '1.0' || !importObject.map || !importObject.markers || !importObject.photos) {
-      throw new Error('MapDataExporterImporter: Invalid ImageMapper export file. Version mismatch or incorrect type/structure.')
+    if (importObject.type !== 'SnapSpotDataExport' || importObject.version !== '1.0' || !importObject.map || !importObject.markers || !importObject.photos) {
+      throw new Error('MapDataExporterImporter: Invalid SnapSpot export file. Version mismatch or incorrect type/structure.')
     }
 
     // --- DEBUGGING START ---

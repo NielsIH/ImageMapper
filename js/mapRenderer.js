@@ -1,5 +1,5 @@
 /**
- * Image Mapper PWA - Map Rendering System
+ * SnapSpot PWA - Map Rendering System
  */
 
 /* global console, document, window, Image, URL */

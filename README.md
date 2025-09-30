@@ -1,4 +1,4 @@
-# Image Mapper PWA
+# SnapSpot PWA
 
 A Progressive Web App for mapping photos and images to specific locations on any map or floor plan. Perfect for construction sites, archaeological surveys, property inspections, event planning, and more. Designed to work offline for use in any environment.
 
@@ -64,7 +64,7 @@ image-mapper/
 ## Getting Started
 
 ### 🚀 Live Demo
-Visit the deployed app: `https://nielsih.github.io/ImageMapper`
+Visit the deployed app: `https://nielsih.github.io/SnapSpot`
 
 ### 📱 Install as PWA
 1. Visit the app URL on any device
@@ -188,7 +188,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 
 ## Use Cases
 
-**Image Mapper is perfect for:**
+**SnapSpot is perfect for:**
 - **Construction projects** - Map progress photos to floor plans and site layouts  
 - **Archaeological surveys** - Document findings with precise location mapping
 - **Property inspections** - Link inspection photos to property maps and floor plans

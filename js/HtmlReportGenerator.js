@@ -9,7 +9,7 @@ export class HtmlReportGenerator {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ImageMapper Report - _MAP_NAME_</title>
+<title>SnapSpot Report - _MAP_NAME_</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f8f8f8; }
 .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
@@ -85,7 +85,7 @@ header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #ddd;
 <body>
 <div class="container">
 <header>
-<h1>ImageMapper Report</h1>
+<h1>SnapSpot Report</h1>
 <p><strong>Map:</strong> _MAP_NAME_ (_MAP_WIDTH_ &times; _MAP_HEIGHT_ px)</p>
 <p>Generated on: _GENERATED_DATE_</p>
 </header>
@@ -105,7 +105,7 @@ _PHOTO_MARKER_LIST_HTML_
 </div>
 <footer>
 <div class="container">
-<p>&copy; _CURRENT_YEAR_. Report generated from Image Mapper.</p>
+<p>&copy; _CURRENT_YEAR_. Report generated from SnapSpot.</p>
 </footer>
 </div>
 <script type="text/javascript">
@@ -428,7 +428,7 @@ _PHOTO_MAP_SCRIPT_JS_
 
     const a = document.createElement('a')
     a.href = url
-    a.download = `ImageMapper_Report_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.html`
+    a.download = `SnapSpot_Report_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.html`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

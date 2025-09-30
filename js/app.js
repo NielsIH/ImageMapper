@@ -1,5 +1,5 @@
 /**
- * Image Mapper PWA - Main Application
+ * SnapSpot PWA - Main Application
  * Phase 1B: File Management and Storage
  */
 
@@ -21,7 +21,7 @@ import { SearchManager } from './searchManager.js' // NEW import
 import { ModalManager } from './ui/modals.js' // Note the path for ModalManager
 // --- End Module Imports ---
 
-class ImageMapperApp {
+class SnapSpotApp {
   constructor () {
     this.isOnline = navigator.onLine
     this.serviceWorkerReady = false
@@ -117,7 +117,7 @@ class ImageMapperApp {
    * Initialize the application
    */
   async init () {
-    console.log('Image Mapper App: Initializing...')
+    console.log('SnapSpot App: Initializing...')
 
     try {
       // Set up event listeners
@@ -167,9 +167,9 @@ class ImageMapperApp {
       // Initialize app state (this should be the final status update, not intermediate ones)
       this.updateAppStatus('Ready')
 
-      console.log('Image Mapper App: Initialization complete')
+      console.log('SnapSpot App: Initialization complete')
     } catch (error) {
-      console.error('Image Mapper App: Initialization failed', error)
+      console.error('SnapSpot App: Initialization failed', error)
       this.updateAppStatus('Error: Initialization failed')
       this.showErrorMessage('Failed to initialize app', error.message)
     }
@@ -2688,7 +2688,7 @@ class ImageMapperApp {
 }
 
 // Initialize the app
-const app = new ImageMapperApp()
+const app = new SnapSpotApp()
 
 // Make app available globally for debugging
-window.imageMapperApp = app
+window.SnapSpotApp = app

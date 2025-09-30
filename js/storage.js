@@ -1,5 +1,5 @@
 /**
- * Image Mapper PWA - Storage System
+ * SnapSpot PWA - Storage System
  * Phase 1C: IndexedDB wrapper for map metadata, markers, and photos
  */
 
@@ -11,7 +11,7 @@
 /* global indexedDB */
 export class MapStorage {
   constructor () {
-    this.dbName = 'ImageMapperDB'
+    this.dbName = 'SnapSpotDB'
     this.version = 2 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps' // Renamed for clarity

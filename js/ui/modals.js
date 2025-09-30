@@ -1,5 +1,5 @@
 /**
- * Image Mapper PWA - Modal Components
+ * SnapSpot PWA - Modal Components
  * Phase 1B: Modal system for file upload and map management
  */
 

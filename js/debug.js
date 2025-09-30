@@ -1,5 +1,5 @@
 /**
- * Debug utilities for Image Mapper PWA
+ * Debug utilities for SnapSpot PWA
  * Phase 1B: Storage testing and debugging
  */
 
@@ -7,7 +7,7 @@
 
 // Global helper functions that are always available (even after F5)
 window.enableDevButtons = function () {
-  localStorage.setItem('imagemapper-dev-buttons', 'true')
+  localStorage.setItem('SnapSpot-dev-buttons', 'true')
   console.log('✅ Dev buttons enabled - will auto-load on refresh')
 
   // Try to add buttons now if possible
@@ -19,7 +19,7 @@ window.enableDevButtons = function () {
 }
 
 window.disableDevButtons = function () {
-  localStorage.setItem('imagemapper-dev-buttons', 'false')
+  localStorage.setItem('SnapSpot-dev-buttons', 'false')
   console.log('❌ Dev buttons disabled')
 
   // Try to remove buttons now if possible
@@ -431,7 +431,7 @@ class DebugUtils {
    * Enable auto-loading of dev buttons on page refresh
    */
   enableAutoDevButtons () {
-    localStorage.setItem('imagemapper-dev-buttons', 'true')
+    localStorage.setItem('SnapSpot-dev-buttons', 'true')
     console.log('✅ Dev buttons will auto-load on refresh')
 
     // Add them now if not already present
@@ -444,7 +444,7 @@ class DebugUtils {
    * Disable auto-loading of dev buttons
    */
   disableAutoDevButtons () {
-    localStorage.setItem('imagemapper-dev-buttons', 'false')
+    localStorage.setItem('SnapSpot-dev-buttons', 'false')
     console.log('❌ Dev buttons auto-load disabled')
   }
 
@@ -452,17 +452,17 @@ class DebugUtils {
    * Check if auto dev buttons is enabled
    */
   isAutoDevButtonsEnabled () {
-    return localStorage.getItem('imagemapper-dev-buttons') === 'true'
+    return localStorage.getItem('SnapSpot-dev-buttons') === 'true'
   }
 }
 
 // Function to try loading debugUtils with retries
 function tryLoadDebugUtils () {
-  if (window.imageMapperApp) {
-    window.debugUtils = new DebugUtils(window.imageMapperApp)
+  if (window.SnapSpotApp) {
+    window.debugUtils = new DebugUtils(window.SnapSpotApp)
 
     // Check if we should auto-load dev buttons
-    const autoLoadDevButtons = localStorage.getItem('imagemapper-dev-buttons') === 'true'
+    const autoLoadDevButtons = localStorage.getItem('SnapSpot-dev-buttons') === 'true'
     console.log('Debug: Checking auto-load dev buttons:', autoLoadDevButtons)
 
     if (autoLoadDevButtons) {
@@ -496,8 +496,8 @@ function tryLoadDebugUtils () {
     console.log('- debugUtils.disableAutoDevButtons() - Disable auto-load')
     console.log('')
     console.log('🔧 SIMPLE F5-SAFE COMMANDS:')
-    console.log('- localStorage.setItem("imagemapper-dev-buttons", "true") then refresh')
-    console.log('- localStorage.setItem("imagemapper-dev-buttons", "false") to disable')
+    console.log('- localStorage.setItem("SnapSpot-dev-buttons", "true") then refresh')
+    console.log('- localStorage.setItem("SnapSpot-dev-buttons", "false") to disable')
 
     return true
   }

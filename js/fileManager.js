@@ -1,5 +1,5 @@
 /**
- * Image Mapper PWA - File Management System
+ * SnapSpot PWA - File Management System
  * Phase 1B: File handling and image processing
  */
 

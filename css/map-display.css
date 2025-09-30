@@ -25,6 +25,7 @@
   touch-action: none;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  
 }
 
 #action-buttons-container {
@@ -177,6 +178,7 @@
         margin-top: 0.1em;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
     }
 
@@ -235,6 +237,7 @@
         margin-top: 0.05em;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
     }
 
@@ -258,6 +261,10 @@
         top: unset; right: unset; width: fit-content;
         gap: var(--spacing-xxs); padding: var(--spacing-xxs);
         flex-wrap: nowrap;
+    }
+
+    .zoom-controls {
+        display: none; /* <<< HIDE ZOOM CONTROLS ON SMALL PHONES IN PORTRAIT */
     }
 
     .zoom-btn {
@@ -287,6 +294,7 @@
         margin-top: 0;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         padding: 0;
     }
@@ -338,6 +346,7 @@
         margin-top: 0.1em;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         padding: 0;
     }
@@ -351,11 +360,5 @@
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         overflow: visible;
         flex-shrink: 0;
-    }
-}
-
-@media (pointer: coarse) and (hover: none) {
-    .zoom-controls {
-        display: none;
     }
 }
