@@ -7,7 +7,7 @@
  * Modal manager for creating and managing modal dialogs
  */
 
-/* global document, window DOMParser requestAnimationFrame confirm */
+/* global document, window DOMParser requestAnimationFrame confirm alert */
 
 import { UIRenderer } from './uiRenderer.js'
 import { FileManager } from '../fileManager.js'
@@ -1521,5 +1521,146 @@ export class ModalManager {
       searchInput?.focus() // Focus the search input directly
     })
     return modal
+  }
+
+  /**
+   * Creates and displays a modal for the user to decide how to process an imported map
+   * that matches existing maps by image content.
+   * @param {Array<Object>} existingMaps - An array of map objects that match the imported data's image hash.
+   * @returns {Promise<{action: string, selectedMapId?: string}|null>} A promise that resolves with the user's
+   *          chosen action ('merge', 'replace', 'new') and the ID of the selected existing map (if applicable),
+   *          or null if the user cancels.
+   */
+  createImportDecisionModal (existingMaps) {
+    if (!existingMaps || existingMaps.length === 0) {
+      console.error('ModalManager: createImportDecisionModal called without existingMaps.')
+      return Promise.resolve(null)
+    }
+
+    const modalId = 'import-decision-modal'
+    let resolvePromise // Will be set by the new Promise constructor
+    const userChoicePromise = new Promise((resolve) => {
+      resolvePromise = resolve
+    })
+
+    const mapsHtml = existingMaps.map(map => `
+      <div class="form-group map-selection-item">
+        <label class="radio-label">
+          <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" />
+          <span class="checkmark"></span>
+          <strong>${map.name}</strong> 
+          <span class="text-secondary text-xs">(${map.id.substring(map.id.length - 8)})</span>
+        </label>
+      </div>
+    `).join('')
+
+    const modalHtml = `
+      <div class="modal" id="${modalId}">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content large-modal">
+          <div class="modal-header">
+            <h3>Import Decision</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <p>An imported map matches existing map(s) on this device based on its image content. Please choose how to proceed:</p>
+            
+            <div class="form-group">
+                <label>Select an existing map to act upon:</label>
+                <div class="map-selection-list">${mapsHtml}</div>
+            </div>
+
+            <div class="button-group decision-buttons">
+                <button class="btn btn-primary" id="btn-action-merge" type="button" disabled>Merge into selected map</button>
+                <button class="btn btn-warning" id="btn-action-replace" type="button" disabled>Replace selected map</button>
+                <button class="btn btn-secondary" id="btn-action-new" type="button">Import as new map</button>
+            </div>
+            <p class="text-secondary text-xs mt-sm">
+                <strong>Merge:</strong> Add imported markers/photos to the selected existing map. Duplicate markers will be skipped, but new photos attached to them will be added.
+            </p>
+            <p class="text-secondary text-xs">
+                <strong>Replace:</strong> Delete the selected existing map and import this data as a new map, taking its place (retains its ID).
+            </p>
+            <p class="text-secondary text-xs">
+                <strong>Import as new:</strong> Import this data as a completely new map with a new ID, ignoring existing matches.
+            </p>
+          </div>
+           <div class="modal-footer">
+            <button class="btn btn-secondary" id="btn-cancel-decision" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `
+
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create import decision modal element.')
+      resolvePromise(null)
+      return userChoicePromise
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    const closeAndResolve = (result) => {
+      this.closeModal(modal).then(() => resolvePromise(result))
+    }
+
+    modal.querySelector('.modal-close')?.addEventListener('click', () => closeAndResolve(null))
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', () => closeAndResolve(null))
+    modal.querySelector('#btn-cancel-decision')?.addEventListener('click', () => closeAndResolve(null))
+
+    const mergeBtn = modal.querySelector('#btn-action-merge')
+    const replaceBtn = modal.querySelector('#btn-action-replace')
+    const importNewBtn = modal.querySelector('#btn-action-new')
+    const radioButtons = modal.querySelectorAll('input[name="selectedMap"]')
+
+    let selectedMapId = null // Stores the ID of the map selected by radio button
+
+    const updateButtonStates = () => {
+      const hasSelection = selectedMapId !== null
+      mergeBtn.disabled = !hasSelection
+      replaceBtn.disabled = !hasSelection
+    }
+
+    radioButtons.forEach(radio => {
+      radio.addEventListener('change', (event) => {
+        selectedMapId = event.target.value
+        updateButtonStates()
+      })
+    })
+
+    mergeBtn?.addEventListener('click', () => {
+      if (selectedMapId) {
+        closeAndResolve({ action: 'merge', selectedMapId })
+      } else {
+        alert('Please select an existing map to merge into.')
+      }
+    })
+
+    replaceBtn?.addEventListener('click', () => {
+      if (selectedMapId) {
+        if (confirm(`Are you sure you want to REPLACE the map "${modal.querySelector(`input[value="${selectedMapId}"]`).dataset.mapName}"? This action will permanently delete its current markers and photos and override it with the imported data.`)) {
+          closeAndResolve({ action: 'replace', selectedMapId })
+        }
+      } else {
+        alert('Please select an existing map to replace.')
+      }
+    })
+
+    importNewBtn?.addEventListener('click', () => {
+      closeAndResolve({ action: 'new' })
+    })
+
+    // Initial state of buttons
+    updateButtonStates()
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show')
+    })
+
+    return userChoicePromise
   }
 }

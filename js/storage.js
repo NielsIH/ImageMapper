@@ -1,3 +1,6 @@
+/* eslint-disable no-console */
+/* global indexedDB */
+
 /**
  * SnapSpot PWA - Storage System
  * Phase 1C: IndexedDB wrapper for map metadata, markers, and photos
@@ -7,12 +10,10 @@
  * IndexedDB wrapper for managing map storage
  * Stores map metadata, marker data, and photo data (blobs)
  */
-
-/* global indexedDB */
 export class MapStorage {
   constructor () {
     this.dbName = 'SnapSpotDB'
-    this.version = 2 // Increment the database version for schema changes!
+    this.version = 3 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps' // Renamed for clarity
     this.markerStoreName = 'markers' // New store name
@@ -57,19 +58,24 @@ export class MapStorage {
         }
 
         // Create or upgrade maps object store
+        let mapStore
         if (!db.objectStoreNames.contains(this.mapStoreName)) {
-          const mapStore = db.createObjectStore(this.mapStoreName, {
+          mapStore = db.createObjectStore(this.mapStoreName, {
             keyPath: this.keyPath
           })
           mapStore.createIndex('name', 'name', { unique: false })
           mapStore.createIndex('createdDate', 'createdDate', { unique: false })
           mapStore.createIndex('lastModified', 'lastModified', { unique: false })
           mapStore.createIndex('isActive', 'isActive', { unique: false })
+          mapStore.createIndex('imageHash', 'imageHash', { unique: false }) // NEW: Index for image hash
           console.log('MapStorage: Maps object store created/upgraded with indexes')
         } else {
-          // If already exists, ensure previous indexes are still valid or add new ones if needed
-          // For now, assume existing indexes are fine, but in future, you might check/add specific indexes here,
-          // e.g., if (mapStore.indexNames.contains('newIndex')) { ... }
+          mapStore = transaction.objectStore(this.mapStoreName)
+          // Check if index already exists. Add if not.
+          if (!mapStore.indexNames.contains('imageHash')) {
+            mapStore.createIndex('imageHash', 'imageHash', { unique: false })
+            console.log('MapStorage: Added "imageHash" index to maps object store')
+          }
         }
 
         // --- NEW: Create markers object store ---
@@ -107,19 +113,23 @@ export class MapStorage {
   /**
    * Add a new map to storage
    * @param {Object} mapData - Map metadata object
+   * @param {string} mapData.id - (Optional) Pre-defined ID for the map. If not provided, a new one is generated.
+   * @param {string} mapData.imageHash - The SHA256 hash of the map image content.
+   * @param {Blob} mapData.imageData - The actual image Blob for the map.
    * @returns {Promise<Object>} - The saved map object with generated ID
    */
   async addMap (mapData) {
     if (!this.db) {
       throw new Error('Storage not initialized')
     }
-    // Ensure mapData.imageData is a Blob if provided
-    if (mapData.imageData && !(mapData.imageData instanceof Blob)) {
-      throw new Error('MapStorage: imageData must be a Blob object if provided.')
+
+    // Ensure imageData is a Blob if provided. This is crucial.
+    if (mapData.imageData !== null && mapData.imageData !== undefined && !(mapData.imageData instanceof Blob)) {
+      throw new Error('MapStorage: imageData must be a Blob object if provided (or null/undefined).')
     }
 
     const map = {
-      id: this.generateId('map'), // Use generateId with prefix
+      id: mapData.id || this.generateId('map'),
       name: mapData.name || 'Untitled Map',
       description: mapData.description || '',
       fileName: mapData.fileName || '',
@@ -131,7 +141,8 @@ export class MapStorage {
       createdDate: new Date(),
       lastModified: new Date(),
       isActive: mapData.isActive || false,
-      imageData: mapData.imageData || null,
+      imageHash: mapData.imageHash || null,
+      imageData: mapData.imageData || null, // RE-ADDED: Store the actual image Blob itself
       settings: {
         defaultZoom: 1,
         allowMarkers: true,
@@ -158,11 +169,7 @@ export class MapStorage {
   }
 
   /**
-   * Get all maps from storage, enriched with marker count.
-   * This method fetches raw map data and calculates marker counts.
-   * Thumbnail Data URL generation is left to the application logic (e.g., App.js).
-   * @returns {Promise<Array<Object>>} - Array of all map objects, each including a 'markerCount' property.
-   */
+   * Get all maps from storage, enriched with marker count.\n   * This method fetches raw map data and calculates marker counts.\n   * Thumbnail Data URL generation is left to the application logic (e.g., App.js).\n   * @returns {Promise<Array<Object>>} - Array of all map objects, each including a 'markerCount' property.\n   */
   async getAllMaps () { // Modified to include markerCount and full map object
     if (!this.db) {
       throw new Error('Storage not initialized')
@@ -222,6 +229,39 @@ export class MapStorage {
       request.onerror = () => {
         console.error('MapStorage: Failed to get map', request.error)
         reject(new Error(`Failed to load map: ${request.error}`))
+      }
+    })
+  }
+
+  // NEW: Get maps by imageHash
+  /**
+   * Get maps by imageHash
+   * @param {string} imageHash - The SHA256 hash of the map image content.
+   * @returns {Promise<Array<Object>>} - Array of map objects matching the hash.
+   */
+  async getMapsByImageHash (imageHash) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+    if (!imageHash) {
+      return [] // No hash provided, no maps to find
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.mapStoreName], 'readonly')
+      const store = transaction.objectStore(this.mapStoreName)
+      const index = store.index('imageHash') // Use the new index
+      const request = index.getAll(imageHash)
+
+      request.onsuccess = () => {
+        const maps = request.result || []
+        console.log(`MapStorage: Retrieved ${maps.length} maps for image hash ${imageHash}`)
+        resolve(maps)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get maps by image hash', request.error)
+        reject(new Error(`Failed to load maps by image hash: ${request.error}`))
       }
     })
   }
@@ -440,9 +480,11 @@ export class MapStorage {
     )
   }
 
-  // ========================================\n
-  // NEW: Marker Storage Methods\n
-  // ========================================\n
+  // ========================================
+
+  // NEW: Marker Storage Methods
+
+  // ========================================
 
   /**
    * Add a new marker to storage
@@ -543,7 +585,7 @@ export class MapStorage {
   }
 
   /**
-   * NEW: Get the number of photos associated with a specific marker.
+   * NEW: Get the number of photos associated with a specific marker diluted.
    * @param {string} markerId - The ID of the marker.
    * @param {IDBTransaction} [transaction] - Optional existing transaction.
    * @returns {Promise<number>} - The count of photos for the marker.
@@ -660,9 +702,11 @@ export class MapStorage {
       }
     })
   }
-  // ========================================\n
-  // NEW: Photo Storage Methods\n
-  // ========================================\n
+  // ========================================
+
+  // NEW: Photo Storage Methods
+
+  // ========================================
 
   /**
    * Add a new photo to storage
@@ -840,22 +884,7 @@ export class MapStorage {
   }
 
   /**
-   * Get all photos across all maps and markers, each enriched with its associated marker and map context.
-   *
-   * @returns {Promise<Array<Object>>} - Array of enriched photo objects. Each object
-   *   represents a unique photo record and includes:
-   *   {
-   *     id: photo.id,                  // The unique ID of the photo record
-   *     markerId: photo.markerId,      // The ID of the marker this photo record is attached to
-   *     mapId: map.id,                 // The ID of the map the marker belongs to
-   *     mapName: map.name,             // The name of the map
-   *     markerDescription: marker.description, // Description of the associated marker
-   *     fileName: photo.fileName,
-   *     thumbnailData: photo.thumbnailData,
-   *     imageData: photo.imageData,    // The full image blob (use with caution due to size)
-   *     // ... other original photo properties
-   *   }
-   */
+   * Get all photos across all maps and markers, each enriched with its associated marker and map context.\n   *\n   * @returns {Promise<Array<Object>>} - Array of enriched photo objects. Each object\n   *   represents a unique photo record and includes:\n   *   {\n   *     id: photo.id,                  // The unique ID of the photo record\n   *     markerId: photo.markerId,      // The ID of the marker this photo record is attached to\n   *     mapId: map.id,                 // The ID of the map the marker belongs to\n   *     mapName: map.name,             // The name of the map\n   *     markerDescription: marker.description, // Description of the associated marker\n   *     fileName: photo.fileName,\n   *     thumbnailData: photo.thumbnailData,\n   *     imageData: photo.imageData,    // The full image blob (use with caution due to size)\n   *     // ... other original photo properties\n   *   }\n   */
   async getAllPhotosWithContext () {
     if (!this.db) {
       throw new Error('Storage not initialized')
@@ -995,9 +1024,11 @@ export class MapStorage {
     })
   }
 
-  // ========================================\n
-  // Remaining Utility Methods\n
-  // ========================================\n
+  // ========================================
+
+  // Remaining Utility Methods
+
+  // ========================================
 
   /**
    * Get storage statistics
@@ -1103,6 +1134,8 @@ export class MapStorage {
    * If mapData does not contain an 'id', it will be treated as a new map and
    * the ID will be generated (by delegating to addMap).
    * @param {Object} mapData - The map object to save, must contain 'id' for updates.
+   * @param {string} mapData.imageHash - The SHA256 hash of the map image content.
+   * @param {Blob} mapData.imageData - The actual image Blob for the map.
    * @returns {Promise<Object>} - The saved/updated map object.
    */
   async saveMap (mapData) {
@@ -1110,50 +1143,65 @@ export class MapStorage {
       throw new Error('Storage not initialized')
     }
     // If no ID is provided in mapData, delegate to addMap which generates a new ID.
-    // This handles cases where saveMap might be called for truly new maps.
     if (!mapData.id) {
       console.warn('MapStorage: mapData provided without ID to saveMap, delegating to addMap.')
       return this.addMap(mapData)
     }
-    if (mapData.imageData && !(mapData.imageData instanceof Blob)) {
-      throw new Error('MapStorage: imageData must be a Blob object if provided (or null/undefined, but not Base64 string here).')
+
+    // Ensure imageData is a Blob if provided. This is crucial.
+    // An update might not provide imageData if it's just updating other metadata,
+    // so we get it from existingMap if not provided.
+    if (mapData.imageData !== null && mapData.imageData !== undefined && !(mapData.imageData instanceof Blob)) {
+      throw new Error('MapStorage: imageData must be a Blob object if provided (or null/undefined).')
     }
 
-    const mapToSave = {
-      id: mapData.id, // Use the provided ID
-      name: mapData.name || 'Untitled Map',
-      description: mapData.description || '',
-      fileName: mapData.fileName || '',
-      filePath: mapData.filePath || '', // Keep filePath if it exists (e.g., from import)
-      width: mapData.width || 0,
-      height: mapData.height || 0,
-      fileSize: mapData.fileSize || 0,
-      fileType: mapData.fileType || '',
-      createdDate: mapData.createdDate ? new Date(mapData.createdDate) : new Date(), // Use provided date for imported data if available
-      lastModified: new Date(), // Always update lastModified on save
-      isActive: mapData.isActive || false, // Respect provided isActive status
-      imageData: mapData.imageData || null,
-      settings: {
-        defaultZoom: 1, // Default, but override with any provided
-        allowMarkers: true, // Default, but override with any provided
-        ...mapData.settings
-      }
-    }
+    const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
+    const store = transaction.objectStore(this.mapStoreName)
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
-      const store = transaction.objectStore(this.mapStoreName)
+      store.get(mapData.id).onsuccess = async (event) => {
+        const existingMap = event.target.result
 
-      const request = store.put(mapToSave) // Use put() to add or update based on ID
+        const mapToSave = {
+          id: mapData.id,
+          name: mapData.name || (existingMap ? existingMap.name : 'Untitled Map'),
+          description: mapData.description || (existingMap ? existingMap.description : ''),
+          fileName: mapData.fileName || (existingMap ? existingMap.fileName : ''),
+          filePath: mapData.filePath || (existingMap ? existingMap.filePath : ''),
+          width: mapData.width || (existingMap ? existingMap.width : 0),
+          height: mapData.height || (existingMap ? existingMap.height : 0),
+          fileSize: mapData.fileSize || (existingMap ? existingMap.fileSize : 0),
+          fileType: mapData.fileType || (existingMap ? existingMap.fileType : ''),
+          createdDate: mapData.createdDate ? new Date(mapData.createdDate) : (existingMap ? existingMap.createdDate : new Date()),
+          lastModified: new Date(),
+          isActive: mapData.isActive !== undefined ? mapData.isActive : (existingMap ? existingMap.isActive : false),
+          imageHash: mapData.imageHash || (existingMap ? existingMap.imageHash : null),
+          imageData: mapData.imageData || (existingMap ? existingMap.imageData : null), // RE-ADDED: Ensure imageData is carried over
+          settings: {
+            defaultZoom: 1,
+            allowMarkers: true,
+            ...(existingMap ? existingMap.settings : {}), // Merge existing settings
+            ...mapData.settings
+          }
+        }
 
-      request.onsuccess = () => {
-        console.log('MapStorage: Map saved/updated successfully', mapToSave.id)
-        resolve(mapToSave)
+        const request = store.put(mapToSave)
+
+        request.onsuccess = () => {
+          console.log('MapStorage: Map saved/updated successfully', mapToSave.id)
+          transaction.commit?.() // Commit if available
+          resolve(mapToSave)
+        }
+
+        request.onerror = () => {
+          console.error('MapStorage: Failed to save/update map', request.error)
+          transaction.abort?.() // Abort if available
+          reject(new Error(`Failed to save map: ${request.error}`))
+        }
       }
-
-      request.onerror = () => {
-        console.error('MapStorage: Failed to save/update map', request.error)
-        reject(new Error(`Failed to save map: ${request.error}`))
+      store.get(mapData.id).onerror = (error) => {
+        console.error('MapStorage: Failed to retrieve existing map during saveMap', error)
+        reject(new Error(`Failed to retrieve existing map for saving: ${error.message}`))
       }
     })
   }
@@ -1161,10 +1209,7 @@ export class MapStorage {
   /**
    * Saves or updates a marker in storage. Respects the ID provided in markerData.
    * If markerData does not contain an 'id', it will be treated as a new marker and
-   * the ID will be generated (by delegating to addMarker).
-   * @param {Object} markerData - The marker object to save, must contain 'id' for updates.
-   * @returns {Promise<Object>} - The saved/updated marker object.
-   */
+   * the ID will be generated (by delegating to addMarker).\n   * @param {Object} markerData - The marker object to save, must contain 'id' for updates.\n   * @returns {Promise<Object>} - The saved/updated marker object.\n   */
   async saveMarker (markerData) {
     if (!this.db) {
       throw new Error('Storage not initialized')
@@ -1205,10 +1250,7 @@ export class MapStorage {
   /**
    * Saves or updates a photo in storage. Respects the ID provided in photoData.
    * If photoData does not contain an 'id', it will be treated as a new photo and
-   * the ID will be generated (by delegating to addPhoto).
-   * @param {Object} photoData - The photo object to save, must contain 'id' for updates.
-   * @returns {Promise<Object>} - The saved/updated photo object.
-   */
+   * the ID will be generated (by delegating to addPhoto).\n   * @param {Object} photoData - The photo object to save, must contain 'id' for updates.\n   * @returns {Promise<Object>} - The saved/updated photo object.\n   */
   async savePhoto (photoData) {
     if (!this.db) {
       throw new Error('Storage not initialized')

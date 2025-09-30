@@ -7,7 +7,7 @@
  * File Manager for handling image uploads and processing
  */
 
-/* global document, window, Image */
+/* global document, window, Image crypto FileReader */
 export class FileManager {
   constructor () {
     // Supported file formats
@@ -135,6 +135,47 @@ export class FileManager {
       isValid: errors.length === 0,
       errors
     }
+  }
+
+  /**
+   * Converts an ArrayBuffer to a hexadecimal string.
+   * @param {ArrayBuffer} buffer - The ArrayBuffer to convert.
+   * @returns {string} - The hexadecimal string representation.
+   */
+  _arrayBufferToHex (buffer) {
+    return Array.prototype.map.call(new Uint8Array(buffer), (x) =>
+      ('00' + x.toString(16)).slice(-2)
+    ).join('')
+  }
+
+  /**
+   * Calculates the SHA-256 hash of a File's content.
+   * @param {File} file - The file to hash.
+   * @returns {Promise<string>} - A promise that resolves with the SHA-256 hash as a hex string.
+   * @throws {Error} If crypto.subtle is not available or file reading fails.
+   */
+  async calculateFileHash (file) {
+    if (!window.crypto || !window.crypto.subtle) {
+      throw new Error('Web Crypto API is not available in this environment.')
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const buffer = event.target.result // Get the ArrayBuffer
+          const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+          const hashHex = this._arrayBufferToHex(hashBuffer)
+          resolve(hashHex)
+        } catch (error) {
+          reject(new Error(`Failed to calculate file hash: ${error.message}`))
+        }
+      }
+      reader.onerror = (error) => {
+        reject(new Error(`Failed to read file for hashing: ${error.message}`))
+      }
+      reader.readAsArrayBuffer(file) // Read the file as an ArrayBuffer
+    })
   }
 
   /**
@@ -285,6 +326,10 @@ export class FileManager {
       // Create thumbnail (no retry logic)
       const thumbnail = await this.createThumbnail(file)
 
+      // NEW: Calculate the image hash
+      const imageHash = await this.calculateFileHash(file)
+      console.log(`Calculated image hash for ${file.name}: ${imageHash}`)
+
       // Prepare map data
       const mapData = {
         name: mapDetails.name || this.generateMapName(file.name),
@@ -296,9 +341,10 @@ export class FileManager {
         fileSize: metadata.fileSize,
         fileType: metadata.fileType,
         aspectRatio: metadata.aspectRatio,
-        originalFile: file,
+        originalFile: file, // Keep reference to original file for direct storage if needed
         thumbnail,
         isActive: mapDetails.isActive || false,
+        imageHash: imageHash, // NEW: Add image hash to mapData
         settings: {
           defaultZoom: this.calculateDefaultZoom(metadata.width, metadata.height),
           allowMarkers: true,

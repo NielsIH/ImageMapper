@@ -1242,11 +1242,16 @@ class SnapSpotApp {
     const savedState = localStorage.getItem('showCrosshair')
     if (savedState !== null) {
       this.showCrosshair = (savedState === 'true') // localStorage stores strings
-      if (this.mapRenderer) {
-        this.mapRenderer.toggleCrosshair(this.showCrosshair)
-      }
-      console.log('Restored crosshair state:', this.showCrosshair)
+    } else {
+      // Default state if nothing found in localStorage (initially true)
+      this.showCrosshair = true // Assuming default state is true as configured in constructor
+      localStorage.setItem('showCrosshair', this.showCrosshair) // Save default to localStorage
     }
+
+    if (this.mapRenderer) {
+      this.mapRenderer.toggleCrosshair(this.showCrosshair)
+    }
+    console.log('Restored crosshair state:', this.showCrosshair)
   }
 
   /**
@@ -2516,35 +2521,110 @@ class SnapSpotApp {
  * @returns {Promise<Object|null>} A promise that resolves with the imported map object if successful, otherwise null.
  */
   async handleImportFile (file) {
-    this.updateAppStatus(`Importing data from "${file.name}"...`)
+    this.updateAppStatus(`Importing data from "${file.name}"...`, 'info', true) // 'info' for starting, 'true' for dismissible
     try {
       return new Promise((resolve, reject) => {
         const reader = new FileReader()
-
-        reader.onload = (e) => { // <--- NO LONGER ASYNC HERE
+        reader.onload = (e) => {
         // The actual processing must be awaited within this handler
           (async () => { // <--- Wrap the processing in an immediately invoked async function expression
             try {
               const jsonData = e.target.result
-              const { map, markers, photos } = await MapDataExporterImporter.importData(jsonData, ImageProcessor)
-              await this.storage.saveMap(map)
-              for (const marker of markers) {
-                await this.storage.saveMarker(marker)
-              }
-              for (const photo of photos) {
-                await this.storage.savePhoto(photo)
-              }
 
-              // Reload maps *after* saving but *before* resolving
-              await this.loadMaps() // <= This must complete before resolve
+              // NEW: Call importData, passing this.storage and handling the new return structure
+              const importResult = await MapDataExporterImporter.importData(
+                jsonData,
+                ImageProcessor, // Assuming ImageProcessor is defined appropriately
+                this.storage
+              )
 
-              this.updateAppStatus(`Data from "${file.name}" imported successfully.`, 'success')
-              if (map && map.id) {
-                await this.switchToMap(map.id)
-                console.log('Imported map loaded and set as active.')
+              if (importResult.importType === 'decision_required') {
+              // Pause here, display modal for user decision
+                const userChoice = await this._showImportDecisionModal(importResult) // This will be async and wait for user input
+
+                if (userChoice) {
+                  const { action, selectedMapId } = userChoice
+                  let finalMap = null
+                  let finalMarkers = []
+                  let finalPhotos = []
+                  let successMessage = ''
+
+                  if (action === 'merge') {
+                    this.updateAppStatus(`Merging data into map "${selectedMapId}"...`, 'info', true)
+                    // Call mergeData (which processes importedObject.markers/photos into existing map)
+                    const mergedData = await MapDataExporterImporter.mergeData(
+                      selectedMapId,
+                      importResult.importObject,
+                      ImageProcessor,
+                      this.storage
+                    )
+                    finalMap = mergedData.map
+                    finalMarkers = mergedData.markers
+                    finalPhotos = mergedData.photos
+                    successMessage = `Data merged into map '${finalMap.name}' successfully.`
+                  } else if (action === 'replace') {
+                    this.updateAppStatus(`Replacing map "${selectedMapId}" with imported data...`, 'info', true)
+                    // First, get the processed new map data (with new IDs)
+                    const processedNewData = await MapDataExporterImporter._processImportedDataForNewMap(
+                      importResult.importObject,
+                      ImageProcessor
+                    )
+                    finalMap = { ...processedNewData.map, id: selectedMapId } // Keep the old map ID for replacement
+                    finalMarkers = processedNewData.markers.map(m => ({ ...m, mapId: selectedMapId }))
+                    finalPhotos = processedNewData.photos.map(p => ({ ...p, markerId: finalMarkers.find(fm => fm.id === p.markerId).id })) // Link to the new marker IDs, which are based on old marker IDs
+
+                    // Re-map photoIds in markers to the new marker IDs
+                    // This is tricky if marker IDs are regenerated. We need to ensure photo.markerId links to the NEW marker ID for the replaced map
+                    // It's cleaner to just regenerate all IDs and then re-assign the main map's ID.
+                    // Let's refine the _processImportedDataForNewMap to handle this more cleanly if it's meant for replacement.
+                    // For now, let's assume _processImportedDataForNewMap returns data with proper RELATIVE IDs, and we change the root map ID.
+
+                    await this._deleteMapAndImportNew(selectedMapId, finalMap, finalMarkers, finalPhotos)
+                    successMessage = `Map '${finalMap.name}' replaced successfully.`
+                  } else if (action === 'new') {
+                    this.updateAppStatus('Importing data as a new map...', 'info', true)
+                    // Fallback to original "import as new" logic
+                    const processedNewData = await MapDataExporterImporter._processImportedDataForNewMap(
+                      importResult.importObject,
+                      ImageProcessor
+                    )
+                    finalMap = processedNewData.map
+                    finalMarkers = processedNewData.markers
+                    finalPhotos = processedNewData.photos
+                    await this._saveImportedData(finalMap, finalMarkers, finalPhotos)
+                    successMessage = `Map '${finalMap.name}' imported as new successfully.`
+                  }
+
+                  if (finalMap) {
+                    await this.loadMaps() // Reload maps to show changes
+                    this.updateAppStatus(successMessage, 'success')
+                    if (finalMap && finalMap.id) {
+                      await this.switchToMap(finalMap.id)
+                      console.log('Processed map loaded and set as active.')
+                    }
+                    resolve(finalMap)
+                  } else {
+                  // User selected an action but it didn't result in a map (e.g., error in merge)
+                    reject(new Error('Import/Merge operation cancelled or failed to produce a map.'))
+                  }
+                } else {
+                // User cancelled the decision modal
+                  this.updateAppStatus('Import cancelled by user.', 'info')
+                  resolve(null) // Resolve as null to indicate cancellation
+                }
+              } else { // Handle 'new' importType (legacy or no hash match)
+              // ORIGINAL LOGIC for new import or legacy import fallback
+              // (from importResult, which is already processed by _processImportedDataForNewMap if no decision needed)
+                const { map, markers, photos } = importResult
+                await this._saveImportedData(map, markers, photos) // Helper to encapsulate saving
+                await this.loadMaps() // <= This must complete before resolve
+                this.updateAppStatus(`Data from "${file.name}" imported successfully.`, 'success')
+                if (map && map.id) {
+                  await this.switchToMap(map.id)
+                  console.log('Imported map loaded and set as active.')
+                }
+                resolve(map) // ONLY resolve AFTER all awaits here successfully completed
               }
-
-              resolve(map) // ONLY resolve AFTER all awaits here successfully completed
             } catch (importError) {
               console.error('App: Error processing imported data:', importError)
               alert(`Error processing imported data: ${importError.message}`)
@@ -2553,14 +2633,12 @@ class SnapSpotApp {
             }
           })() // IIFE invoked
         }
-
         reader.onerror = (e) => {
           console.error('App: Error reading file:', e)
           alert('Error reading file.')
           this.updateAppStatus('File read failed', 'error')
           reject(new Error('File read failed'))
         }
-
         reader.readAsText(file)
       })
     } catch (error) {
@@ -2570,6 +2648,63 @@ class SnapSpotApp {
       // Errors here occur *before* the FileReader is even set up
       return Promise.reject(error) // <--- Return a rejected Promise for consistency
     }
+  }
+
+  /**
+ * Helper method to save imported map, markers, and photos to storage.
+ * @param {object} map - The map object to save.
+ * @param {Array<object>} markers - An array of marker objects to save.
+ * @param {Array<object>} photos - An array of photo objects to save.
+ * @private
+ */
+  async _saveImportedData (map, markers, photos) {
+    await this.storage.saveMap(map)
+    for (const marker of markers) {
+      await this.storage.saveMarker(marker)
+    }
+    for (const photo of photos) {
+    // Note: photo.imageData is already a Blob here due to ImageProcessorClass.base64ToBlob during import
+      await this.storage.savePhoto(photo)
+    }
+  }
+
+  /**
+ * Helper method to delete an existing map and then import new data, maintaining the original map ID.
+ * Used for the "Replace" action.
+ * @param {string} existingMapId - The ID of the map to be replaced.
+ * @param {object} newMapData - The new map object to save (contains original map ID).
+ * @param {Array<object>} newMarkersData - New marker objects.
+ * @param {Array<object>} newPhotosData - New photo objects.
+ * @private
+ */
+  async _deleteMapAndImportNew (existingMapId, newMapData, newMarkersData, newPhotosData) {
+  // First, delete the existing map and all its associated markers and photos
+    await this.storage.deleteMap(existingMapId)
+
+    // Then, save the new map data. The newMapData should already have existingMapId set for its ID.
+    await this.storage.saveMap(newMapData)
+    for (const marker of newMarkersData) {
+      await this.storage.saveMarker(marker)
+    }
+    for (const photo of newPhotosData) {
+      await this.storage.savePhoto(photo)
+    }
+  }
+
+  /**
+   * Displays a modal for the user to decide how to handle an imported map that matches
+   * one or more existing maps by image hash.
+   * @param {object} importResult - The result object from MapDataExporterImporter.importData
+   *                                including { importObject, ImageProcessorClass, importType, existingMaps }.
+   * @returns {Promise<{action: string, selectedMapId: string}|null>} A promise that resolves with the user's
+   *          chosen action ('merge', 'replace', 'new') and the ID of the selected existing map (if applicable),
+   *          or null if the user cancels.
+   * @private
+   */
+  async _showImportDecisionModal (importResult) {
+    // Show the new modal to get user's decision
+    const userChoice = await this.modalManager.createImportDecisionModal(importResult.existingMaps)
+    return userChoice
   }
 
   /**
