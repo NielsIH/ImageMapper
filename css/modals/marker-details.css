@@ -1,0 +1,113 @@
+/* Marker Details Modal - Photo thumbnails */
+.photo-thumbnails-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-lg);
+}
+
+.photo-thumbnail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  padding: var(--spacing-xs);
+  position: relative;
+  transition: box-shadow 0.2s ease;
+  background-color: var(--bg-primary);
+}
+
+.photo-thumbnail-item:hover {
+  box-shadow: var(--shadow);
+}
+
+.photo-thumbnail-item .delete-photo-btn {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 1rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+  z-index: 1;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.photo-thumbnail-item:hover .delete-photo-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.photo-thumbnail {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.photo-name {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  word-break: break-all;
+}
+
+.marker-info-section {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.marker-info-section p {
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xs);
+}
+
+.marker-info-section p:last-child {
+  margin-bottom: 0;
+}
+
+.marker-description-display {
+  display: inline-block;
+  vertical-align: middle;
+  white-space: pre-wrap;
+}
+
+.marker-description-edit {
+  width: 100%;
+  display: block;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.photo-list-section h4 {
+  margin-bottom: var(--spacing-sm);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+div.modal-footer button#btn-edit-marker,
+div.modal-footer button#btn-add-photos,
+div.modal-footer button#btn-delete-marker {
+  min-width: 100px;
+}

@@ -1,0 +1,106 @@
+/* Search Modal Specific Styles */
+.search-modal .modal-content {
+  max-width: 700px;
+}
+
+.search-controls {
+  display: flex;
+  flex-direction: column; /* Default to column for small screens */
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.search-input-group {
+  display: flex;
+  flex-grow: 1;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.search-input-wrapper {
+  position: relative; /* ESSENTIAL for absolute positioning of the 'X' button */
+  flex-grow: 1; /* Allow the wrapper to take up available space */
+  display: flex; /* Make it a flex container to ensure input takes full width */
+  align-items: center; /* Align input and 'X' button vertically */
+}
+
+.search-input-group .form-control {
+  flex-grow: 1;
+  min-height: var(--touch-target);
+  font-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.search-file-input-group {
+  display: flex; /* Make it a flex container to align the button */
+  justify-content: flex-start; /* Align button to start on small screens */
+  align-items: center; /* Vertically center button */
+}
+
+/* Ensure the button within search-file-input-group looks like a button */
+.search-file-input-group .btn {
+  width: 100%; /* Full width button on small screens */
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.clear-search-text-btn {
+  position: absolute; /* Position it relative to .search-input-wrapper */
+  right: var(--spacing-sm); /* Position from the right edge */
+  top: 50%;
+  transform: translateY(-50%); /* Vertically center */
+  background: transparent; /* Make background transparent */
+  border: none;
+  font-size: 1.25rem; /* Size of the 'x' */
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0; /* Remove padding */
+  line-height: 1;
+  width: 1.5rem; /* Make it a square touch target */
+  height: 1.5rem;
+  display: flex; /* Use flex to perfectly center the 'x' text */
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%; /* Make it round */
+  transition: color 0.2s ease, background-color 0.2s ease;
+  z-index: 10; /* Ensure it's above the input field */
+  -webkit-appearance: none; /* Remove default button styles */
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.clear-search-text-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
+.search-results-message {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: var(--spacing-md);
+}
+
+.search-results-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  margin-top: var(--spacing-md);
+}
+
+.search-results-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}

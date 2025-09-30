@@ -45,6 +45,18 @@
   --desktop-landscape-prominent-btn-size: 6.25rem;
   --desktop-landscape-icon-font-size: 2.2rem;
   --desktop-landscape-text-font-size: 0.65rem;
+
+  /* --- NEW: Colors for Import Decision Modal --- */
+  --color-border: var(--border-color);
+  --color-background-secondary: var(--bg-secondary);
+  --color-background-hover: #f1f5f9; /* A light gray for hover states, adjust as needed */
+  --color-button-primary-bg: var(--primary-color);
+  --color-button-primary-text: var(--bg-primary);
+  --color-button-primary-hover-bg: #1d4ed8; /* A slightly darker blue for primary button hover */
+  --color-button-warning-bg: var(--warning-color);
+  --color-button-warning-text: var(--bg-primary);
+  --color-button-warning-hover-bg: #b45309; /* A slightly darker amber for warning button hover */
+  /* --------------------------------------------- */
 }
 
 /* Reset and base styles */

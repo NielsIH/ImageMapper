@@ -1,0 +1,123 @@
+/* Import Decision Modal Specific Styles */
+#import-decision-modal .modal-content {
+  max-width: 500px; /* Adjust width as needed */
+}
+
+#import-decision-modal .map-selection-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  background-color: var(--color-background-secondary);
+  margin-bottom: 1rem;
+}
+
+#import-decision-modal .map-selection-item {
+  margin-bottom: 0.5rem;
+}
+
+#import-decision-modal .map-selection-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Adjust radio button label for better alignment */
+#import-decision-modal .radio-label {
+  display: flex;
+  align-items: flex-start; /* Align items to the start for better text alignment with the radio button */
+  cursor: pointer;
+  padding: 0.4rem 0.2rem; /* Add some padding for touch targets */
+  border-radius: 4px; /* Subtle rounding */
+  transition: background-color 0.2s ease; /* Smooth transition for hover */
+}
+
+#import-decision-modal .radio-label:hover {
+  background-color: var(--color-background-hover); /* Use a defined hover color */
+}
+
+#import-decision-modal .radio-label input[type="radio"] {
+  margin-top: 0.25rem; /* Align radio button with text */
+  flex-shrink: 0; /* Prevent radio button from shrinking */
+}
+
+
+#import-decision-modal .radio-label .checkmark {
+  margin-right: 0.5rem; /* Space between radio button and text */
+  margin-top: 0.15rem; /* Fine-tune alignment if needed */
+  flex-shrink: 0;
+}
+
+#import-decision-modal .button-group.decision-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#import-decision-modal .button-group.decision-buttons .btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center; /* For flex-based buttons if applicable */
+  padding: 0.75rem 1rem; /* Generous padding for touch targets */
+  font-size: 1rem; /* Readable font size */
+  border-radius: var(--border-radius); /* Use consistent border radius */
+  border: none; /* Remove default border */
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.1s ease; /* Add transition effects */
+  font-weight: 500; /* Slightly bolder text */
+}
+
+/* Specific button styles (use existing btn classes if possible, e.g., btn-primary, btn-warning) */
+/* Example if you don't have specific button classes for merge/replace */
+
+#import-decision-modal #btn-action-merge {
+  background-color: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+}
+
+#import-decision-modal #btn-action-merge:hover:not(:disabled) {
+  background-color: var(--color-button-primary-hover-bg);
+}
+
+#import-decision-modal #btn-action-replace {
+  background-color: var(--color-button-warning-bg);
+  color: var(--color-button-warning-text);
+}
+
+#import-decision-modal #btn-action-replace:hover:not(:disabled) {
+  background-color: var(--color-button-warning-hover-bg);
+}
+
+
+/* Ensure disabled buttons have appropriate styling */
+#import-decision-modal .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  /* background-color and color might be handled by base .btn:disabled styles */
+}
+
+/* Specific text styles for explanations */
+#import-decision-modal .text-xs {
+  font-size: 0.75rem; /* Adjust size as needed */
+  line-height: 1.4; /* Improve readability */
+}
+
+#import-decision-modal .mt-sm {
+  margin-top: 0.5rem;
+}
+
+#import-decision-modal .mt-md {
+  margin-top: 1rem;
+}
+
+
+/* Optional: Add icons or visual cues if desired */
+
+#import-decision-modal #btn-action-merge::before {
+  content: "↗️ "; 
+}
+#import-decision-modal #btn-action-replace::before {
+  content: "🔄 ";
+}
+#import-decision-modal #btn-action-new::before {
+  content: "➕ ";
+}

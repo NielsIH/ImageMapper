@@ -1,0 +1,95 @@
+/* Settings Modal Specific Styles */
+.large-modal {
+  width: 900px; 
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.settings-tabs .tab-buttons {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  padding: var(--spacing-sm) 0;
+}
+
+.settings-tabs .tab-button {
+  background: none;
+  border: none;
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  min-height: var(--touch-target);
+  white-space: nowrap;
+}
+
+.settings-tabs .tab-button:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.settings-tabs .tab-button.active {
+  background: var(--bg-secondary);
+  color: var(--primary-color);
+  font-weight: 600;
+  border-left-color: var(--primary-color);
+}
+
+.settings-tabs .tab-pane:not(.active) {
+  display: none;
+}
+
+.settings-tabs .tab-content {
+  flex-grow: 1;
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  background: var(--bg-secondary);
+}
+
+.settings-tabs .tab-pane h4 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-tab-selector { /* Ensure the dropdown selector is visible and styled */
+  display: block;
+  width: 100%;
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  font-size: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M287%2C185.4L156.4%2C54.7c-9.5-9.5-24.8-9.5-34.3%2C0L5.3%2C185.4c-9.5%2C9.5-9.5%2C24.8%2C0%2C34.3l11%2C11c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0L145.7%2C125c9.5-9.5%2C24.8-9.5%2C34.3%2C0l94.3%2C94.3c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0l11-11C296.6%2C210.2%2C296.6%2C194.9%2C287%2C185.4z%22%2F%3E%3C%2Fsvg%3E');
+  background-repeat: no-repeat;
+  background-position: right .7em top 50%;
+  background-size: .65em auto;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .settings-tab-selector {
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFF%22%20d%3D%22M287%2C185.4L156.4%2C54.7c-9.5-9.5-24.8-9.5-34.3%2C0L5.3%2C185.4c-9.5%2C9.5-9.5%2C24.8%2C0%2C34.3l11%2C11c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0L145.7%2C125c9.5-9.5%2C24.8-9.5%2C34.3%2C0l94.3%2C94.3c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0l11-11C296.6%2C210.2%2C296.6%2C194.9%2C287%2C185.4z%22%2F%3E%3C%2Fsvg%3E');
+}

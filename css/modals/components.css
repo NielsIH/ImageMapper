@@ -1,0 +1,251 @@
+/* --- Search Results Sections (General Styling) --- */
+.search-results-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.search-results-section h4 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--spacing-xs);
+}
+
+/* --- Maps Management & Photo List Containers --- */
+.maps-management-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.maps-list-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0;
+  margin: 0;
+}
+
+.maps-list, .photos-list { /* Apply common styling to both map and photo lists */
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm); /* Spacing between list items */
+}
+
+/* --- Base Card Item Styles (Map and Photo) --- */
+.map-list-item, .photo-list-item {
+  display: flex; /* Make the card itself a flex container */
+  align-items: center; /* Vertically center content */
+  justify-content: space-between; /* Pushes content and actions to opposite ends */
+  flex-wrap: nowrap; /* CRITICAL: Prevent the card's main sections from wrapping to a new row on desktop */
+  min-height: 70px; /* Provide a decent minimum height for vertical alignment */
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  margin-bottom: 0; /* Override any previous margin-bottom for gap handling */
+}
+
+/* Ensure the last item also has no margin-bottom (handled by gap now, but for safety) */
+.map-list-item:last-of-type, .photo-list-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.map-list-item.clickable, .photo-list-item.clickable {
+  cursor: pointer;
+}
+
+.map-list-item.clickable:hover, .photo-list-item.clickable:hover {
+  background-color: var(--bg-secondary);
+  transform: translateY(-2px);
+}
+
+.map-list-item.active, .photo-list-item.active { /* Note: .photo-list-item.active might not be used, but for consistency. */
+  border: 2px solid var(--primary-color);
+  padding: calc(var(--spacing-sm) - 1px) calc(var(--spacing-md) - 1px);
+  background-color: var(--bg-secondary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* --- Card Content Section (Thumbnail + Info) --- */
+.map-card-content, .photo-card-content {
+  display: flex;
+  align-items: center;
+  flex-grow: 1; /* Allow content to grow */
+  flex-shrink: 1; /* Allow content to shrink */
+  min-width: 0; /* CRITICAL: Allow flex item to shrink below intrinsic size for ellipsis */
+  gap: var(--spacing-md); /* Spacing between thumbnail and info */
+  overflow: hidden; /* Hide overflow for its children (text) */
+}
+
+/* --- Thumbnail Container --- */
+.map-thumbnail-container, .photo-thumbnail-container {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0; /* Prevent thumbnail from shrinking */
+  flex-grow: 0; /* Prevent thumbnail from growing */
+  background-color: var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.map-thumbnail, .photo-thumbnail {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.map-initials, .photo-initials { /* Common initials display */
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--text-secondary);
+  white-space: nowrap; /* Prevent initials from wrapping */
+}
+
+/* --- Info Section (Name & Details) --- */
+.map-info, .photo-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Allow info to grow by default on desktop */
+  flex-shrink: 1; /* Allow info to shrink by default */
+  min-width: 0; /* CRITICAL: allow text content to ellipsis/wrap */
+  overflow: hidden; /* Hide overflow from text elements */
+}
+
+.map-name, .photo-name { /* Common name style */
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+  white-space: nowrap; /* Default single line for desktop */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Show ellipsis for truncated text */
+  text-align: left; /* Ensure text is left-aligned */
+}
+
+.map-details, .photo-details { /* Common details style */
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap; /* Default single line for desktop */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Show ellipsis for truncated text */
+}
+
+.active-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  background-color: rgba(37, 99, 235, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 4px;
+  margin-top: var(--spacing-xs);
+  align-self: flex-start;
+}
+
+/* --- Action Buttons Wrapper --- */
+.map-item-actions-wrapper, .photo-item-actions-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0; /* CRITICAL: Prevent the button wrapper from shrinking on desktop */
+  flex-grow: 0; /* Prevent it from growing */
+  flex-wrap: nowrap; /* CRITICAL: Keep buttons always on one line within their wrapper */
+  margin-left: var(--spacing-md);
+}
+
+/* --- Individual Action Buttons --- */
+.map-action-btn, .photo-action-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  min-width: var(--touch-target); /* Desktop minimum for touch target */
+  min-height: var(--touch-target);
+  line-height: 1;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  -webkit-tap-highlight-color: transparent;
+  font-size: 0.9rem; /* Default for desktop text/icon */
+}
+
+.map-action-btn:hover, .photo-action-btn:hover {
+  filter: brightness(0.95);
+  box-shadow: var(--shadow);
+}
+
+.map-action-btn .btn-text, .photo-action-btn .btn-text {
+  display: inline; /* Show button text by default on desktop */
+}
+
+/* Ensure the icons for action buttons are visible and properly sized */
+.map-action-btn .icon, .photo-action-btn .icon { /* Added for consistency if you use icon class */
+  font-size: 1.25rem;
+}
+
+/* Specific button colors (existing - ensure these are present globally) */
+.map-item-actions-wrapper .delete-map-btn, .photo-item-actions-wrapper .delete-photo-btn {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.map-item-actions-wrapper .delete-map-btn:hover, .photo-item-actions-wrapper .delete-photo-btn:hover {
+  background-color: var(--danger-color);
+  color: white;
+  filter: none;
+}
+
+.map-item-actions-wrapper .export-map-btn, .photo-item-actions-wrapper .export-photo-btn {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.map-item-actions-wrapper .export-map-btn:hover, .photo-item-actions-wrapper .export-photo-btn:hover {
+  background-color: var(--primary-color);
+  color: white;
+  filter: none;
+}
+
+/* Specific styles for new photo action buttons (ensure these are present globally) */
+.photo-item-actions-wrapper .view-photo-btn,
+.photo-item-actions-wrapper .show-on-map-btn {
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.photo-item-actions-wrapper .view-photo-btn:hover,
+.photo-item-actions-wrapper .show-on-map-btn:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background-color: var(--bg-secondary);
+}
+
+.step-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.modal-footer .add-new-map-btn {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  font-size: 1.05rem;
+  padding: var(--spacing-md) var(--spacing-lg);
+  min-height: calc(var(--touch-target) + var(--spacing-sm));
+  text-align: center;
+}
