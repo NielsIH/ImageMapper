@@ -28,6 +28,10 @@
   --phone-portrait-prominent-btn-size: 4.25rem;
   --phone-portrait-icon-font-size: 1.4rem;
   --phone-portrait-text-font-size: 0.5rem;
+  --phone-landscape-uniform-btn-size: 3.5rem; /* ~56px */
+  --phone-landscape-prominent-btn-size: 4rem; /* ~64px */
+  --phone-landscape-icon-font-size: 1.5rem;
+  --phone-landscape-text-font-size: 0.6rem;
   --landscape-uniform-btn-size: 4.0625rem;
   --landscape-prominent-btn-size: 5rem;
   --landscape-icon-font-size: 1.8rem;

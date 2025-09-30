@@ -115,7 +115,7 @@
   width: 100%;
 }
 
-/* --- Generic Card List Styles --- */
+/* --- Search Results Sections (General Styling) --- */
 .search-results-section {
   margin-bottom: var(--spacing-lg);
 }
@@ -129,7 +129,7 @@
   padding-bottom: var(--spacing-xs);
 }
 
-/* Maps Management Modal Specific Styles */
+/* --- Maps Management & Photo List Containers --- */
 .maps-management-container {
   flex-grow: 1;
   display: flex;
@@ -152,25 +152,25 @@
   gap: var(--spacing-sm); /* Spacing between list items */
 }
 
-.map-list-item, .photo-list-item { /* Styles common to all card items */
-  display: flex;
-  align-items: center;
+
+/* --- Base Card Item Styles (Map and Photo) --- */
+.map-list-item, .photo-list-item {
+  display: flex; /* Make the card itself a flex container */
+  align-items: center; /* Vertically center content */
   justify-content: space-between; /* Pushes content and actions to opposite ends */
+  flex-wrap: nowrap; /* CRITICAL: Prevent the card's main sections from wrapping to a new row on desktop */
+  min-height: 70px; /* Provide a decent minimum height for vertical alignment */
   padding: var(--spacing-sm) var(--spacing-md);
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: var(--shadow);
   transition: all 0.2s ease;
-  position: relative; /* For actions positioning if needed */
+  position: relative;
   -webkit-tap-highlight-color: transparent;
+  margin-bottom: 0; /* Override any previous margin-bottom for gap handling */
 }
-
-/* Remove specific bottom margin from maps-list-item now handled by gap in maps-list */
-.map-list-item {
-  margin-bottom: 0;
-}
-
+/* Ensure the last item also has no margin-bottom (handled by gap now, but for safety) */
 .map-list-item:last-of-type, .photo-list-item:last-of-type {
   margin-bottom: 0;
 }
@@ -178,32 +178,37 @@
 .map-list-item.clickable, .photo-list-item.clickable {
   cursor: pointer;
 }
-
 .map-list-item.clickable:hover, .photo-list-item.clickable:hover {
   background-color: var(--bg-secondary);
   transform: translateY(-2px);
 }
 
-.map-list-item.active, .photo-list-item.active {
+.map-list-item.active, .photo-list-item.active { /* Note: .photo-list-item.active might not be used, but for consistency. */
   border: 2px solid var(--primary-color);
   padding: calc(var(--spacing-sm) - 1px) calc(var(--spacing-md) - 1px);
   background-color: var(--bg-secondary);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-.map-card-content, .photo-card-content { /* Common content wrapper */
+
+/* --- Card Content Section (Thumbnail + Info) --- */
+.map-card-content, .photo-card-content {
   display: flex;
   align-items: center;
   flex-grow: 1; /* Allow content to grow */
-  gap: var(--spacing-md);
-  min-width: 0; /* IMPT: Allow flex item to shrink below intrinsic size */
+  flex-shrink: 1; /* Allow content to shrink */
+  min-width: 0; /* CRITICAL: Allow flex item to shrink below intrinsic size for ellipsis */
+  gap: var(--spacing-md); /* Spacing between thumbnail and info */
   overflow: hidden; /* Hide overflow for its children (text) */
 }
 
+
+/* --- Thumbnail Container --- */
 .map-thumbnail-container, .photo-thumbnail-container {
   width: 60px;
   height: 60px;
-  flex-shrink: 0;
+  flex-shrink: 0; /* Prevent thumbnail from shrinking */
+  flex-grow: 0; /* Prevent thumbnail from growing */
   background-color: var(--border-color);
   border-radius: 4px;
   display: flex;
@@ -212,13 +217,11 @@
   overflow: hidden;
   box-shadow: var(--shadow);
 }
-
 .map-thumbnail, .photo-thumbnail {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
-
 .map-initials, .photo-initials { /* Common initials display */
   font-size: 1.2rem;
   font-weight: bold;
@@ -227,33 +230,32 @@
 }
 
 
-.map-info, .photo-info { /* Common info section (name + details) */
+/* --- Info Section (Name & Details) --- */
+.map-info, .photo-info {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  min-width: 0; /* IMPT: Allow flex item to shrink below intrinsic size */
-  overflow: hidden; /* Hide overflow for its children (text) */
+  flex-grow: 1; /* Allow info to grow by default on desktop */
+  flex-shrink: 1; /* Allow info to shrink by default */
+  min-width: 0; /* CRITICAL: allow text content to ellipsis/wrap */
+  overflow: hidden; /* Hide overflow from text elements */
 }
-
-.map-name, .photo-info .photo-name { /* Common name style */
+.map-name, .photo-name { /* Common name style */
   font-weight: 600;
   color: var(--text-primary);
   font-size: 1rem;
   margin-bottom: var(--spacing-xs);
-  white-space: nowrap; /* Prevent text from wrapping */
-  overflow: hidden; /* Hide overflowing text */
+  white-space: nowrap; /* Default single line for desktop */
+  overflow: hidden;
   text-overflow: ellipsis; /* Show ellipsis for truncated text */
-  text-align: left;
+  text-align: left; /* Ensure text is left-aligned */
 }
-
 .map-details, .photo-details { /* Common details style */
   font-size: 0.8rem;
   color: var(--text-secondary);
-  white-space: nowrap; /* Prevent text from wrapping */
-  overflow: hidden; /* Hide overflowing text */
+  white-space: nowrap; /* Default single line for desktop */
+  overflow: hidden;
   text-overflow: ellipsis; /* Show ellipsis for truncated text */
 }
-
 .active-status {
   font-size: 0.75rem;
   font-weight: 600;
@@ -265,20 +267,25 @@
   align-self: flex-start;
 }
 
-.map-item-actions-wrapper, .photo-item-actions-wrapper { /* Common actions wrapper */
+
+/* --- Action Buttons Wrapper --- */
+.map-item-actions-wrapper, .photo-item-actions-wrapper {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  flex-shrink: 0; /* Prevent actions from shrinking */
+  flex-shrink: 0; /* CRITICAL: Prevent the button wrapper from shrinking on desktop */
+  flex-grow: 0; /* Prevent it from growing */
+  flex-wrap: nowrap; /* CRITICAL: Keep buttons always on one line within their wrapper */
   margin-left: var(--spacing-md);
 }
 
-.map-action-btn, .photo-action-btn { /* Common action button style */
+/* --- Individual Action Buttons --- */
+.map-action-btn, .photo-action-btn {
   background: transparent;
   border: 1px solid var(--border-color);
   cursor: pointer;
   padding: var(--spacing-xs);
-  min-width: var(--touch-target);
+  min-width: var(--touch-target); /* Desktop minimum for touch target */
   min-height: var(--touch-target);
   line-height: 1;
   border-radius: 6px;
@@ -288,50 +295,52 @@
   justify-content: center;
   gap: var(--spacing-xs);
   -webkit-tap-highlight-color: transparent;
-  font-size: 0.9rem; /* Default for desktop */
+  font-size: 0.9rem; /* Default for desktop text/icon */
 }
-
 .map-action-btn:hover, .photo-action-btn:hover {
   filter: brightness(0.95);
   box-shadow: var(--shadow);
 }
+.map-action-btn .btn-text, .photo-action-btn .btn-text {
+  display: inline; /* Show button text by default on desktop */
+}
+/* Ensure the icons for action buttons are visible and properly sized */
+.map-action-btn .icon, .photo-action-btn .icon { /* Added for consistency if you use icon class */
+  font-size: 1.25rem;
+}
 
+
+/* Specific button colors (existing - ensure these are present globally) */
 .map-item-actions-wrapper .delete-map-btn, .photo-item-actions-wrapper .delete-photo-btn {
   color: var(--danger-color);
   border-color: var(--danger-color);
 }
-
 .map-item-actions-wrapper .delete-map-btn:hover, .photo-item-actions-wrapper .delete-photo-btn:hover {
   background-color: var(--danger-color);
   color: white;
   filter: none;
 }
-
 .map-item-actions-wrapper .export-map-btn, .photo-item-actions-wrapper .export-photo-btn {
   color: var(--primary-color);
   border-color: var(--primary-color);
 }
-
-.map-item-actions-wrapper .export-map-btn:hover {
+.map-item-actions-wrapper .export-map-btn:hover, .photo-item-actions-wrapper .export-photo-btn:hover {
   background-color: var(--primary-color);
   color: white;
   filter: none;
 }
 
-.map-action-btn .icon {
-  font-size: 1.25rem;
-}
-/* Specific styles for new photo action buttons */
+/* Specific styles for new photo action buttons (ensure these are present globally) */
 .photo-item-actions-wrapper .view-photo-btn,
 .photo-item-actions-wrapper .show-on-map-btn {
-    color: var(--text-secondary);
-    border-color: var(--border-color);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
 }
 .photo-item-actions-wrapper .view-photo-btn:hover,
 .photo-item-actions-wrapper .show-on-map-btn:hover {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-    background-color: var(--bg-secondary);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background-color: var(--bg-secondary);
 }
 
 /* Upload Modal Specific Styles */
@@ -916,7 +925,7 @@ div.modal-footer button#btn-delete-marker {
   gap: var(--spacing-sm);
 }
 
-/* Responsive adjustments for modals */
+/* --- Responsive Adjustments for Modals: Tablet & Mobile (max-width: 768px) --- */
 @media (max-width: 768px) {
   .modal-content {
     width: 95vw;
@@ -925,10 +934,7 @@ div.modal-footer button#btn-delete-marker {
   }
 
   .modal-header,
-  .modal-body {
-    padding: var(--spacing-md);
-  }
-  
+  .modal-body,
   .modal-footer {
     padding: var(--spacing-md);
   }
@@ -937,116 +943,127 @@ div.modal-footer button#btn-delete-marker {
     max-height: 55vh;
   }
 
-  .map-list-item, .photo-list-item { /* Apply to all card types */
-    flex-wrap: nowrap; /* Prevent card content itself from wrapping */
-    min-height: 54px; /* Ensure a decent touch target for the whole card */
+  /* --- Card List Items (Maps & Photos) --- */
+  .map-list-item, .photo-list-item {
+    display: flex; /* Ensure it's a flex container */
+    flex-wrap: nowrap; /* Keep content and actions on one line within the card */
+    align-items: center; /* Vertically align content and actions */
+    justify-content: space-between; /* Space out content and action sections */
+    min-height: 54px; /* Ensure a decent touch target for the whole card area */
+    padding: var(--spacing-sm); /* Slightly less horizontal padding on mobile */
   }
-  
-  .map-list-item.active {
+  .map-list-item.active { /* Specific style for active map remains */
     padding: calc(var(--spacing-sm) - 1px);
   }
-  .map-item-actions-wrapper, .photo-item-actions-wrapper {
-    /* MODIFIED: Ensure it's a flex container for buttons */
-    display: flex;
-    flex-wrap: nowrap; /* CRITICAL: Prevent wrapping onto multiple lines */
-    gap: var(--spacing-xs); /* Use smaller gap for mobile buttons */
-    justify-content: flex-end; /* Align buttons to the right */
-    width: auto; /* Allow wrapper to size based on content, not necessarily 100% */
-  }
 
-  .map-action-btn .btn-text, .photo-action-btn .btn-text { /* NEW/MODIFIED */
-    display: none; /* Explicitly hide button text on mobile */
-  }
-  
-  .map-item-actions-wrapper .map-action-btn, .photo-item-actions-wrapper .photo-action-btn {
-    /* MODIFIED: Allow buttons to shrink and grow proportionally, but prioritize shrinking */
-    flex: 1 1 auto; /* Allow shrinking and growing relative to content, but can shrink more */
-    min-width: 32px; /* A reasonable minimum for an icon-only touch target */
-    max-width: 60px; /* Prevent them from becoming too wide if text is present (though btn-text is hidden) */
-    padding: var(--spacing-sm); /* Keep good touch target padding */
-    font-size: 0.85rem; /* Slightly smaller font size if text needs to be shown for debugging/consistency */
-  }
+  /* --- Card Content Section (Thumbnail + Info) --- */
   .map-card-content, .photo-card-content {
-      flex-shrink: 1; /* Allow content info to shrink if needed to make space for buttons */
-      min-width: 0; /* Allow content to shrink below its intrinsic size */
+    display: flex; /* Ensure it's a flex container */
+    align-items: center;
+    flex-grow: 1; /* Allow content area to grow */
+    flex-shrink: 1; /* Allow content area to shrink */
+    min-width: 0; /* CRITICAL: Allow flex item to shrink below intrinsic size for ellipsis */
+    gap: var(--spacing-sm); /* Spacing between thumbnail and info */
   }
 
-  .map-info, .photo-info {
-      min-width: 0; /* Allow map details to truncate if needed */
-      white-space: nowrap; /* Try to keep map info on one line if possible */
-      overflow: hidden;
-      text-overflow: ellipsis;
-  }
-
-  /* Ensure the icons for action buttons are visible and properly sized */
-  .map-action-btn, .photo-action-btn { /* This style is defined higher up in this block, ensuring it's applied */
-    font-size: 1.1rem; /* Slightly larger icon for better visibility */
-  }
-
-
+  /* --- Thumbnail Container --- */
   .map-thumbnail-container, .photo-thumbnail-container {
-    width: 50px;
-    height: 50px;
+    width: 48px; /* Fixed size for mobile thumbnails */
+    height: 48px;
+    flex-shrink: 0; /* Prevent thumbnail from shrinking */
+    flex-grow: 0; /* Prevent thumbnail from growing */
   }
-  
   .map-initials, .photo-initials {
     font-size: 1rem;
   }
 
+  /* --- Info Section (Name & Details) --- */
   .map-info, .photo-info {
-    flex-basis: auto;
-    flex-grow: 1;
-    margin-right: var(--spacing-sm);
+    display: flex;
+    flex-direction: column; /* Stack name and details vertically */
+    flex-grow: 1000; /* CRITICAL: Aggressively grow to prioritize text space */
+    flex-shrink: 1; /* Allow it to shrink if absolutely necessary */
+    min-width: 0; /* CRITICAL: Crucial for text ellipsis/wrapping */
+    margin-right: var(--spacing-sm); /* Small margin to separate from actions */
   }
-  
-  .map-name, .photo-name {
-    font-size: 0.95rem;
-    margin-bottom: var(--spacing-xs);
-    display:-webkit-box;
-    -webkit-line-clamp: 1; /* Limit to 1 line */ 
-    line-clamp:1; 
-  }
-  
+
+  /* --- Name and Details Text (Overrides general styles for mobile) --- */
+  .map-name, .photo-name,
   .map-details, .photo-details {
-    font-size: 0.75rem;
-    display:-webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp:1; 
+    white-space: normal; /* Allow text to wrap (overrides general nowrap) */
+    display: -webkit-box; /* Enable multi-line ellipsis */
+    -webkit-line-clamp: 2; /* Limit to 2 lines */
+    line-clamp: 2; /* Standard property for future compatibility */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3; /* Adjust line height for readability */
+    margin-bottom: 0; /* Remove default margin */
   }
-  
+  .map-name, .photo-name {
+    font-size: 0.95rem; /* Specific size for name at this breakpoint */
+  }
+  .map-details, .photo-details { /* Ensure details have appropriate size */
+    font-size: 0.8rem;
+  }
   .active-status {
     font-size: 0.7rem;
     padding: var(--spacing-xs);
   }
 
+  /* --- Action Buttons Wrapper --- */
+  .map-item-actions-wrapper, .photo-item-actions-wrapper {
+    display: flex; /* Ensure it's a flex container */
+    flex-wrap: nowrap; /* Keep buttons always on one line within their wrapper */
+    gap: var(--spacing-xs); /* Use smaller gap for mobile buttons */
+    justify-content: flex-end; /* Align buttons to the right */
+    flex-shrink: 0; /* CRITICAL: Prevent the button wrapper from shrinking. It determines its own size. */
+    flex-grow: 0; /* Do not allow buttons wrapper to grow */
+    min-width:-webkit-fill-available; /* Safari support */
+    min-width: fit-content; /* Ensure it only takes minimum space needed by buttons */
+    margin-left: var(--spacing-md); /* Space from content */
+  }
+  .map-action-btn, .photo-action-btn {
+    flex: 0 0 auto; /* CRITICAL: Do not grow, do not shrink. Maintain its own minimum size. */
+    min-width: 38px; /* Reasonable minimum touch target */
+    min-height: 38px;
+    padding: var(--spacing-xs); /* Use responsive padding */
+    font-size: 1.1rem; /* Icon size */
+    line-height: 1;
+  }
+  .map-action-btn .btn-text, .photo-action-btn .btn-text {
+    display: none; /* Hide button text on mobile (overrides general inline) */
+  }
+
+
+  /* --- Upload Modal Specific Styles --- */
   .file-preview {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
   }
 
+  /* --- Modal Actions Footer --- */
   .modal-actions {
-    flex-direction: column-reverse;
+    flex-direction: column-reverse; /* Stack buttons vertically, reverse order */
   }
-
   .modal-actions .btn {
-    width: 100%;
+    width: 100%; /* Full width buttons */
   }
 
+  /* --- Settings Modal Specific Styles --- */
   .settings-tabs {
     flex-direction: column;
-    height: 100%;
+    height: 100%; /* Ensure modal body content has height */
     border-radius: var(--border-radius-md);
     overflow: hidden;
   }
-
   .settings-tabs .tab-buttons {
-    display: none;
+    display: none; /* Hide tab buttons on mobile */
   }
   .settings-tabs .tab-pane h4 {
     display: none; /* Hide tab titles when dropdown is visible */
   }
-
-  .settings-tab-selector {
+  .settings-tab-selector { /* Ensure the dropdown selector is visible and styled */
     display: block;
     width: 100%;
     padding: var(--spacing-sm);
@@ -1065,126 +1082,57 @@ div.modal-footer button#btn-delete-marker {
     background-size: .65em auto;
     cursor: pointer;
   }
-
   [data-theme="dark"] .settings-tab-selector {
     background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFF%22%20d%3D%22M287%2C185.4L156.4%2C54.7c-9.5-9.5-24.8-9.5-34.3%2C0L5.3%2C185.4c-9.5%2C9.5-9.5%2C24.8%2C0%2C34.3l11%2C11c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0L145.7%2C125c9.5-9.5%2C24.8-9.5%2C34.3%2C0l94.3%2C94.3c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0l11-11C296.6%2C210.2%2C296.6%2C194.9%2C287%2C185.4z%22%2F%3E%3C%2Fsvg%3E');
   }
-
   .settings-tabs .tab-content {
     padding: var(--spacing-md);
     flex-grow: 1;
     overflow-y: auto;
   }
 
-  .map-list-item {
-    flex-wrap: nowrap; 
-    align-items: center; 
-    justify-content: space-between; 
-  }
-
-  .map-card-content {
-    flex-shrink: 1; 
-    min-width: 0; 
-    margin-right: var(--spacing-xs); 
-  }
-  .map-info {
-    min-width: 0; 
-    white-space: nowrap; 
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .map-item-actions-wrapper {
-    display: flex;
-    flex-wrap: nowrap; 
-    gap: var(--spacing-xs); 
-    justify-content: flex-end; 
-    align-items: center;
-    flex-shrink: 0; 
-    min-width: 0; 
-    /* Optional: If buttons still overflow on very narrow screens, add scrolling */
-    /* overflow-x: auto; */ 
-    /* -webkit-overflow-scrolling: touch; */
-  }
-
-  .map-item-actions-wrapper .map-action-btn {
-    flex: 0 0 auto; 
-    min-width: 38px; 
-    min-height: 38px; 
-    padding: var(--spacing-xs); 
-    font-size: 1.1rem; 
-    display: flex; 
-    align-items: center;
-    justify-content: center;
-    line-height: 1; 
-  }
-  .map-item-actions-wrapper .map-action-btn .btn-text {
-    display: none; /* Explicitly hide button text on mobile */
-  }
-
-
-  .map-item-actions-wrapper .btn-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* Search Modal Responsive Adjustments */
+  /* --- Search Modal Responsive Adjustments --- */
   .search-modal .modal-content {
     max-width: 95vw;
     margin: var(--spacing-sm);
   }
-
   .search-controls {
-    flex-direction: column; /* Stack vertically on small screens */
+    flex-direction: column; /* Stack vertically */
     gap: var(--spacing-sm);
-    width:100%;
+    width: 100%;
   }
   .search-input-group {
     flex-direction: column;
-    align-items: stretch; /* This makes children stretch to full width */
-    width: 100%; /* Ensure it takes full width of search-controls */
-    gap: var(--spacing-sm); /* Gap between input wrapper and search button */
+    align-items: stretch;
+    width: 100%;
+    gap: var(--spacing-sm);
   }
-  
-  /* Ensure the search-input-wrapper stretches horizontally */
   .search-input-wrapper {
-    flex-grow: 1; /* Allow it to take available space */
-    width: 100%; /* Explicitly make it full width if parent allows */
+    flex-grow: 1;
+    width: 100%;
   }
-
-
-  .search-input-group .form-control {
-    font-size: 1.1rem; /* Larger font size for mobile */
-    padding: var(--spacing-md); /* Larger padding for touch targets */
-    padding-right: 3rem; /* More space for clear button on mobile */
-     min-height: 48px;
-    width: 100%; /* Explicitly make the input fill its wrapper */
-  }
-
   .search-input-group .form-control {
     font-size: 1.1rem;
     padding: var(--spacing-md);
-    min-height: calc(var(--touch-target) + var(--spacing-sm));
     padding-right: 3rem;
-  }
-
-  .search-input-group .btn {
+    min-height: 48px;
     width: 100%;
   }
   .clear-search-text-btn {
-    right: calc(var(--spacing-md) - var(--spacing-xs)); /* Adjust position for mobile larger padding */
-    width: 2rem; /* Larger touch target on mobile */
+    right: calc(var(--spacing-md) - var(--spacing-xs));
+    width: 2rem;
     height: 2rem;
     font-size: 1.5rem;
   }
-
-
-  /* search-file-input-group now contains only the button */
   .search-file-input-group {
-    justify-content: center; /* Center the button on small screens */
+    justify-content: center;
+  }
+  .search-input-group .btn {
+    width: 100%;
   }
 }
 
+/* --- Responsive Adjustments for Modals: Small Mobile (max-width: 480px) --- */
 @media (max-width: 480px) {
   .modal-content {
     width: 98vw;
@@ -1202,111 +1150,157 @@ div.modal-footer button#btn-delete-marker {
     max-height: 50vh;
   }
 
-  .map-list-item, .photo-list-item { /* Apply to all card types */
-    padding: var(--spacing-xs);
-    margin-bottom: var(--spacing-xs);
+  /* --- Card List Items (Maps & Photos) --- */
+  .map-list-item, .photo-list-item {
+    padding: var(--spacing-xs); /* Tighter padding for very small screens */
+    min-height: 48px; /* Slightly smaller min-height */
+    /* Flex properties and text wrapping/ellipsis handled by 768px breakpoint,
+       here we just adjust sizing and spacing further. */
   }
-  
-  .map-list-item.active {
+  .map-list-item.active { /* Active state styling adjustment */
     padding: calc(var(--spacing-xs) - 1px);
   }
 
+  /* --- Thumbnail Container --- */
   .map-thumbnail-container, .photo-thumbnail-container {
-    width: 40px;
-    height: 40px;
+    width: 3.2rem; /* Even smaller fixed size for very small mobile thumbnails */
+    height: 3.2rem;
   }
-  
   .map-initials, .photo-initials {
     font-size: 0.9rem;
   }
 
+  /* --- Info Section Font Sizes --- */
   .map-name, .photo-name {
     font-size: 0.85rem;
-    margin-bottom: 0;
+    margin-bottom: 0; /* Ensures no extra vertical space */
+    /* Text truncation logic from 768px breakpoint applies */
   }
-  
   .map-details, .photo-details {
     font-size: 0.65rem;
   }
-  
   .active-status {
     font-size: 0.6rem;
     padding: 2px 4px;
   }
 
+  /* --- Action Buttons Wrapper --- */
+  .map-item-actions-wrapper, .photo-item-actions-wrapper {
+    gap: 4px; /* Even smaller gap between buttons */
+    margin-left: var(--spacing-xs); /* Tighter space from content */
+    /* Flex properties from 768px breakpoint apply */
+  }
+
+  /* --- Individual Action Buttons --- */
+  .map-action-btn, .photo-action-btn {
+    min-width: 32px; /* Smallest practical size for touch target */
+    min-height: 32px;
+    font-size: 1rem; /* Icon size remains compact */
+    padding: 6px;
+  }
+  .map-action-btn .btn-text, .photo-action-btn .btn-text {
+    display: none; /* Text hidden on mobile (inherited, reiterated for clarity) */
+  }
+  /* --- Upload Modal Specific Styles --- */
   .file-drop-zone {
     padding: var(--spacing-md);
   }
-
   .file-drop-icon {
     font-size: 2rem;
   }
-
   .file-drop-content h4 {
     font-size: 0.9rem;
   }
-
   .preview-image-container {
     min-height: 60px;
   }
-
   .preview-image-container img {
     max-height: 60px;
   }
 
+  /* --- Form Controls & Buttons (General) --- */
   .form-control {
     padding: var(--spacing-xs);
     font-size: 0.8rem;
   }
-
   .btn {
     font-size: 0.8rem;
     min-height: calc(var(--touch-target) - 4px);
     padding: var(--spacing-sm);
   }
-
   .btn-large {
     font-size: 0.85rem;
     padding: var(--spacing-sm);
   }
-  
   .modal-footer .add-new-map-btn {
     font-size: 0.95rem;
     padding: var(--spacing-sm) var(--spacing-md);
   }
-  
+
+  /* --- Image Viewer Modal Specific Styles --- */
   .image-viewer-modal .modal-content {
-    width: 98vw;
+    width: 98vw; /* Maximize space for image */
     height: 98vh;
     max-width: 98vw;
     max-height: 98vh;
-    border-radius: 0;
+    border-radius: 0; /* Full screen look */
   }
-
   .image-viewer-modal .modal-header {
     padding: var(--spacing-xs) var(--spacing-sm);
   }
-
   .image-viewer-modal .image-viewer-title {
     font-size: 0.9rem;
+    white-space: nowrap; /* Ensure title truncates if very long on one line */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1; /* Allow it to take available space */
+    min-width: 0; /* Critical for ellipsis */
   }
-
   .image-viewer-modal .modal-body {
     padding: var(--spacing-sm);
   }
-}
+  .image-viewer-modal .delete-photo-overlay-btn {
+    width: 28px; /* Slightly smaller button */
+    height: 28px;
+    font-size: 1.1rem;
+    top: 3px;
+    right: 3px;
+  }
 
+  /* --- Marker Details Modal (within 480px) --- */
+  .photo-thumbnails-container {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); /* Smaller thumbnails in marker details */
+    gap: var(--spacing-xs);
+  }
+  .photo-thumbnail-item .delete-photo-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 0.9rem;
+    top: 2px;
+    right: 2px;
+  }
+  .photo-name {
+    font-size: 0.65rem;
+  }
+} /* End of @media (max-width: 480px) */
+
+/* --- Desktop Specific Adjustments (min-width: 769px) --- */
 @media (min-width: 769px) {
+  /* Hide mobile-specific settings tab selector */
   .settings-tab-selector {
     display: none;
   }
-  /* Search Modal Desktop Adjustments */
+
+  /* Restore default search modal layout for desktop */
   .search-modal .modal-content {
     width: 700px;
+    max-width: unset; /* Remove max-width from mobile */
+    margin: auto; /* Center it */
   }
 
+  /* Search controls layout */
   .search-controls {
-    flex-direction: row; /* Display search input group and file button group side-by-side */
+    flex-direction: row; /* Display search input group and file button side-by-side */
     align-items: center; /* Vertically align them */
     justify-content: space-between; /* Distribute space between them */
   }
@@ -1318,19 +1312,75 @@ div.modal-footer button#btn-delete-marker {
   }
 
   .search-file-input-group {
-    /* Now just a container for a single button */
-    display: flex; /* Ensure it's a flex container for centering/alignment */
-    justify-content: flex-end; /* Align the button to the right */
-    flex-shrink: 0; /* Prevent it from shrinking too much */
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
   }
-
-
   .search-file-input-group .btn {
-    width: auto; /* Allow the button to size itself */
-    min-width: unset; /* Remove min-width if inherited and causing issues */
+    width: auto;
+    min-width: unset;
   }
 
   .search-results-container {
     max-height: 500px;
   }
+
+  /* Restore desktop behavior for card action buttons */
+  .map-list-item, .photo-list-item {
+    flex-wrap: nowrap; /* Keep cards content on one line */
+    padding: var(--spacing-sm) var(--spacing-md); /* Consistent desktop padding */
+  }
+  .map-card-content, .photo-card-content {
+    flex-grow: 1;
+    min-width: 0;
+    justify-content: flex-start; /* Align content to the start */
+    margin-right: 0; /* Remove any specific mobile margins */
+  }
+
+  .map-info, .photo-info {
+  flex-grow: 100; /* CRITICAL: Aggressively grow the info section on desktop */
+  min-width: 0; /* Ensure text can shrink and truncate gracefully */
+  margin-right: var(--spacing-sm); /* Maintain a small separation from actions */
+}
+  .map-name, .photo-name,
+.map-details, .photo-details {
+  /* For desktop, titles are typically single line. Override the multi-line clamp. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block; /* Overrides -webkit-box for single line */
+}
+  .map-name, .photo-name {
+    font-size: 1rem; /* Restore desktop font size */
+    margin-bottom: var(--spacing-xs);
+  }
+  .map-details, .photo-details {
+    font-size: 0.8rem; /* Restore desktop font size */
+  }
+
+  .map-item-actions-wrapper, .photo-item-actions-wrapper {
+  flex-wrap: nowrap; /* CRITICAL: Keep buttons always on one line within their wrapper */
+  gap: var(--spacing-sm); /* Standard desktop gap */
+  justify-content: flex-start; /* Align to the start within their wrapper */
+  margin-left: var(--spacing-md); /* Consistent desktop margin */
+  flex-shrink: 0; /* CRITICAL: Prevent the button wrapper from shrinking on desktop */
+  flex-grow: 0; /* Ensures it doesn't take extra space if content is short */
+  min-width: fit-content; /* Ensure the wrapper takes minimum space needed by buttons */
+}
+
+  .map-action-btn, .photo-action-btn {
+    flex: 0 0 auto; /* Default flex behavior for buttons */
+    min-width: var(--touch-target); /* Use default touch target for desktop */
+    min-height: var(--touch-target);
+    padding: var(--spacing-xs);
+    font-size: 0.9rem; /* Restore desktop font size */
+  }
+  .map-action-btn .btn-text, .photo-action-btn .btn-text {
+  display: inline; /* Show button text on desktop */
+  white-space: nowrap; /* Ensure button text stays on one line */
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Add ellipsis if needed */
+  max-width: 80px; /* OR a reasonable fixed max width in px. Limits how wide button text can get. Adjust as needed. */
+  /* You might need to adjust this max-width based on your actual button text lengths */
+}
 }

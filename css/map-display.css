@@ -141,19 +141,19 @@
 @media (orientation: landscape) {
     #action-buttons-container {
         flex-direction: column; align-items: center;
-        top: var(--spacing-md); right: var(--spacing-md);
+        top: var(--spacing-xxs); /* Compact positioning */
+        right: var(--spacing-xxs);
         bottom: unset; left: unset;
-        width: var(--landscape-prominent-btn-size);
-        padding: var(--spacing-sm); gap: var(--spacing-sm);
+        width: var(--landscape-prominent-btn-size); /* Container width based on prominent button */
+        padding: var(--spacing-xxs); gap: var(--spacing-xxs); /* Compact padding & gap */
     }
 
-    .zoom-controls { flex-direction: column; width: 100%; }
+    .zoom-controls { display: none; } /* Hide zoom controls for all non-desktop landscape */
 
-    .zoom-btn {
-        width: 100%;
-        height: var(--landscape-uniform-btn-size);
+    .zoom-btn { /* These styles won't be applied due to display: none above, but are structured */
+        width: 100%; height: var(--landscape-uniform-btn-size);
         font-size: var(--landscape-icon-font-size);
-        padding: var(--spacing-xs) 0;
+        padding: var(--spacing-xxs) 0;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
     .zoom-btn:not(:last-child) { border-bottom: 1px solid var(--border-color); border-right: none; }
@@ -163,7 +163,7 @@
         width: 100%;
         height: var(--landscape-uniform-btn-size);
         font-size: var(--landscape-icon-font-size);
-        padding: var(--spacing-xxs) var(--spacing-xs);
+        padding: var(--spacing-xxs) 0; /* Minimal padding */
         white-space: normal;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
@@ -177,8 +177,7 @@
         line-height: 1.1;
         margin-top: 0.1em;
         display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
+        -webkit-line-clamp: 2; /* Allow up to two lines */
         -webkit-box-orient: vertical;
     }
 
@@ -187,17 +186,26 @@
         width: var(--landscape-prominent-btn-size);
         height: var(--landscape-prominent-btn-size);
         font-size: var(--landscape-icon-font-size);
-        margin: var(--spacing-sm) 0;
+        margin: var(--spacing-xxs) 0; /* Compact margin */
         padding: var(--spacing-xxs);
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 }
+
+/* --- Desktop/Large Tablet Landscape --- */
 @media (orientation: landscape) and (min-width: 1024px) {
     #action-buttons-container {
+        flex-direction: column; align-items: center; /* These were getting inherited, making explicit for clarity */
+        top: var(--spacing-md); /* More generous positioning */
+        right: var(--spacing-md);
+        bottom: unset; left: unset;
         width: calc(var(--desktop-landscape-uniform-btn-width) + (var(--spacing-sm) * 2));
-        padding: var(--spacing-sm);
-        gap: var(--spacing-sm);
-        align-items: center;
+        padding: var(--spacing-sm); gap: var(--spacing-sm);
+    }
+
+    .zoom-controls { /* Override display: none from generic landscape */
+        display: flex;
+        flex-direction: column; width: 100%;
     }
 
     .zoom-btn {
@@ -205,15 +213,10 @@
         height: var(--desktop-landscape-uniform-btn-min-height);
         font-size: var(--desktop-landscape-icon-font-size);
         padding: var(--spacing-xs) 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
-    .zoom-btn:not(:last-child) {
-        border-bottom: 1px solid var(--border-color);
-        border-right: none;
-    }
+    .zoom-btn:not(:last-child) { border-bottom: 1px solid var(--border-color); border-right: none; }
+
 
     .control-btn:not(#btn-place-marker) {
         width: 100%;
@@ -221,10 +224,7 @@
         font-size: var(--desktop-landscape-icon-font-size);
         padding: var(--spacing-xxs) var(--spacing-xxs);
         white-space: normal;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 
     .control-btn:not(#btn-place-marker) .btn-text {
@@ -237,9 +237,10 @@
         margin-top: 0.05em;
         display: -webkit-box;
         -webkit-line-clamp: 2;
-        line-clamp: 2;
+        line-clamp:2;
         -webkit-box-orient: vertical;
     }
+
 
     #btn-place-marker {
         width: var(--desktop-landscape-prominent-btn-size);
@@ -247,10 +248,7 @@
         font-size: var(--desktop-landscape-icon-font-size);
         margin: var(--spacing-sm) 0;
         padding: var(--spacing-xs);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 }
 
