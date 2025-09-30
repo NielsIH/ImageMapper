@@ -8,6 +8,7 @@
         Image
         localStorage
         FileReader
+        confirm
         */
 
 // --- Module Imports ---
@@ -30,14 +31,14 @@ class SnapSpotApp {
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
       searchMaps: (query) => this.searchMaps(query),
-      searchPhotos: (query) => this.searchPhotos(query), // NEW: Photo search callback
+      searchPhotos: (query) => this.searchPhotos(query), //  Photo search callback
       switchToMap: (mapId) => this.switchToMap(mapId),
       deleteMap: (mapId) => this.deleteMap(mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
       onSearchFileSelect: () => this.handleSearchFileSelection(),
       onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type),
-      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData) // NEW: Show photo on map callback
+      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData) //  Show photo on map callback
     })
 
     this.mapRenderer = new MapRenderer('map-canvas')
@@ -47,7 +48,7 @@ class SnapSpotApp {
     this.uploadedFiles = new Map() // Store file references for rendering
     this.thumbnailCache = new Map()
     this.imageProcessor = new ImageProcessor()
-    // NEW: Load defaultImageQuality from localStorage for photos
+    //  Load defaultImageQuality from localStorage for photos
     const savedPhotoQuality = parseFloat(localStorage.getItem('defaultPhotoQuality'))
     const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality // Default to 0.5 (50%) if not found
 
@@ -67,7 +68,7 @@ class SnapSpotApp {
         quality: 0.7
       }
     }
-    // NEW: Marker Size Control
+    // Marker Size Control
     this.markerDisplaySizeKey = 'normal' // Initial marker size
     this.markerSizeCycle = ['normal', 'large', 'extraLarge'] // Cycle order
     this.markerSizeLabelMap = { // For button text
@@ -75,11 +76,11 @@ class SnapSpotApp {
       large: 'Large Markers',
       extraLarge: 'XL Markers' // Abbreviated for button display
     }
-    // NEW (for Map Rotation Feature):
+    // (for Map Rotation Feature):
     this.mapCurrentRotation = 0 // Current map rotation in degrees (0, 90, 180, 270)
     // Define the cycle for rotation in degrees
     this.rotationCycle = [0, 90, 180, 270]
-    // NEW: App Behavior Settings
+    // : App Behavior Settings
     this.autoCloseMarkerDetails = localStorage.getItem('autoCloseMarkerDetails') === 'true' || false
     this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
 
@@ -91,7 +92,7 @@ class SnapSpotApp {
     this.lastScale = 1 // Scale at the start of a pinch gesture
     this.activeTouches = new Map() // Stores active touch points for multi-touch
 
-    this.markers = [] // NEW: Array to hold markers for the current map
+    this.markers = [] //  Array to hold markers for the current map
     // state properties for marker dragging
     this.isDraggingMarker = false
     this.draggedMarkerId = null
@@ -102,8 +103,8 @@ class SnapSpotApp {
     // State to track the type of interaction
     this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
-    this.showCrosshair = true // NEW: State to track crosshair visibility
-    this.markersLocked = true // NEW: State to track if markers are globally locked (default: true)
+    this.showCrosshair = true //  State to track crosshair visibility
+    this.markersLocked = true //  State to track if markers are globally locked (default: true)
 
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
@@ -192,7 +193,7 @@ class SnapSpotApp {
     // Touch and mouse events for future map interaction
     this.setupMapInteractionListeners()
 
-    // NEW: Handle dynamic button for uploading new maps after initial setup
+    //  Handle dynamic button for uploading new maps after initial setup
     // const uploadNewMapBtn = document.getElementById('btn-upload-new-map')
     // if (uploadNewMapBtn) {
     //   uploadNewMapBtn.addEventListener('click', () => this.showUploadModal())
@@ -243,7 +244,7 @@ class SnapSpotApp {
     if (toggleMarkerLockBtn) {
       toggleMarkerLockBtn.addEventListener('click', () => this.toggleMarkerLockState())
     }
-    // NEW: Toggle Map Rotation button
+    //  Toggle Map Rotation button
     const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
     if (toggleMapRotationBtn) {
       toggleMapRotationBtn.addEventListener('click', () => this.toggleMapRotation())
@@ -556,27 +557,27 @@ class SnapSpotApp {
           // Re-open settings modal, ensuring the Maps Management tab is active
           this.showSettings(tabToReopen)
         },
-        // NEW: Pass the consolidated image viewer callback
+        //  Pass the consolidated image viewer callback
         onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type), // <-- NEW LINE
 
-        // NEW: Data Management Callbacks
+        //  Data Management Callbacks
         onImportData: async (file) => {
           await this.handleImportFile(file)
           this.updateAppStatus('Data import complete.', 'success') // Set status as success
           // Trigger a refresh of the settings modal to show the updated map list
           settingsCallbacks.onSettingsModalRefresh('maps-management-settings')
         },
-        // NEW: Map Display Callbacks
+        //  Map Display Callbacks
         isCrosshairEnabled: () => this.isCrosshairEnabled(),
         onToggleCrosshair: (enabled) => {
           this.toggleCrosshair(enabled)
         },
-        // NEW: Image Processing Callbacks
+        //  Image Processing Callbacks
         getPhotoQuality: () => this.getPhotoQuality(),
         setPhotoQuality: (qualityPercentage) => {
           this.setPhotoQuality(qualityPercentage)
         },
-        // NEW: App Behavior Callbacks
+        //  App Behavior Callbacks
         getAutoCloseMarkerDetails: () => this.getAutoCloseMarkerDetails(),
         setAutoCloseMarkerDetails: (value) => {
           this.setAutoCloseMarkerDetails(value)
@@ -659,14 +660,14 @@ class SnapSpotApp {
     const filteredMaps = allMapsPrepared.filter(map =>
       map.name.toLowerCase().includes(lowerCaseQuery) ||
             (map.description && map.description.toLowerCase().includes(lowerCaseQuery)) || // Existing
-            (map.fileName && map.fileName.toLowerCase().includes(lowerCaseQuery)) // NEW: Also search by fileName
+            (map.fileName && map.fileName.toLowerCase().includes(lowerCaseQuery)) //  Also search by fileName
     )
 
     console.log(`App: Found ${filteredMaps.length} maps matching query "${query}".`)
     return filteredMaps
   }
 
-  // NEW METHOD: to handle file selection specifically for search
+  // to handle file selection specifically for search
   async handleSearchFileSelection () {
     try {
       // Replicate the successful pattern: close modal, then delay
@@ -892,36 +893,38 @@ class SnapSpotApp {
       this.showLoading('Deleting map...')
       const wasActiveMap = this.currentMap && this.currentMap.id === mapId
       // const willBeEmpty = this.mapsList.length <= 1 // Check if this is the last map
-      await this.storage.deleteMap(mapId) // Delete from IndexedDB
-      this.thumbnailCache.delete(mapId) // Clear from thumbnail cache
-      this.uploadedFiles.delete(mapId) // Clear from uploaded files cache
-      await this.loadMaps() // Reload all maps from storage to get updated list
-      if (this.mapsList.length === 0) {
-      // If no maps left, reset currentMap and show welcome screen
-        this.currentMap = null
-        this.checkWelcomeScreen()
-        this.mapRenderer.dispose() // Clean up renderer resources
-        this.mapRenderer = new MapRenderer('map-canvas') // Re-initialize for empty state
-        this.showNotification('All maps deleted. Ready for new upload.', 'info')
-      } else if (wasActiveMap) {
-      // If the deleted map was active, activate the first available map
-        const firstMap = this.mapsList[0]
-        if (firstMap) {
-          await this.storage.setActiveMap(firstMap.id)
-          await this.displayMap(firstMap)
-          this.showNotification(`Active map changed to: ${firstMap.name}`, 'info')
-        } else {
-        // Fallback if somehow no other map is found (shouldn't happen with mapsList.length > 0)
+      if (confirm('Are you sure you want to delete this map? This action cannot be undone.')) {
+        await this.storage.deleteMap(mapId) // Delete from IndexedDB
+        this.thumbnailCache.delete(mapId) // Clear from thumbnail cache
+        this.uploadedFiles.delete(mapId) // Clear from uploaded files cache
+        await this.loadMaps() // Reload all maps from storage to get updated list
+        if (this.mapsList.length === 0) {
+          // If no maps left, reset currentMap and show welcome screen
           this.currentMap = null
           this.checkWelcomeScreen()
-          this.mapRenderer.dispose()
-          this.mapRenderer = new MapRenderer('map-canvas')
+          this.mapRenderer.dispose() // Clean up renderer resources
+          this.mapRenderer = new MapRenderer('map-canvas') // Re-initialize for empty state
+          this.showNotification('All maps deleted. Ready for new upload.', 'info')
+        } else if (wasActiveMap) {
+          // If the deleted map was active, activate the first available map
+          const firstMap = this.mapsList[0]
+          if (firstMap) {
+            await this.storage.setActiveMap(firstMap.id)
+            await this.displayMap(firstMap)
+            this.showNotification(`Active map changed to: ${firstMap.name}`, 'info')
+          } else {
+            // Fallback if somehow no other map is found (shouldn't happen with mapsList.length > 0)
+            this.currentMap = null
+            this.checkWelcomeScreen()
+            this.mapRenderer.dispose()
+            this.mapRenderer = new MapRenderer('map-canvas')
+          }
         }
+        this.showNotification('Map deleted successfully.', 'success')
+        // REMOVE THIS LINE: The decision to re-open the map management modal
+        // belongs to the onMapDelete callback, not deleteMap itself.
+        // await this.showMapManagementModal() // Re-open modal to update map list
       }
-      this.showNotification('Map deleted successfully.', 'success')
-    // REMOVE THIS LINE: The decision to re-open the map management modal
-    // belongs to the onMapDelete callback, not deleteMap itself.
-    // await this.showMapManagementModal() // Re-open modal to update map list
     } catch (error) {
       console.error('Error deleting map:', error)
       this.showErrorMessage('Deletion Failed', `Failed to delete map: ${error.message}`)
@@ -1061,7 +1064,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Toggles the marker lock state.
+   *  Toggles the marker lock state.
    */
   toggleMarkerLockState () {
     this.markersLocked = !this.markersLocked
@@ -1075,7 +1078,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Restores the saved state of marker locking from localStorage.
+   *  Restores the saved state of marker locking from localStorage.
    */
   restoreMarkerLockState () {
     const savedState = localStorage.getItem('markersLocked')
@@ -1094,7 +1097,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Updates the text and icon of the marker lock button based on current state.
+   *  Updates the text and icon of the marker lock button based on current state.
    */
   updateMarkerLockButtonUI () {
     const toggleMarkerLockBtn = document.getElementById('btn-toggle-marker-lock')
@@ -1113,7 +1116,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Toggles the map's rotation.
+   *  Toggles the map's rotation.
    */
   toggleMapRotation () {
     // Find current index in the rotation cycle
@@ -1132,7 +1135,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Restores the saved map rotation from localStorage.
+   *  Restores the saved map rotation from localStorage.
    */
   restoreMapRotationState () {
     const savedRotation = localStorage.getItem('mapRotation')
@@ -1152,7 +1155,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Updates the text and icon of the map rotation button based on current state.
+   *  Updates the text and icon of the map rotation button based on current state.
    */
   updateMapRotationButtonUI () {
     const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
@@ -1180,7 +1183,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Restores the saved marker display size from localStorage.
+   *  Restores the saved marker display size from localStorage.
    */
   restoreMarkerSizeState () {
     const savedSize = localStorage.getItem('markerDisplaySize')
@@ -1198,7 +1201,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Updates the text and icon of the marker size button based on current state.
+   *  Updates the text and icon of the marker size button based on current state.
    */
   updateMarkerSizeButtonUI () {
     const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
@@ -1236,7 +1239,7 @@ class SnapSpotApp {
   }
 
   /**
-   * NEW: Restores the saved state of the crosshair from localStorage.
+   *  Restores the saved state of the crosshair from localStorage.
    */
   restoreCrosshairState () {
     const savedState = localStorage.getItem('showCrosshair')
@@ -1350,7 +1353,7 @@ class SnapSpotApp {
       const deltaX = event.clientX - this.initialDownX
       const deltaY = event.clientY - this.initialDownY
 
-      // NEW: Use screenVectorToMapVector to get the deltas in map's original coordinate system
+      //  Use screenVectorToMapVector to get the deltas in map's original coordinate system
       const { mapDeltaX, mapDeltaY } = this.mapRenderer.screenVectorToMapVector(deltaX, deltaY)
 
       const currentMarkerMapX = this.dragStartMapX + mapDeltaX
@@ -1571,7 +1574,7 @@ class SnapSpotApp {
       const deltaX = touch.x - this.initialDownX
       const deltaY = touch.y - this.initialDownY
 
-      // NEW: Use screenVectorToMapVector for touch events as well
+      //  Use screenVectorToMapVector for touch events as well
       const { mapDeltaX, mapDeltaY } = this.mapRenderer.screenVectorToMapVector(deltaX, deltaY)
 
       const currentMarkerMapX = this.dragStartMapX + mapDeltaX
@@ -2083,7 +2086,7 @@ class SnapSpotApp {
     }
 
     try {
-      // NEW: Ensure map display elements are visible BEFORE loading image into renderer
+      //  Ensure map display elements are visible BEFORE loading image into renderer
       const welcomeScreen = document.getElementById('welcome-screen')
       const mapDisplay = document.getElementById('map-display')
       if (welcomeScreen && mapDisplay) {
@@ -2381,7 +2384,7 @@ class SnapSpotApp {
           const updatedPhotoIds = [...new Set([...(marker.photoIds || []), ...photoIdsToAdd])]
           await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
           this.showNotification(`${photoIdsToAdd.length} photo(s) added to marker.`, 'success')
-          // NEW: Update local markers array and re-render map for visual change
+          //  Update local markers array and re-render map for visual change
           const localMarker = this.markers.find(m => m.id === markerId)
           if (localMarker) {
             localMarker.photoIds = updatedPhotoIds // Update local photoIds
@@ -2418,7 +2421,7 @@ class SnapSpotApp {
         await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
         console.log(`Removed photoId ${photoId} from marker ${markerId}`)
 
-        // NEW: Update local markers array and re-render map for visual change
+        //  Update local markers array and re-render map for visual change
         const localMarker = this.markers.find(m => m.id === markerId)
         if (localMarker) {
           localMarker.photoIds = updatedPhotoIds // Update local photoIds
@@ -2531,7 +2534,7 @@ class SnapSpotApp {
             try {
               const jsonData = e.target.result
 
-              // NEW: Call importData, passing this.storage and handling the new return structure
+              //  Call importData, passing this.storage and handling the new return structure
               const importResult = await MapDataExporterImporter.importData(
                 jsonData,
                 ImageProcessor, // Assuming ImageProcessor is defined appropriately

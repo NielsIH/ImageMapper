@@ -1,9 +1,6 @@
 /* global caches self */
 
-// 🚨 IMPORTANT: You MUST update this version string whenever you deploy new changes!
-// This will force the service worker to update and clear old caches.
-// A good pattern is to use a date-based version like 'v2024-12-20-1'
-const CACHE_NAME = 'image-mapper-v2025-09-30-57' // Updated version
+const CACHE_NAME = 'image-mapper-v2025-09-30-59' // Updated version
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -25,8 +22,7 @@ const STATIC_ASSETS = [
   './js/fileManager.js',
   './js/mapRenderer.js',
   './js/searchManager.js',
-  './js/imageProcessor.js',
-  './js/debug.js'
+  './js/imageProcessor.js'
 ]
 console.log('🚀 SERVICE WORKER SCRIPT LOADED - VERSION:', CACHE_NAME)
 
