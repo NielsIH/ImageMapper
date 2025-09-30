@@ -27,94 +27,31 @@
   image-rendering: crisp-edges;
 }
 
-/* Map Controls Overlay */
-.map-controls-wrapper {
+#action-buttons-container {
     position: absolute;
-    top: var(--spacing-md);
-    right: var(--spacing-md);
-    flex-direction: row;
-    gap: var(--spacing-sm);
-    align-items: flex-start;
     z-index: 10;
+    display: flex;
+    gap: var(--spacing-sm);
     padding: var(--spacing-sm);
-    background-color: var(--bg-dark); 
+    background-color: var(--bg-dark);
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
     cursor: default;
-    overflow: hidden;
-    transition: all 0.3s ease-in-out;
-    max-width: fit-content;
-    min-width: var(--touch-target);
-}
-
-.toggle-controls-btn {
-    background-color: transparent;
-    border: none;
-    color: var(--bg-primary);
-    font-size: 1.5rem;
-    cursor: pointer;
-    align-self: center;
-    padding: 0;
-    line-height: 1;
-    transition: transform 0.3s ease-in-out, color 0.2s ease;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: var(--touch-target);
-    height: var(--touch-target);
-    flex-shrink: 0;
-    flex-grow: 0;
-}
-
-.toggle-controls-btn:hover {
-    color: var(--primary-color);
-}
-
-.toggle-controls-btn .icon {
-    display: block;
-}
-
-.map-controls {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    flex-shrink: 0;
-    transition: max-width 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s ease-out;
-    max-width: 300px;
-    opacity: 1;
-    visibility: visible;
-    overflow: hidden;
-}
-
-.map-controls-wrapper.minimized .map-controls {
-    max-width: var(--touch-target) !important; 
-    opacity: 1 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    filter: brightness(0.8);
-}
-
-.map-controls-wrapper.minimized .toggle-controls-btn .icon {
-    transform: rotate(180deg); 
 }
 
 .zoom-controls {
     display: flex;
-    flex-direction: column;
-    background: var(--bg-primary); 
+    background: var(--bg-primary);
     border-radius: 6px;
     box-shadow: var(--shadow);
     overflow: hidden;
-    flex-shrink: 0; 
+    flex-shrink: 0;
 }
 
 .zoom-btn {
-    width: var(--touch-target);
-    height: var(--touch-target);
     border: none;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 1.25rem;
     font-weight: bold;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -132,21 +69,17 @@
     background: var(--border-color);
 }
 
-.zoom-btn:not(:last-child) {
-    border-bottom: 1px solid var(--border-color);
-}
-
 .control-btn {
     box-shadow: var(--shadow);
-    min-height: var(--touch-target);
-    white-space: nowrap;
-    display: inline-flex;
+    white-space: normal;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: center;
+    gap: 0.1rem;
+    padding: var(--spacing-xxs);
     border-radius: 6px;
-    font-size: 0.875rem;
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
@@ -156,13 +89,21 @@
     -webkit-tap-highlight-color: transparent;
     font-family: inherit;
     flex-shrink: 0;
-    width: 150px;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex-grow: 0;
 }
 
-.btn-primary.control-btn { 
+.control-btn .btn-text {
+    font-size: 0.65em;
+    line-height: 1.2;
+    margin-top: 0.2em;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    padding: 0 2px;
+}
+
+.btn-primary.control-btn {
     background: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
@@ -171,8 +112,7 @@
     background: #1d4ed8;
     border-color: #1d4ed8;
 }
-
-.btn-secondary.control-btn { 
+.btn-secondary.control-btn {
     background: var(--bg-primary);
     color: var(--text-primary);
     border-color: var(--border-color);
@@ -182,18 +122,240 @@
     border-color: var(--secondary-color);
 }
 
-.map-controls-wrapper.minimized .control-btn {
-    width: var(--touch-target) !important;
-    height: var(--touch-target) !important;
-    padding: 0 !important; 
-    font-size: 1.2rem !important;
-    border-radius: 50% !important;
-    overflow: hidden !important;
-    justify-content: center !important;
-    align-items: center !important;
-    flex-shrink: 0 !important;
+#btn-place-marker {
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    flex-shrink: 0;
+    flex-grow: 0;
 }
 
-.map-controls-wrapper.minimized .control-btn .btn-text {
-    display: none !important;
+#btn-place-marker .btn-text {
+    display: none;
+}
+
+@media (orientation: landscape) {
+    #action-buttons-container {
+        flex-direction: column; align-items: center;
+        top: var(--spacing-md); right: var(--spacing-md);
+        bottom: unset; left: unset;
+        width: var(--landscape-prominent-btn-size);
+        padding: var(--spacing-sm); gap: var(--spacing-sm);
+    }
+
+    .zoom-controls { flex-direction: column; width: 100%; }
+
+    .zoom-btn {
+        width: 100%;
+        height: var(--landscape-uniform-btn-size);
+        font-size: var(--landscape-icon-font-size);
+        padding: var(--spacing-xs) 0;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .zoom-btn:not(:last-child) { border-bottom: 1px solid var(--border-color); border-right: none; }
+
+
+    .control-btn:not(#btn-place-marker) {
+        width: 100%;
+        height: var(--landscape-uniform-btn-size);
+        font-size: var(--landscape-icon-font-size);
+        padding: var(--spacing-xxs) var(--spacing-xs);
+        white-space: normal;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+
+    .control-btn:not(#btn-place-marker) .btn-text {
+        font-size: var(--landscape-text-font-size);
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        line-height: 1.1;
+        margin-top: 0.1em;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+
+    #btn-place-marker {
+        width: var(--landscape-prominent-btn-size);
+        height: var(--landscape-prominent-btn-size);
+        font-size: var(--landscape-icon-font-size);
+        margin: var(--spacing-sm) 0;
+        padding: var(--spacing-xxs);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+}
+@media (orientation: landscape) and (min-width: 1024px) {
+    #action-buttons-container {
+        width: calc(var(--desktop-landscape-uniform-btn-width) + (var(--spacing-sm) * 2));
+        padding: var(--spacing-sm);
+        gap: var(--spacing-sm);
+        align-items: center;
+    }
+
+    .zoom-btn {
+        width: 100%;
+        height: var(--desktop-landscape-uniform-btn-min-height);
+        font-size: var(--desktop-landscape-icon-font-size);
+        padding: var(--spacing-xs) 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .zoom-btn:not(:last-child) {
+        border-bottom: 1px solid var(--border-color);
+        border-right: none;
+    }
+
+    .control-btn:not(#btn-place-marker) {
+        width: 100%;
+        height: var(--desktop-landscape-uniform-btn-min-height);
+        font-size: var(--desktop-landscape-icon-font-size);
+        padding: var(--spacing-xxs) var(--spacing-xxs);
+        white-space: normal;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .control-btn:not(#btn-place-marker) .btn-text {
+        font-size: var(--desktop-landscape-text-font-size);
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        line-height: 1.05;
+        margin-top: 0.05em;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    #btn-place-marker {
+        width: var(--desktop-landscape-prominent-btn-size);
+        height: var(--desktop-landscape-prominent-btn-size);
+        font-size: var(--desktop-landscape-icon-font-size);
+        margin: var(--spacing-sm) 0;
+        padding: var(--spacing-xs);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+}
+
+@media (orientation: portrait) {
+    #action-buttons-container {
+        flex-direction: row; justify-content: center; align-items: center;
+        bottom: var(--spacing-md); left: 50%; transform: translateX(-50%);
+        top: unset; right: unset; width: fit-content;
+        gap: var(--spacing-xxs); padding: var(--spacing-xxs);
+        flex-wrap: nowrap;
+    }
+
+    .zoom-btn {
+        width: var(--phone-portrait-uniform-btn-size);
+        height: var(--phone-portrait-uniform-btn-size);
+        font-size: var(--phone-portrait-icon-font-size);
+        padding: var(--spacing-xxs) 0;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+
+    .control-btn:not(#btn-place-marker) {
+        width: var(--phone-portrait-uniform-btn-size);
+        height: var(--phone-portrait-uniform-btn-size);
+        font-size: var(--phone-portrait-icon-font-size);
+        padding: var(--spacing-xxs) var(--spacing-xxs);
+        white-space: normal;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+
+    .control-btn:not(#btn-place-marker) .btn-text {
+        font-size: var(--phone-portrait-text-font-size);
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        line-height: 1;
+        margin-top: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        padding: 0;
+    }
+
+    #btn-place-marker {
+        width: var(--phone-portrait-prominent-btn-size);
+        height: var(--phone-portrait-prominent-btn-size);
+        font-size: var(--phone-portrait-icon-font-size);
+        margin: 0 var(--spacing-xxs);
+        padding: var(--spacing-xs);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+}
+
+@media (orientation: portrait) and (min-width: 768px) {
+    #action-buttons-container {
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm);
+        overflow: visible;
+    }
+
+    .zoom-btn {
+        width: var(--tablet-portrait-uniform-btn-size);
+        height: var(--tablet-portrait-uniform-btn-size);
+        font-size: var(--tablet-portrait-icon-font-size);
+        padding: var(--spacing-xs) 0;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        overflow: visible;
+    }
+
+    .control-btn:not(#btn-place-marker) {
+        width: var(--tablet-portrait-uniform-btn-size);
+        height: var(--tablet-portrait-uniform-btn-size);
+        font-size: var(--tablet-portrait-icon-font-size);
+        padding: var(--spacing-xs);
+        white-space: normal;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        overflow: visible;
+        flex-shrink: 0;
+    }
+
+    .control-btn:not(#btn-place-marker) .btn-text {
+        font-size: var(--tablet-portrait-text-font-size);
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        max-width: 100%;
+        line-height: 1.1;
+        margin-top: 0.1em;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        padding: 0;
+    }
+
+    #btn-place-marker {
+        width: var(--tablet-portrait-prominent-btn-size);
+        height: var(--tablet-portrait-prominent-btn-size);
+        font-size: var(--tablet-portrait-icon-font-size);
+        margin: 0 var(--spacing-sm);
+        padding: var(--spacing-sm);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        overflow: visible;
+        flex-shrink: 0;
+    }
+}
+
+@media (pointer: coarse) and (hover: none) {
+    .zoom-controls {
+        display: none;
+    }
 }

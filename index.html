@@ -65,42 +65,26 @@
                         <canvas class="map-canvas" id="map-canvas"></canvas>
                     </div>
 
-                    <!-- NEW MAP CONTROLS WRAPPER -->
-                    <div class="map-controls-wrapper">
-                        <button class="toggle-controls-btn" id="toggle-map-controls" title="Toggle Controls">
-                            <span class="icon">►</span>
-                        </button>
-                        <!-- Original map-controls div, now contained -->
-                        <div class="map-controls">
-                            <div class="zoom-controls">
-                                <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
-                                <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
-                            </div>
-                            <button class="btn btn-primary control-btn" id="btn-place-marker" title="Place New Marker">
-                                📌 <span class="btn-text">Place Marker</span>
-                            </button>
-                            <button
-                                class="btn btn-secondary control-btn"
-                                id="btn-toggle-marker-lock"
-                                title="Toggle Marker Locking">
-                                🔒 <span class="btn-text">Locked Markers</span>
-                            </button>
-                            <!-- Add this button in your map controls, e.g., near Toggle Marker Size -->
-                            <button
-                                class="btn btn-secondary control-btn"
-                                id="btn-toggle-marker-size"
-                                title="Toggle Marker Size: Normal">
-                                📏 <span class="btn-text">Normal Size</span>
-                            </button>
-                            <button
-                                class="btn btn-secondary control-btn"
-                                id="btn-toggle-map-rotation"
-                                title="Rotate Map: 0°">
-                                🔄 <span class="btn-text">Rotate 0°</span>
-                            </button>
+                    <!-- Action Buttons Container -->
+                    <div id="action-buttons-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+                            <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">−</button>
                         </div>
+                        <button class="btn btn-primary control-btn" id="btn-place-marker">
+                            📌 <span class="btn-text">Place Marker</span>
+                        </button>
+                        <button class="btn btn-secondary control-btn" id="btn-toggle-marker-lock">
+                            🔒 <span class="btn-text">Locked Markers</span>
+                        </button>
+                        <button class="btn btn-secondary control-btn" id="btn-toggle-marker-size">
+                            📏 <span class="btn-text">Normal Size</span>
+                        </button>
+                        <button class="btn btn-secondary control-btn" id="btn-toggle-map-rotation">
+                            🔄 <span class="btn-text">Rotate 0°</span>
+                        </button>
                     </div>
-                    <!-- END NEW MAP CONTROLS WRAPPER -->
+                    <!-- End Action Buttons Container -->
                 </div>
             </main>
 

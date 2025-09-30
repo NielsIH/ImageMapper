@@ -1002,10 +1002,16 @@ div.modal-footer button#btn-delete-marker {
   .map-name, .photo-name {
     font-size: 0.95rem;
     margin-bottom: var(--spacing-xs);
+    display:-webkit-box;
+    -webkit-line-clamp: 1; /* Limit to 1 line */ 
+    line-clamp:1; 
   }
   
   .map-details, .photo-details {
     font-size: 0.75rem;
+    display:-webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp:1; 
   }
   
   .active-status {

@@ -102,7 +102,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Map naming and descriptions (including editing in map management modal)
 - ✅ Map list management (CRUD operations, including active map selection, deletion, export)
 - ✅ Local storage of map metadata (using IndexedDB)
-- ✅ **NEW: "Clear All App Data" function for complete data reset**
+- ✅ "Clear All App Data" function for complete data reset
 
 ### Phase 1C: Map Display Engine ✅
 - ✅ Canvas-based map rendering
@@ -115,7 +115,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Marker lock/unlock toggle and persistence
 - ✅ Marker display size toggle and persistence
 - ✅ Map rotation (90-degree increments) and persistence
-- ✅ **NEW: Consolidated and enhanced image viewer modal for maps and photos.**
+- ✅ Consolidated and enhanced image viewer modal for maps and photos.
 
 ### Phase 1D: Marker System ✅
 - ✅ Click/tap to place markers at canvas center
@@ -124,8 +124,8 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Marker description editing
 - ✅ Marker deletion
 - ✅ Image association with markers (uploading photos to markers)
-- ✅ **NEW: Direct image deletion from the full-size image viewer modal**
-- ✅ **NEW: Implemented comprehensive map-wide duplicate photo detection.**
+- ✅ Direct image deletion from the full-size image viewer modal
+- ✅ Implemented comprehensive map-wide duplicate photo detection.
 - ✅ Note-taking functionality (marker description)
 - ✅ Coordinate tracking (display in marker details)
 
@@ -147,9 +147,15 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Search by Image File (via selection) for map lookup.
 - ✅ "Clear Search" functionality (X button) within the search input.
 - ✅ Map thumbnail/image click in search results and settings list opens image viewer.
-- ✅ **NEW: Photo search by filename and display in search results with thumbnails.**
-- ✅ **NEW: "Show on Map" action for photo search results, switching to map, panning to and highlighting the associated marker.**
+- ✅ Photo search by filename and display in search results with thumbnails.
+- ✅ "Show on Map" action for photo search results, switching to map, panning to and highlighting the associated marker.
 
+### Phase 4: Enhanced Responsive UI & UX (Action Buttons) ✅
+- ✅ Dynamically positioned action button bar:
+  -   **Portrait Orientation (Mobile/Tablets)**: Buttons are fixed at the bottom with icons and labels, prominently featuring an enlarged "Place Marker" button in the center.
+  -   **Landscape Orientation (All Devices)**: Buttons are fixed on the right side with icons and labels for easy access.
+- ✅ Unified and redesigned action buttons with consistent sizing and clear labels across orientations.
+- ✅ Touch-optimized zoom controls: Explicit zoom buttons are automatically hidden on touch-first devices, relying on pinch-to-zoom gestures.
 
 ## Technical Stack
 
@@ -168,7 +174,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 ## Development Notes
 
 ### Current Limitations
-- **PWA screen orientation locking needs implementation (e.g., `screen.orientation.lock()` in JS)**
+- PWA screen orientation locking needs implementation (e.g., `screen.orientation.lock()` in JS).
 - User-defined marker sizes are still to be implemented.
 - Marker drag boundaries (preventing dragging outside map limits) need implementation.
 - Photo Search (search photos directly by metadata/filename) is pending.

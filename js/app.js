@@ -102,9 +102,7 @@ class ImageMapperApp {
     // State to track the type of interaction
     this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
-    this.mapControls = document.querySelector('.map-controls')
-    this.mapControlsWrapper = document.querySelector('.map-controls-wrapper')
-    this.showCrosshair = false // NEW: State to track crosshair visibility
+    this.showCrosshair = true // NEW: State to track crosshair visibility
     this.markersLocked = true // NEW: State to track if markers are globally locked (default: true)
 
     // Initialize app when DOM is ready
@@ -140,7 +138,6 @@ class ImageMapperApp {
       // Restore preference states. These should NOT trigger any re-renders,
       // just load values from localStorage. The actual application of these
       // preferences to the renderer will happen when displayMap is called.
-      this.restoreMapControlsState()
       this.restoreCrosshairState()
       this.restoreMarkerLockState()
       this.restoreMarkerSizeState()
@@ -167,7 +164,6 @@ class ImageMapperApp {
         // checkWelcomeScreen will correctly show the welcome elements.
         this.checkWelcomeScreen()
       }
-
       // Initialize app state (this should be the final status update, not intermediate ones)
       this.updateAppStatus('Ready')
 
@@ -256,12 +252,6 @@ class ImageMapperApp {
     const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
     if (toggleMarkerSizeBtn) {
       toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
-    }
-
-    // Toggle Map Controls button
-    const toggleMapControlsBtn = document.getElementById('toggle-map-controls')
-    if (toggleMapControlsBtn) {
-      toggleMapControlsBtn.addEventListener('click', () => this.toggleMapsControls())
     }
   }
 
@@ -1256,40 +1246,6 @@ class ImageMapperApp {
         this.mapRenderer.toggleCrosshair(this.showCrosshair)
       }
       console.log('Restored crosshair state:', this.showCrosshair)
-    }
-  }
-
-  /**
-   * NEW: Method to toggle map controls and save state
-   */
-  toggleMapsControls () {
-    // IMPORTANT: Make sure `this.mapControlsWrapper` is being used here.
-    if (this.mapControlsWrapper) {
-      this.mapControlsWrapper.classList.toggle('minimized') // <--- CRITICAL FIX: Toggle on the wrapper
-      const isMinimized = this.mapControlsWrapper.classList.contains('minimized')
-      localStorage.setItem('mapControlsMinimized', isMinimized)
-      console.log('Toggled map controls. Minimized:', isMinimized)
-    } else {
-      console.warn('Cannot toggle map controls: mapControlsWrapper element not found.')
-    }
-  }
-
-  /**
-   * Restores the saved minimized state of the map controls from localStorage.
-   */
-  restoreMapControlsState () {
-    // IMPORTANT: Make sure `this.mapControlsWrapper` is being used here.
-    if (this.mapControlsWrapper) {
-      const savedState = localStorage.getItem('mapControlsMinimized')
-      if (savedState === 'true') {
-        this.mapControlsWrapper.classList.add('minimized') // <--- CRITICAL FIX: Add to the wrapper
-        console.log('Restored map controls to minimized state.')
-      } else {
-        this.mapControlsWrapper.classList.remove('minimized')
-        console.log('Restored map controls to expanded state.')
-      }
-    } else {
-      console.warn('Cannot restore map controls state: mapControlsWrapper element not found.')
     }
   }
 
