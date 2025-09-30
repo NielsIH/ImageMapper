@@ -138,14 +138,15 @@
     display: none;
 }
 
+/* --- Default Landscape (Applied to phones, tablets, and smaller desktops in landscape) --- */
 @media (orientation: landscape) {
     #action-buttons-container {
         flex-direction: column; align-items: center;
-        top: var(--spacing-xxs); /* Compact positioning */
+        top: var(--spacing-xxs);
         right: var(--spacing-xxs);
         bottom: unset; left: unset;
         width: var(--landscape-prominent-btn-size); /* Container width based on prominent button */
-        padding: var(--spacing-xxs); gap: var(--spacing-xxs); /* Compact padding & gap */
+        padding: var(--spacing-xxs); gap: var(--spacing-xxs);
     }
 
     .zoom-controls { display: none; } /* Hide zoom controls for all non-desktop landscape */
@@ -161,32 +162,32 @@
 
     .control-btn:not(#btn-place-marker) {
         width: 100%;
-        height: var(--landscape-uniform-btn-size);
+        height: var(--landscape-uniform-btn-size); /* This must be very compact */
         font-size: var(--landscape-icon-font-size);
-        padding: var(--spacing-xxs) 0; /* Minimal padding */
+        padding: var(--spacing-xxs) 0; /* Minimal vertical padding */
         white-space: normal;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 
     .control-btn:not(#btn-place-marker) .btn-text {
-        font-size: var(--landscape-text-font-size);
+        font-size: var(--landscape-text-font-size); /* This takes the smaller font size */
         white-space: normal;
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
         line-height: 1.1;
-        margin-top: 0.1em;
+        margin-top: 0.05em; /* Keep a minimal margin */
         display: -webkit-box;
-        -webkit-line-clamp: 2; /* Allow up to two lines */
+        -webkit-line-clamp: 2; /* Still try for two lines if space allows */
         -webkit-box-orient: vertical;
     }
 
 
     #btn-place-marker {
-        width: var(--landscape-prominent-btn-size);
-        height: var(--landscape-prominent-btn-size);
+        width: var(--landscape-prominent-btn-size); /* This must be very compact */
+        height: var(--landscape-prominent-btn-size); /* This must be very compact */
         font-size: var(--landscape-icon-font-size);
-        margin: var(--spacing-xxs) 0; /* Compact margin */
+        margin: var(--spacing-xxs) 0;
         padding: var(--spacing-xxs);
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }

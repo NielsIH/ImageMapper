@@ -32,10 +32,10 @@
   --phone-landscape-prominent-btn-size: 4rem; /* ~64px */
   --phone-landscape-icon-font-size: 1.5rem;
   --phone-landscape-text-font-size: 0.6rem;
-  --landscape-uniform-btn-size: 4.0625rem;
-  --landscape-prominent-btn-size: 5rem;
-  --landscape-icon-font-size: 1.8rem;
-  --landscape-text-font-size: 0.7rem;
+  --landscape-uniform-btn-size: 3rem; /* <<< Reduced to 48px */
+  --landscape-prominent-btn-size: 3.5rem; /* <<< Reduced to 56px */
+  --landscape-icon-font-size: 1.3rem; /* Smaller icon font */
+  --landscape-text-font-size: 0.55rem;/* Smaller text font */
   --tablet-portrait-uniform-btn-size: 5.5rem;
   --tablet-portrait-prominent-btn-size: 7.5rem;
   --tablet-portrait-icon-font-size: 2.3rem;
