@@ -139,19 +139,19 @@
 }
 
 /* --- Default Landscape (Applied to phones, tablets, and smaller desktops in landscape) --- */
-@media (orientation: landscape) {
+@media (orientation: landscape) and (max-width: 1023px) { /* <<< CRITICAL CHANGE: Add max-width */
     #action-buttons-container {
         flex-direction: column; align-items: center;
         top: var(--spacing-xxs);
         right: var(--spacing-xxs);
         bottom: unset; left: unset;
-        width: var(--landscape-prominent-btn-size); /* Container width based on prominent button */
+        width: var(--landscape-prominent-btn-size);
         padding: var(--spacing-xxs); gap: var(--spacing-xxs);
     }
 
-    .zoom-controls { display: none; } /* Hide zoom controls for all non-desktop landscape */
+    .zoom-controls { display: none; }
 
-    .zoom-btn { /* These styles won't be applied due to display: none above, but are structured */
+    .zoom-btn {
         width: 100%; height: var(--landscape-uniform-btn-size);
         font-size: var(--landscape-icon-font-size);
         padding: var(--spacing-xxs) 0;
@@ -162,30 +162,30 @@
 
     .control-btn:not(#btn-place-marker) {
         width: 100%;
-        height: var(--landscape-uniform-btn-size); /* This must be very compact */
+        height: var(--landscape-uniform-btn-size);
         font-size: var(--landscape-icon-font-size);
-        padding: var(--spacing-xxs) 0; /* Minimal vertical padding */
+        padding: var(--spacing-xxs) 0;
         white-space: normal;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 
     .control-btn:not(#btn-place-marker) .btn-text {
-        font-size: var(--landscape-text-font-size); /* This takes the smaller font size */
+        font-size: var(--landscape-text-font-size);
         white-space: normal;
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
         line-height: 1.1;
-        margin-top: 0.05em; /* Keep a minimal margin */
+        margin-top: 0.05em;
         display: -webkit-box;
-        -webkit-line-clamp: 2; /* Still try for two lines if space allows */
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
     }
 
 
     #btn-place-marker {
-        width: var(--landscape-prominent-btn-size); /* This must be very compact */
-        height: var(--landscape-prominent-btn-size); /* This must be very compact */
+        width: var(--landscape-prominent-btn-size);
+        height: var(--landscape-prominent-btn-size);
         font-size: var(--landscape-icon-font-size);
         margin: var(--spacing-xxs) 0;
         padding: var(--spacing-xxs);
