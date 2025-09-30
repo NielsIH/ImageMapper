@@ -129,9 +129,14 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Note-taking functionality (marker description)
 - ✅ Coordinate tracking (display in marker details)
 
-### Phase 2: Export and Sync
+### Phase 2: Export and Sync ✅
 - ✅ Data export in multiple formats (HTML report implemented)
 - ✅ Import and export of maps with markers and images
+- ✅ **New: Merge Map Data functionality**:
+  -   Allows merging imported map data (markers and photos) into an existing map based on image content (hash).
+  -   Option to replace an existing map with imported data (maintaining map ID).
+  -   Handles legacy import files (without content hashes) as new maps.
+  -   Detects and skips duplicate markers during merge, while adding new photos to existing markers.
 
 ### Phase 3: App Settings & Customization ✅
 - ✅ Comprehensive, tabbed settings modal for centralized configuration.
