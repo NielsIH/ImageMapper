@@ -408,7 +408,10 @@ export class MapRenderer {
   }
 
   /**
-   * NEW: Set the map's current rotation. This will re-render the image with the new rotation.
+   * Set the map's current rotation. This will re-render the image with the new rotation.
+   * This version attempts to preserve the current pan and zoom level, specifically
+   * by ensuring the *center of the viewport* (where the crosshair is) remains focused
+   * on the same point in map coordinates.
    * @param {number} degrees - The new rotation angle (0, 90, 180, 270).
    */
   setMapRotation (degrees) {
@@ -418,25 +421,69 @@ export class MapRenderer {
       return
     }
 
-    // Only apply if there's an original image and the rotation is actually changing
-    if (this.originalImageData && this.currentMapRotation !== degrees) {
+    if (!this.originalImageData) {
+      // If no original image is loaded, just update the rotation property.
+      // It will be applied when an image is eventually loaded.
       this.currentMapRotation = degrees
-      // Re-create the rotated image bitmap from the original image data
-      this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
-
-      this.resizeCanvas() // Ensure canvas is resized if needed
-      this.fitToScreen() // Re-fit because dimensions of imageData might have changed
-      this.render() // Redraw everything
-    } else if (this.originalImageData && this.currentMapRotation === degrees) {
-      // Rotation unchanged, but still force a render if original image data exists
-      // This handles cases where `setMapRotation` might be called externally
-      // without other explicit renders, e.g., on initial app load for a map
-      this.render()
-    } else if (!this.originalImageData) {
-      // If no image is loaded, just update the property, it will be applied once an image loads
-      this.currentMapRotation = degrees // Still update, even if no image is present
-      console.warn('MapRenderer: Cannot immediately set rotation, no original image data loaded.')
+      console.warn('MapRenderer: Cannot immediately set rotation, no original image data loaded. Rotation will apply when map loads.')
+      return
     }
+
+    if (this.currentMapRotation === degrees) {
+      // If the rotation is already at the desired angle, just re-render in case
+      // other properties changed (e.g., markers updated, but rotation was not changed explicitly).
+      this.render()
+      return
+    }
+
+    // --- 1. Capture the current viewport center's *map coordinates* ---
+    // This is the key to preserving the view. We convert the screen center
+    // to a fixed point on the original (unrotated) map.
+    const oldScale = this.scale
+    const viewportCenterX = this.canvas.width / 2
+    const viewportCenterY = this.canvas.height / 2
+    const mapCenterPoint = this.screenToMap(viewportCenterX, viewportCenterY) // {x, y} in original map coords
+
+    if (!mapCenterPoint) {
+      console.error('MapRenderer: Could not determine map center point for rotation adjustment. Falling back to fitToScreen.')
+      this.fitToScreen() // Fallback if coordinate conversion fails
+      this.render()
+      return
+    }
+
+    // --- 2. Update the map's rotation and re-create the rotated image ---
+    this.currentMapRotation = degrees
+    this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
+
+    // --- 3. Adjust canvas size (if responsive container changes dimensions) ---
+    // This will update this.canvas.width/height if the container dictates a change.
+    // We don't need its return value here, as we're explicitly setting pan/zoom.
+    this.resizeCanvas()
+
+    // --- 4. Re-calculate offsetX and offsetY to keep the 'mapCenterPoint' at 'viewportCenterX/Y' ---
+    // First, find where our 'mapCenterPoint' *would* be on screen with the new rotation
+    // if offsetX and offsetY were both 0 (relative to the newly rotated image).
+    const newScreenCoordsOfMapCenter = this.mapToScreen(mapCenterPoint.x, mapCenterPoint.y)
+
+    if (newScreenCoordsOfMapCenter) {
+      // We want the 'mapCenterPoint' to appear at (viewportCenterX, viewportCenterY).
+      // 'newScreenCoordsOfMapCenter' tells us where it is *now* (before adjusting offsets).
+      // The difference is how much we need to shift our offsets.
+      this.offsetX -= (newScreenCoordsOfMapCenter.x - viewportCenterX)
+      this.offsetY -= (newScreenCoordsOfMapCenter.y - viewportCenterY)
+
+      // Preserve the previous scale. This keeps the zoom level consistent.
+      this.scale = oldScale
+
+      // Ensure the scale remains within defined min/max bounds.
+      this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale))
+    } else {
+      console.warn('MapRenderer: Failed to convert map center point to new screen coordinates after rotation. Falling back to fitToScreen.')
+      this.fitToScreen() // Fallback if conversion fails unexpectedly
+    }
+
+    // --- 5. Re-render the canvas with the new rotation, pan, and zoom ---
+    this.render()
   }
 
   /**

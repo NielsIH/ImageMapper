@@ -524,10 +524,10 @@ export class MapStorage {
   }
 
   /**
-   * Get all markers for a specific map
+   * Get all markers for a specific map, sorted by createdDate.
    * @param {string} mapId - The ID of the map
    * @param {IDBTransaction} [transaction] - Optional existing transaction
-   * @returns {Promise<Array>} - Array of marker objects
+   * @returns {Promise<Array>} - Array of marker objects, sorted by createdDate ascending
    */
   async getMarkersForMap (mapId, transaction = null) {
     if (!this.db) {
@@ -540,18 +540,32 @@ export class MapStorage {
         t = this.db.transaction([this.markerStoreName], 'readonly')
       }
       const store = t.objectStore(this.markerStoreName)
-      const index = store.index('mapId')
-      const request = index.getAll(mapId)
+      // Use the 'createdDate' index and open a cursor to iterate in order
+      const index = store.index('createdDate')
+      const markers = []
 
-      request.onsuccess = () => {
-        const markers = request.result || []
-        console.log(`MapStorage: Retrieved ${markers.length} markers for map ${mapId}`)
-        resolve(markers)
+      // To filter by mapId AND sort by createdDate:
+      // We can't directly use index.getAll(mapId) if we want to sort by createdDate index.
+      // We need to iterate over the createdDate index and filter by mapId.
+      const request = index.openCursor(null, 'next') // Iterate all by createdDate
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result
+        if (cursor) {
+          if (cursor.value.mapId === mapId) {
+            markers.push(cursor.value)
+          }
+          cursor.continue()
+        } else {
+          // Cursor finished, and markers are already in createdDate order
+          console.log(`MapStorage: Retrieved ${markers.length} markers for map ${mapId}, sorted by creation date.`)
+          resolve(markers)
+        }
       }
 
       request.onerror = () => {
-        console.error('MapStorage: Failed to get markers for map', request.error)
-        reject(new Error(`Failed to load markers: ${request.error}`))
+        console.error('MapStorage: Failed to get and sort markers for map', request.error)
+        reject(new Error(`Failed to load and sort markers: ${request.error}`))
       }
     })
   }

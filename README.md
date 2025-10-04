@@ -29,9 +29,11 @@ image-mapper/
 │   ├── layout.css            # Layout-specific styles
 │   ├── main.css              # Main application styles
 │   ├── map-display.css       # Map display specific styles
-│   ├── modals.css            # Modal-specific styles
+│   ├── modals/               # Modal-specific styles (reorganized for clarity)
+│   │   ├── marker-details.css# Marker details modal styles
+│   │   └── responsive.css    # Responsive adjustments for modals
 │   ├── notifications.css     # Notification styles
-│   ├── responsive.css        # Responsive adjustments
+│   ├── responsive.css        # General responsive adjustments
 │   └── utilities.css         # Utility classes
 │
 ├── icons/
@@ -119,8 +121,10 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 
 ### Phase 1D: Marker System ✅
 - ✅ Click/tap to place markers at canvas center
+- ✅ Markers are numbered chronologically by creation date.
 - ✅ Marker dragging (mouse and touch, now preserves position across map rotations)
 - ✅ Marker details modal (showing description, coordinates, associated photos)
+- ✅ Enhanced: Marker details modal now displays full-size photos for readability, especially for text.
 - ✅ Marker description editing
 - ✅ Marker deletion
 - ✅ Image association with markers (uploading photos to markers)
@@ -147,6 +151,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Data Management features (Import/Export data) integrated into settings modal.
 - ✅ Clear All App Data moved to "Danger Zone" tab within settings.
 - ✅ Crosshair visibility toggle and persistence integrated into Map Display settings.
+- ✅ **New:** Setting to limit the maximum number of markers displayed on the map, showing only the most recent ones.
 - ✅ Dedicated search modal for maps, markers, and photos.
 - ✅ Unified search across map names, descriptions, and file names.
 - ✅ Search by Image File (via selection) for map lookup.
