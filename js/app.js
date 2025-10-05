@@ -2556,34 +2556,82 @@ class SnapSpotApp {
   }
 
   /**
-     * Exports a map's data to a JSON file using MapDataExporterImporter.
-     * @param {string} mapId The ID of the map to export.
-     */
-  async exportJsonMap(mapId) {
-    this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`)
-    try {
-      const map = await this.storage.getMap(mapId)
-      if (!map) {
-        console.error('App: Map not found for JSON export:', mapId)
-        alert('Map not found for JSON export.')
-        this.updateAppStatus('Ready', 'error')
-        return
-      }
-      const markers = await this.storage.getMarkersForMap(mapId)
-      const photos = []
-      for (const marker of markers) {
-        const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
-        photos.push(...markerPhotos)
-      }
-      // MapDataExporterImporter handles Blob to Base64 conversion and download
-      await MapDataExporterImporter.exportData(map, markers, photos, this.imageProcessor)
-      this.updateAppStatus(`JSON data for map "${map.name}" exported successfully.`, 'success')
-    } catch (error) {
-      console.error('App: Error exporting JSON map data:', error)
-      alert('Error exporting JSON map data. Check console for details.')
-      this.updateAppStatus('JSON export failed', 'error')
+ * Handles the request to export map data as JSON.
+ * This method will now show an export options modal.
+ * @param {string} mapId The ID of the map to export.
+ */
+async exportJsonMap(mapId) { // Renamed from _handleExportMapJson to match your existing method name
+  this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`);
+  try {
+    const map = await this.storage.getMap(mapId);
+    if (!map) {
+      console.error('App: Map not found for JSON export:', mapId);
+      alert('Map not found for JSON export.');
+      this.updateAppStatus('Ready', 'error');
+      return;
     }
+
+    // Retrieve ALL markers and photos for the selected map initially
+    // The MapDataExporterImporter will filter these based on user selection if needed.
+    const allMarkers = await this.storage.getMarkersForMap(mapId);
+    const allPhotos = [];
+    for (const marker of allMarkers) { // Iterate through the fetched markers
+      const markerPhotos = await this.storage.getPhotosForMarker(marker.id);
+      allPhotos.push(...markerPhotos);
+    }
+    
+    // Group markers by day for the modal options -- using the new static method
+    const groupedMarkersByDay = await MapDataExporterImporter.getMarkersGroupedByDay(mapId, this.storage);
+
+    this.updateAppStatus('Ready to choose export options.');
+
+    // Show the new export decision modal
+    const exportDecision = await this.modalManager.createExportDecisionModal(map, groupedMarkersByDay);
+
+    if (!exportDecision) {
+      // User cancelled the export decision modal
+      this.updateAppStatus('JSON export cancelled.', 'info');
+      return;
+    }
+
+    this.updateAppStatus('Exporting map data...');
+
+    if (exportDecision.action === 'exportComplete') {
+      // Perform complete export using the existing MapDataExporterImporter.exportData
+      await MapDataExporterImporter.exportData(
+        map,
+        allMarkers, // Pass all markers
+        allPhotos,  // Pass all photos
+        this.imageProcessor
+      );
+      this.updateAppStatus(`JSON data for map "${map.name}" exported completely.`, 'success');
+
+    } else if (exportDecision.action === 'exportByDays') {
+      // Perform day-based export using the enhanced MapDataExporterImporter.exportData
+      await MapDataExporterImporter.exportData(
+        map,
+        allMarkers, // Pass all markers
+        allPhotos,  // Pass all photos
+        this.imageProcessor,
+        {
+          datesToExport: exportDecision.selectedDates,
+          splitByDate: exportDecision.exportAsSeparateFiles
+        }
+      );
+      // Construct a more descriptive success message
+      const numDates = exportDecision.selectedDates.length;
+      const exportType = exportDecision.exportAsSeparateFiles ? 'separate files' : 'a single file';
+      this.updateAppStatus(`JSON data for map "${map.name}" for ${numDates} day(s) exported as ${exportType}.`, 'success');
+    }
+  } catch (error) {
+    console.error('App: Error during map export process:', error);
+    alert(`Error exporting map: ${error.message}`); // Use alert for critical errors
+    this.updateAppStatus('JSON export failed', 'error');
+  } finally {
+    // Ensure that app status is reset or indicates completion
+    // The previous updateAppStatus calls already handle completion message.
   }
+}
 
   /**
  * Handles the file selected by the user for import.

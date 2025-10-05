@@ -31,7 +31,9 @@ image-mapper/
 │   ├── map-display.css       # Map display specific styles
 │   ├── modals/               # Modal-specific styles (reorganized for clarity)
 │   │   ├── marker-details.css# Marker details modal styles
-│   │   └── responsive.css    # Responsive adjustments for modals
+│   │   ├── responsive.css    # Responsive adjustments for modals
+│   │   ├── import-decision.css # Styling for the import decision modal
+│   │   └── export-decision.css # Styling for the export decision modal (NEW)
 │   ├── notifications.css     # Notification styles
 │   ├── responsive.css        # General responsive adjustments
 │   └── utilities.css         # Utility classes
@@ -53,13 +55,13 @@ image-mapper/
     ├── fileManager.js        # Utility for file selection and processing
     ├── HtmlReportGenerator.js# Generates HTML reports for map data
     ├── imageProcessor.js     # Utility for image manipulation and thumbnail generation
-    ├── MapDataExporterImporter.js # Handles importing/exporting map data
+    ├── MapDataExporterImporter.js # Handles importing/exporting map data (modified)
     ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers (modified)
     ├── searchManager.js      # Manages the search modal and its logic (modified)
     ├── storage.js            # Handles IndexedDB interactions (MapStorage class) (modified)
     │
     └── ui/                   # UI-specific components
-        ├── modals.js         # Manages UI for various modals (ModalManager class)
+        ├── modals.js         # Manages UI for various modals (ModalManager class) (modified)
         └── uiRenderer.js     # Renders common UI components like card elements (modified)
 ```
 
@@ -141,6 +143,11 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
   -   Option to replace an existing map with imported data (maintaining map ID).
   -   Handles legacy import files (without content hashes) as new maps.
   -   Detects and skips duplicate markers during merge, while adding new photos to existing markers.
+- ✅ **Enhanced: Advanced Export Options**:
+  -   Introduced a dedicated modal for map export options.
+  -   Allows users to select specific days for marker and photo export.
+  -   Option to export selected day(s) into a single combined JSON file.
+  -   Option to export each selected day into separate JSON files.
 
 ### Phase 3: App Settings & Customization ✅
 - ✅ Comprehensive, tabbed settings modal for centralized configuration.

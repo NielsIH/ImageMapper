@@ -1,0 +1,124 @@
+/* Export Decision Modal Specific Styles */
+
+#export-decision-modal .modal-content {
+  max-width: 550px; /* Adjust width as needed for more content */
+}
+
+#export-decision-modal .export-option-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--color-background-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+}
+
+#export-decision-modal .export-option-section h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--color-heading);
+  font-weight: 600;
+  border-bottom: 1px dashed var(--color-border-light);
+  padding-bottom: 0.5rem;
+}
+
+#export-decision-modal .export-option-section .btn {
+  width: auto; /* Allow buttons to size naturally */
+  min-width: 180px; /* Ensure a minimum width for clarity */
+}
+
+#export-decision-modal hr.my-md {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+#export-decision-modal .day-selection-list {
+  max-height: 250px; /* Allow scroll for many days */
+  overflow-y: auto;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
+  background-color: var(--color-background); /* Slightly different background for distinction */
+}
+
+#export-decision-modal .day-selection-list p.text-secondary {
+  text-align: center;
+  padding: 1rem;
+}
+
+#export-decision-modal .checkbox-group {
+  margin-bottom: 0.25rem;
+}
+
+/* Base checkbox label styling (similar to radio-label in import-decision.css) */
+#export-decision-modal .checkbox-label {
+  display: flex;
+  align-items: center; /* Align items to the center for checkboxes */
+  cursor: pointer;
+  padding: 0.4rem 0.2rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+#export-decision-modal .checkbox-label:hover {
+  background-color: var(--color-background-hover);
+}
+
+#export-decision-modal .checkbox-label input[type="checkbox"] {
+  margin-top: 0; /* Align checkbox vertically */
+  margin-right: 0.5rem; /* Space between checkbox and text */
+  flex-shrink: 0;
+}
+
+#export-decision-modal #selected-days-summary {
+  font-weight: 600;
+  color: var(--color-primary); /* Highlight selected days */
+  margin-left: 0.5rem;
+}
+
+#export-decision-modal #btn-export-complete::before {
+  content: "📦 "; /* Icon for complete export */
+}
+
+#export-decision-modal #btn-export-selected-days::before {
+  content: "🗓️ "; /* Icon for day-based export */
+}
+
+/* Radio button styling for export format */
+#export-decision-modal .radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 0.2rem; /* Indent slightly */
+}
+
+#export-decision-modal .radio-group .radio-label {
+  align-items: center;
+  padding: 0.2rem 0; /* Less padding than checkboxes */
+}
+
+#export-decision-modal .radio-group .radio-label input[type="radio"] {
+  margin-top: 0;
+  margin-right: 0.5rem;
+}
+
+/* General utility classes commonly used */
+#export-decision-modal .text-xs {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+#export-decision-modal .mt-sm {
+  margin-top: 0.5rem;
+}
+#export-decision-modal .mt-md {
+  margin-top: 1rem;
+}
+#export-decision-modal .text-secondary {
+  color: var(--color-text-secondary);
+}
+#export-decision-modal .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

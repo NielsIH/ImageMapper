@@ -10,86 +10,151 @@
  */
 export class MapDataExporterImporter {
   /**
-     * Exports a map's data (map, markers, photos) to a JSON file.
-     * It includes the main map image (map.imageData) and each photo's
-     * optimized image data (photo.imageData) as Base64 strings for JSON serialization.
-     * It also includes each photo's thumbnail data (photo.thumbnailData) if present.
-     *
-     * @param {object} map The map object retrieved from storage (includes map.imageData Blob).
-     * @param {Array<object>} markers Array of marker objects for the map.
-     * @param {Array<object>} photos Array of photo objects for the markers (includes photo.imageData Blob and photo.thumbnailData Base64).
-     * @param {object} imageProcessor An instance of the ImageProcessor class with blobToBase64 method.
-     */
-  static async exportData (map, markers, photos, imageProcessor) {
+   * Exports a map's data (map, markers, photos) to a JSON file(s).
+   * It includes the main map image (map.imageData) and each photo's
+   * optimized image data (photo.imageData) as Base64 strings for JSON serialization.
+   * It also includes each photo's thumbnail data (photo.thumbnailData) if present.
+   *
+   * @param {object} map The map object retrieved from storage (includes map.imageData Blob).
+   * @param {Array<object>} allMarkers All marker objects for the map.
+   * @param {Array<object>} allPhotos All photo objects for the markers.
+   * @param {object} imageProcessor An instance of the ImageProcessor class with blobToBase64 method.
+   * @param {object} [options] - Optional export options.
+   * @param {string[]} [options.datesToExport] - An array of YYYY-MM-DD date strings to filter markers by.
+   * @param {boolean} [options.splitByDate] - If true, generates a separate file for each date in datesToExport.
+   */
+  static async exportData(map, allMarkers, allPhotos, imageProcessor, options = {}) {
     console.log(`MapDataExporterImporter: Preparing data for export for map "${map.name}" (${map.id}).`)
 
-    // 1. Prepare Map Data for export
-    const exportMap = { ...map } // Create a shallow copy to modify image data for export
-    // The `markers` property on the map object itself is usually denormalized or not fully populated from storage;
-    // we'll explicitly remove it as the full markers array is exported separately.
-    delete exportMap.markers
-    delete exportMap.filePath // filePath property may not be relevant for a data export
-    // RE-ADDED: Convert map.imageData (Blob) to Base64 for export
+    const { datesToExport, splitByDate } = options;
+
+    let markersToExport = [...allMarkers];
+    let photosToExport = [...allPhotos];
+
+    if (datesToExport && datesToExport.length > 0) {
+      console.log(`MapDataExporterImporter: Filtering markers and photos for selected dates: ${datesToExport.join(', ')}`);
+
+      const filteredMarkers = allMarkers.filter(marker => {
+        const createdDate = marker.createdDate instanceof Date ? marker.createdDate : new Date(marker.createdDate);
+        const dateKey = createdDate.toISOString().slice(0, 10);
+        return datesToExport.includes(dateKey);
+      });
+
+      const filteredMarkerIds = new Set(filteredMarkers.map(m => m.id));
+      const filteredPhotos = allPhotos.filter(photo => filteredMarkerIds.has(photo.markerId));
+
+      markersToExport = filteredMarkers;
+      photosToExport = filteredPhotos;
+    }
+
+    // Prepare Map Data for export
+    const exportMap = { ...map };
+    delete exportMap.markers;
+    delete exportMap.filePath;
     if (exportMap.imageData instanceof Blob) {
-      exportMap.imageData = await imageProcessor.blobToBase64(exportMap.imageData)
-    } else if (exportMap.imageData) { // If it exists but isn't a blob, assume it's already base64 or suitable
-      console.warn(`MapDataExporterImporter: Map "${map.id}" imageData is not a Blob but exists. Exporting as is.`)
+      exportMap.imageData = await imageProcessor.blobToBase64(exportMap.imageData);
+    } else if (exportMap.imageData) {
+      console.warn(`MapDataExporterImporter: Map "${map.id}" imageData is not a Blob but exists. Exporting as is.`);
     } else {
-      console.warn(`MapDataExporterImporter: Map "${map.id}" has no imageData. Export will be missing map image.`)
+      console.warn(`MapDataExporterImporter: Map "${map.id}" has no imageData. Export will be missing map image.`);
     }
 
-    // NEW: Ensure imageHash is part of the exported map metadata
     if (!exportMap.imageHash) {
-      console.warn(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash. Export will not be merge-capable.`)
+      console.warn(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash. Export will not be merge-capable.`);
     }
 
-    // 2. Prepare Markers Data for export
-    // Markers contain photoIds which should be preserved. No Blobs directly in markers.
-    const exportMarkers = markers.map(marker => ({ ...marker })) // Create shallow copies
+    // Prepare Markers Data for export
+    const processedMarkers = markersToExport.map(marker => ({ ...marker }));
 
-    // 3. Prepare Photos Data for export
-    const exportPhotos = await Promise.all(photos.map(async photo => {
-      const exportPhoto = { ...photo } // Create a shallow copy
-
-      // Convert photo.imageData (Blob) to Base64
+    // Prepare Photos Data for export
+    const processedPhotos = await Promise.all(photosToExport.map(async photo => {
+      const exportPhoto = { ...photo };
       if (exportPhoto.imageData instanceof Blob) {
-        exportPhoto.imageData = await imageProcessor.blobToBase64(exportPhoto.imageData)
+        exportPhoto.imageData = await imageProcessor.blobToBase64(exportPhoto.imageData);
       } else if (typeof exportPhoto.imageData !== 'string' || !exportPhoto.imageData.startsWith('data:')) {
-        console.warn(`MapDataExporterImporter: Photo "${photo.id}" imageData is not a Blob or a Base64 string. Exporting as is (possibly null/undefined).`)
+        console.warn(`MapDataExporterImporter: Photo "${photo.id}" imageData is not a Blob or a Base64 string. Exporting as is (possibly null/undefined).`);
       }
-      // `thumbnailData` is already a Base64 string, so it can be included directly.
+      return exportPhoto;
+    }));
 
-      return exportPhoto
-    }))
-
-    // 4. Assemble the full export object
-    const exportObject = {
-      version: '1.1', // Data structure version for future compatibility - bumping for imageHash inclusion
-      type: 'SnapSpotDataExport', // A unique identifier for this type of JSON file
-      sourceApp: 'SnapSpot PWA', // For informational purposes, identifies the source app
-      timestamp: new Date().toISOString(), // UTC timestamp when the export was created
-      map: exportMap,
-      markers: exportMarkers,
-      photos: exportPhotos
+    if (splitByDate && datesToExport && datesToExport.length > 1) {
+      // Handle split by date into multiple files
+      await this._exportSplitByDate(exportMap, processedMarkers, processedPhotos, datesToExport);
+    } else {
+      // Handle single combined file export
+      const exportObject = this._createExportObject(exportMap, processedMarkers, processedPhotos);
+      const jsonString = JSON.stringify(exportObject, null, 2);
+      this._triggerDownload(jsonString, `SnapSpot_Export_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`);
+      console.log(`MapDataExporterImporter: Map "${map.name}" data exported successfully.`);
     }
+  }
 
-    // 5. Convert the JavaScript object to a pretty-printed JSON string
-    const jsonString = JSON.stringify(exportObject, null, 2)
+  /**
+   * Helper to create the standard export object format.
+   * @param {object} map - The map object prepared for export.
+   * @param {Array<object>} markers - The marker objects prepared for export.
+   * @param {Array<object>} photos - The photo objects prepared for export.
+   * @returns {object} The complete export object.
+   * @private
+   */
+  static _createExportObject(map, markers, photos) {
+    return {
+      version: '1.1',
+      type: 'SnapSpotDataExport',
+      sourceApp: 'SnapSpot PWA',
+      timestamp: new Date().toISOString(),
+      map: map,
+      markers: markers,
+      photos: photos
+    };
+  }
 
-    // 6. Create a Blob from the JSON string and trigger a download
-    const blob = new Blob([jsonString], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
+  /**
+   * Helper to trigger a file download.
+   * @param {string} jsonString - The JSON string to download.
+   * @param {string} filename - The desired filename.
+   * @private
+   */
+  static _triggerDownload(jsonString, filename) {
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
-    const a = document.createElement('a')
-    a.href = url
-    // Generate a user-friendly filename based on map name and date
-    a.download = `SnapSpot_Export_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url) // Clean up the object URL
+  /**
+   * Helper to export data split by date into multiple files.
+   * @param {object} baseMap - The map object (full map data, not filtered).
+   * @param {Array<object>} allProcessedMarkers - All markers, already processed (Base64 photos are part of photos).
+   * @param {Array<object>} allProcessedPhotos - All photos, already processed (Base64 photos).
+   * @param {string[]} datesToExport - The dates selected for export.
+   * @private
+   */
+  static async _exportSplitByDate(baseMap, allProcessedMarkers, allProcessedPhotos, datesToExport) {
+    for (const dateKey of datesToExport) {
+      const markersForDay = allProcessedMarkers.filter(marker => {
+        const createdDate = marker.createdDate instanceof Date ? marker.createdDate : new Date(marker.createdDate);
+        return createdDate.toISOString().slice(0, 10) === dateKey;
+      });
 
-    console.log(`MapDataExporterImporter: Map "${map.name}" data exported successfully.`)
+      const markerIdsForDay = new Set(markersForDay.map(m => m.id));
+      const photosForDay = allProcessedPhotos.filter(photo => markerIdsForDay.has(photo.markerId));
+
+      if (markersForDay.length > 0 || photosForDay.length > 0) {
+        // Create an export object for this specific day
+        const exportObject = this._createExportObject(baseMap, markersForDay, photosForDay);
+        const jsonString = JSON.stringify(exportObject, null, 2);
+
+        const filename = `SnapSpot_Export_${baseMap.name.replace(/\s+/g, '_')}_${dateKey}.json`;
+        this._triggerDownload(jsonString, filename);
+        console.log(`MapDataExporterImporter: Data for map "${baseMap.name}" and date "${dateKey}" exported.`);
+      }
+    }
   }
 
   /**
@@ -107,7 +172,7 @@ export class MapDataExporterImporter {
    *          and matching existing maps if any, for UI decision making.
    * @throws {Error} If the JSON data is invalid or not an SnapSpot export.
    */
-  static async importData (jsonString, ImageProcessorClass, mapStorage) {
+  static async importData(jsonString, ImageProcessorClass, mapStorage) {
     console.log('MapDataExporterImporter: Attempting to import data...')
     let importObject
     try {
@@ -167,7 +232,7 @@ export class MapDataExporterImporter {
    * @returns {Promise<{map: object, markers: Array<object>, photos: Array<object>}>} - Processed data with new UIDs.
    * @private
    */
-  static async _processImportedDataForNewMap (importObject, ImageProcessorClass) {
+  static async _processImportedDataForNewMap(importObject, ImageProcessorClass) {
     console.log('MapDataExporterImporter: Processing data for new map import (generating all new UIDs)...')
 
     const oldToNewIdMap = new Map()
@@ -261,7 +326,7 @@ export class MapDataExporterImporter {
   // --- NEW: Method for Merging Data into an Existing Map ---
   // This method will be responsible for applying imported markers and photos
   // to an already existing map, handling duplicates and updating relationships
-  static async mergeData (existingMapId, importedObject, ImageProcessorClass, mapStorage) {
+  static async mergeData(existingMapId, importedObject, ImageProcessorClass, mapStorage) {
     console.log(`MapDataExporterImporter: Merging data into existing map "${existingMapId}"...`)
 
     // IMPORTANT: The existing map's full data (markers, photos) will need to be fetched
@@ -376,6 +441,33 @@ export class MapDataExporterImporter {
       photos: [...existingPhotos, ...newPhotosToAdd] // A combined set of photos
     }
   }
+  /**
+   * Retrieves all markers for a given map and groups them by day.
+   *
+   * @param {string} mapId - The ID of the map.
+   * @param {object} mapStorage - An instance of the MapStorage class.
+   * @returns {Promise<Object<string, Array<object>>>} A promise that resolves to an object where keys are
+   *          date strings (YYYY-MM-DD) and values are arrays of marker objects created on that day.
+   */
+  static async getMarkersGroupedByDay(mapId, mapStorage) {
+    console.log(`MapDataExporterImporter: Grouping markers for map ${mapId} by day...`)
+    const markers = await mapStorage.getMarkersForMap(mapId)
+    const groupedMarkers = {}
+
+    markers.forEach(marker => {
+      // Ensure createdDate is a Date object
+      const createdDate = marker.createdDate instanceof Date ? marker.createdDate : new Date(marker.createdDate)
+      const dateKey = createdDate.toISOString().slice(0, 10) // YYYY-MM-DD
+
+      if (!groupedMarkers[dateKey]) {
+        groupedMarkers[dateKey] = []
+      }
+      groupedMarkers[dateKey].push(marker)
+    })
+
+    console.log(`MapDataExporterImporter: Found ${Object.keys(groupedMarkers).length} days with markers for map ${mapId}.`)
+    return groupedMarkers
+  }
 
   /**
    * Helper to convert an ArrayBuffer to a hexadecimal string.
@@ -385,7 +477,7 @@ export class MapDataExporterImporter {
    * @param {ArrayBuffer} buffer - The ArrayBuffer to convert.
    * @returns {string} - The hexadecimal string representation.
    */
-  static _arrayBufferToHex (buffer) {
+  static _arrayBufferToHex(buffer) {
     return Array.prototype.map.call(new Uint8Array(buffer), (x) =>
       ('00' + x.toString(16)).slice(-2)
     ).join('')

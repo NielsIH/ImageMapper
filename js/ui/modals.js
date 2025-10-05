@@ -1716,4 +1716,176 @@ export class ModalManager {
 
     return userChoicePromise
   }
+  /**
+   * Creates and displays a modal for the user to select export options for a map.
+   * Allows for complete export or day-based export of markers and photos.
+   *
+   * @param {object} map - The map object to export.
+   * @param {Object<string, Array<object>>} groupedMarkersByDay - Markers grouped by date (YYYY-MM-DD).
+   * @returns {Promise<{action: 'exportComplete'}|{action: 'exportByDays', selectedDates: string[], exportAsSeparateFiles: boolean}|null>}
+   *          A promise that resolves with the user's chosen action and options, or null if cancelled.
+   */
+  createExportDecisionModal(map, groupedMarkersByDay) {
+    const modalId = 'export-decision-modal';
+    let resolvePromise;
+    const userChoicePromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    // Sort uniqueDays in descending order to show newest first
+    const uniqueDays = Object.keys(groupedMarkersByDay).sort((a, b) => new Date(b) - new Date(a));
+
+    const dayCheckboxesHtml = uniqueDays.length > 0 ? uniqueDays.map(date => {
+      const markerCount = groupedMarkersByDay[date].length;
+      const displayDate = new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      return `
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" name="selectedDay" value="${date}" />
+            <span class="checkmark"></span>
+            ${displayDate} <span class="text-secondary text-xs">(${markerCount} markers)</span>
+          </label>
+        </div>
+      `;
+    }).join('') : '<p class="text-secondary">No markers with dates available for day-based export.</p>';
+
+    const modalHtml = `
+      <div class="modal" id="${modalId}">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content medium-modal">
+          <div class="modal-header">
+            <h3>Export Map: ${map.name}</h3>
+            <button class="modal-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <p>Please choose your export options for map <strong>"${map.name}"</strong> (ID: <span class="text-xs text-secondary">${map.id.substring(map.id.length - 8)}</span>):</p>
+            
+            <div class="export-option-section">
+              <h4>Full Map Export</h4>
+              <button class="btn btn-primary" id="btn-export-complete" type="button">📊 Export Complete Map</button>
+              <p class="text-secondary text-xs mt-sm">Exports the entire map, including all markers and photos.</p>
+            </div>
+
+            <hr class="my-md">
+
+            <div class="export-option-section">
+              <h4>Day-based Export (<span id="selected-days-summary">0 days selected</span>)</h4>
+              <div class="day-selection-list">
+                ${dayCheckboxesHtml}
+              </div>
+
+              <div class="form-group mt-md">
+                <label>Export Format:</label>
+                <div class="radio-group">
+                  <label class="radio-label">
+                    <input type="radio" name="exportDayFormat" value="combined" checked />
+                    <span class="radiomark"></span>
+                    Single combined file
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="exportDayFormat" value="separate" ${uniqueDays.length === 0 || uniqueDays.length === 1 ? 'disabled' : ''} />
+                    <span class="radiomark"></span>
+                    Separate file for each day
+                  </label>
+                </div>
+              </div>
+
+              <button class="btn btn-secondary mt-md" id="btn-export-selected-days" type="button" disabled>Export Selected Day(s)</button>
+              <p class="text-secondary text-xs mt-sm">Only exports markers and photos from the selected days.</p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="btn-cancel-export" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const parser = new DOMParser();
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html');
+    const modal = modalDoc.querySelector('.modal');
+    if (!modal) {
+      console.error('Failed to create export decision modal element.');
+      resolvePromise(null);
+      return userChoicePromise;
+    }
+
+    document.body.appendChild(modal);
+    this.activeModals.add(modal);
+
+    const closeAndResolve = (result) => {
+      this.closeModal(modal).then(() => resolvePromise(result));
+    };
+
+    modal.querySelector('.modal-close')?.addEventListener('click', () => closeAndResolve(null));
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', () => closeAndResolve(null));
+    modal.querySelector('#btn-cancel-export')?.addEventListener('click', () => closeAndResolve(null));
+
+    const completeExportBtn = modal.querySelector('#btn-export-complete');
+    const exportSelectedDaysBtn = modal.querySelector('#btn-export-selected-days');
+    const dayCheckboxes = modal.querySelectorAll('input[name="selectedDay"]');
+    // const exportDayFormatRadios = modal.querySelectorAll('input[name="exportDayFormat"]'); // Not directly used in listener
+    const selectedDaysSummary = modal.querySelector('#selected-days-summary');
+
+    let currentlySelectedDays = new Set(); // To track selected dates
+
+    const updateSelectedDaysSummary = () => {
+      selectedDaysSummary.textContent = `${currentlySelectedDays.size} days selected`;
+      exportSelectedDaysBtn.disabled = currentlySelectedDays.size === 0;
+
+      // Enable/disable the "separate" radio button based on selection count
+      const separateRadio = modal.querySelector('input[name="exportDayFormat"][value="separate"]');
+      if (separateRadio) {
+        separateRadio.disabled = currentlySelectedDays.size <= 1;
+        // If it was selected and becomes disabled, switch back to combined
+        if (separateRadio.disabled && separateRadio.checked) {
+          modal.querySelector('input[name="exportDayFormat"][value="combined"]').checked = true;
+        }
+      }
+    };
+
+    dayCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', (event) => { // Corrected 'events.target' to 'event.target'
+        if (event.target.checked) {
+          currentlySelectedDays.add(event.target.value);
+        } else {
+          currentlySelectedDays.delete(event.target.value);
+        }
+        updateSelectedDaysSummary();
+      });
+    });
+
+    if (completeExportBtn) {
+      completeExportBtn.addEventListener('click', () => {
+        closeAndResolve({ action: 'exportComplete' });
+      });
+    }
+
+    if (exportSelectedDaysBtn) {
+      exportSelectedDaysBtn.addEventListener('click', () => {
+        if (currentlySelectedDays.size === 0) {
+          alert('Please select at least one day to export.');
+          return;
+        }
+        const exportAsSeparateFiles = modal.querySelector('input[name="exportDayFormat"]:checked').value === 'separate';
+        closeAndResolve({
+          action: 'exportByDays',
+          selectedDates: Array.from(currentlySelectedDays),
+          exportAsSeparateFiles: exportAsSeparateFiles
+        });
+      });
+    }
+
+    // Initial state update for summary and button
+    updateSelectedDaysSummary();
+    // In HTML itself, we already set disabled for 'separate' if uniqueDays.length === 0 || uniqueDays.length === 1
+    // The updateSelectedDaysSummary will handle dynamic disabling/enabling correctly based on user checkbox selection.
+
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show');
+    });
+
+    return userChoicePromise;
+  }
 }

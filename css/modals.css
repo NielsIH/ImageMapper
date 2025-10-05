@@ -22,5 +22,8 @@
 /* Import decision modal specific styles */
 @import url('./modals/import-decision.css');
 
+/* Export decision modal specific styles */
+@import url('./modals/export-decision.css');
+
 /* Responsive breakpoints for all modals */
 @import url('./modals/responsive.css');

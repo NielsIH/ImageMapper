@@ -1,6 +1,6 @@
 /* global caches self */
 
-const CACHE_NAME = 'image-mapper-v2025-10-04-11' // Updated version
+const CACHE_NAME = 'image-mapper-v2025-10-05-2' // Updated version
 const STATIC_ASSETS = [
   './',
   './index.html',
