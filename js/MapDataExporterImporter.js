@@ -84,7 +84,11 @@ export class MapDataExporterImporter {
       // Handle single combined file export
       const exportObject = this._createExportObject(exportMap, processedMarkers, processedPhotos);
       const jsonString = JSON.stringify(exportObject, null, 2);
-      this._triggerDownload(jsonString, `SnapSpot_Export_${map.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`);
+      // If a single date is provided, use it in the filename
+      const dateSuffix = (datesToExport && datesToExport.length === 1)
+        ? datesToExport[0]
+                : new Date().toISOString().slice(0, 10);
+      this._triggerDownload(jsonString, `SnapSpot_Export_${map.name.replace(/\s+/g, '_')}_${dateSuffix}.json`);
       console.log(`MapDataExporterImporter: Map "${map.name}" data exported successfully.`);
     }
   }

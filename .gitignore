@@ -10,6 +10,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+GEMINI.md
+.serena/
 
 # Node modules (if you add build tools later)
 node_modules/
@@ -40,3 +42,6 @@ Icon?
 
 # Exception for the actual icons folder
 !icons/
+
+.gemini/
+gha-creds-*.json

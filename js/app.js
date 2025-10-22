@@ -77,7 +77,7 @@ class SnapSpotApp {
       extraLarge: 'XL Markers' // Abbreviated for button display
     }
     // Max Markers Display Setting
-    this.maxMarkersToShow = parseInt(localStorage.getItem('maxMarkersToShow')) || 50 // Default to 50, 0 means unlimited
+    this.maxMarkersToShow = parseInt(localStorage.getItem('maxMarkersToShow')) || 0 // Default to 50, 0 means unlimited
     // (for Map Rotation Feature):
     this.mapCurrentRotation = 0 // Current map rotation in degrees (0, 90, 180, 270)
     // Define the cycle for rotation in degrees
