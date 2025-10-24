@@ -13,7 +13,7 @@ import { UIRenderer } from './uiRenderer.js'
 import { FileManager } from '../fileManager.js'
 
 export class ModalManager {
-  constructor() {
+  constructor () {
     this.activeModals = new Set()
     this.setupGlobalListeners()
     this.currentObjectUrl = null // To store the URL created by createObjectURL
@@ -22,7 +22,7 @@ export class ModalManager {
   /**
      * Set up global event listeners for modal system
      */
-  setupGlobalListeners() {
+  setupGlobalListeners () {
     // Close modals on Escape key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -37,7 +37,7 @@ export class ModalManager {
      * @param {Function} onCancel - Callback when upload is cancelled
      * @returns {HTMLElement} - Modal element
      */
-  createUploadModal(onUpload, onCancel) {
+  createUploadModal (onUpload, onCancel) {
     const modalHtml = `
       <div class="modal" id="upload-modal">
         <div class="modal-backdrop"></div>
@@ -177,7 +177,7 @@ export class ModalManager {
      * @param {Function} onUpload - Upload callback
      * @param {Function} onCancel - Cancel callback
      */
-  setupUploadModal(modal, onUpload, onCancel) {
+  setupUploadModal (modal, onUpload, onCancel) {
     let selectedFile = null
     let processedData = null
 
@@ -424,7 +424,7 @@ export class ModalManager {
      * @param {Function} handleFileSelect - File selection handler
      * @param {Function} showDebugMessage - Debug message function
      */
-  addManualStrategyButtons(modal, fileManager, handleFileSelect, showDebugMessage) {
+  addManualStrategyButtons (modal, fileManager, handleFileSelect, showDebugMessage) {
     const dropZone = modal.querySelector('#file-drop-zone')
 
     // Only show debug controls in debug mode
@@ -466,7 +466,7 @@ export class ModalManager {
   /**
      * Update file preview in modal
      */
-  updateFilePreview(modal, processedData) {
+  updateFilePreview (modal, processedData) {
     const previewImg = modal.querySelector('#preview-image')
     const fileName = modal.querySelector('#file-name')
     const fileSize = modal.querySelector('#file-size')
@@ -488,7 +488,7 @@ export class ModalManager {
   /**
      * Show file details step
      */
-  showDetailsStep(modal) {
+  showDetailsStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
     const selectionActions = modal.querySelector('#file-selection-actions')
@@ -508,7 +508,7 @@ export class ModalManager {
   /**
      * Show file selection step
      */
-  showSelectionStep(modal) {
+  showSelectionStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
     const selectionActions = modal.querySelector('#file-selection-actions')
@@ -523,7 +523,7 @@ export class ModalManager {
   /**
      * Show error message in modal
      */
-  showError(modal, message) {
+  showError (modal, message) {
     const errorDisplay = modal.querySelector('#upload-error')
     const errorMessage = modal.querySelector('#error-message')
 
@@ -538,7 +538,7 @@ export class ModalManager {
   /**
      * Show loading state in modal
      */
-  showLoading(modal, message = 'Loading...') {
+  showLoading (modal, message = 'Loading...') {
     // Add loading class to modal
     modal.classList.add('loading')
 
@@ -561,7 +561,7 @@ export class ModalManager {
   /**
      * Hide loading state in modal
      */
-  hideLoading(modal) {
+  hideLoading (modal) {
     modal.classList.remove('loading')
 
     // Re-enable form elements
@@ -598,7 +598,7 @@ export class ModalManager {
      * Close a specific modal.
      * Returns a Promise that resolves when the modal is fully removed from DOM.
      */
-  closeModal(modal) {
+  closeModal (modal) {
     return new Promise((resolve) => {
       if (!modal || !this.activeModals.has(modal)) {
         console.warn(
@@ -664,7 +664,7 @@ export class ModalManager {
   /**
      * Close the topmost modal
      */
-  closeTopModal() {
+  closeTopModal () {
     if (this.activeModals.size > 0) {
       const modals = Array.from(this.activeModals)
       const topModal = modals[modals.length - 1]
@@ -675,7 +675,7 @@ export class ModalManager {
   /**
      * Close all modals
      */
-  closeAllModals() {
+  closeAllModals () {
     Array.from(this.activeModals).forEach((modal) => {
       this.closeModal(modal)
     })
@@ -686,7 +686,7 @@ export class ModalManager {
      * This assumes modal elements have an 'id' attribute.
      * @returns {string|null} - ID of the topmost modal.
      */
-  getTopModalId() {
+  getTopModalId () {
     if (this.activeModals.size > 0) {
       const modals = Array.from(this.activeModals)
       const topModal = modals[modals.length - 1]
@@ -701,7 +701,7 @@ export class ModalManager {
      * @param {string} markerId - The ID of the marker whose description is being updated.
      * @param {string} newDescription - The new description text.
      */
-  updateMarkerDetailsDescription(markerId, newDescription) {
+  updateMarkerDetailsDescription (markerId, newDescription) {
     const modal = document.querySelector(`#marker-details-modal[data-marker-id="${markerId}"]`)
     if (modal) {
       const descriptionDisplaySpan = modal.querySelector('.marker-description-display')
@@ -731,7 +731,7 @@ export class ModalManager {
      * @param {Function} onClose - Callback when the modal is closed.
      * @returns {HTMLElement} - The created modal element.
      */
-  createMarkerDetailsModal(
+  createMarkerDetailsModal (
     markerDetails,
     onAddPhotos,
     onEditMarker,
@@ -951,7 +951,7 @@ export class ModalManager {
      * @param {Function} onCancel - Callback when cancel button or close is clicked.
      * @returns {HTMLElement} - The created modal element.
      */
-  createEditMarkerModal(markerData, onSave, onCancel) {
+  createEditMarkerModal (markerData, onSave, onCancel) {
     const modalHtml = `
       <div class="modal" id="edit-marker-modal" data-marker-id="${markerData.id}">
         <div class="modal-backdrop"></div>
@@ -1035,7 +1035,7 @@ export class ModalManager {
  * @param {Function} onClose - Callback when the modal is closed.
  * @returns {HTMLElement} - The created modal element.
  */
-  createImageViewerModal(imageUrl, imageTitle = 'Image Viewer', photoId, onDeleteImage, onClose) {
+  createImageViewerModal (imageUrl, imageTitle = 'Image Viewer', photoId, onDeleteImage, onClose) {
     console.log('ModalManager: Creating new Image Viewer Modal.')
     const modalHtml = `
       <div class="modal image-viewer-modal" id="image-viewer-modal">
@@ -1108,7 +1108,7 @@ export class ModalManager {
      * @param {string} [initialTab='general-settings'] - The ID of the tab to open initially.
      * @returns {HTMLElement} - The created modal element.
      */
-  createSettingsModal(callbacks, maps, activeMapId, onClose, initialTab = 'general-settings') {
+  createSettingsModal (callbacks, maps, activeMapId, onClose, initialTab = 'general-settings') {
     // <--- Signature updated
     console.log('ModalManager: Creating new Settings Modal.')
     // --- Generate Maps Management DOM content using UIRenderer ---
@@ -1465,7 +1465,7 @@ export class ModalManager {
     return modal
   }
 
-  createSearchModal(callbacks, onClose, initialQuery = '') {
+  createSearchModal (callbacks, onClose, initialQuery = '') {
     console.log('ModalManager: Creating new Search Modal.')
     const modalHtml = `
     <div class="modal search-modal" id="search-modal">
@@ -1584,7 +1584,7 @@ export class ModalManager {
    *          chosen action ('merge', 'replace', 'new') and the ID of the selected existing map (if applicable),
    *          or null if the user cancels.
    */
-  createImportDecisionModal(existingMaps) {
+  createImportDecisionModal (existingMaps) {
     if (!existingMaps || existingMaps.length === 0) {
       console.error('ModalManager: createImportDecisionModal called without existingMaps.')
       return Promise.resolve(null)
@@ -1716,6 +1716,7 @@ export class ModalManager {
 
     return userChoicePromise
   }
+
   /**
    * Creates and displays a modal for the user to select export options for a map.
    * Allows for complete export or day-based export of markers and photos.
@@ -1725,20 +1726,21 @@ export class ModalManager {
    * @returns {Promise<{action: 'exportComplete'}|{action: 'exportByDays', selectedDates: string[], exportAsSeparateFiles: boolean}|null>}
    *          A promise that resolves with the user's chosen action and options, or null if cancelled.
    */
-  createExportDecisionModal(map, groupedMarkersByDay) {
-    const modalId = 'export-decision-modal';
-    let resolvePromise;
+  createExportDecisionModal (map, groupedMarkersByDay) {
+    const modalId = 'export-decision-modal'
+    let resolvePromise
     const userChoicePromise = new Promise((resolve) => {
-      resolvePromise = resolve;
-    });
+      resolvePromise = resolve
+    })
 
     // Sort uniqueDays in descending order to show newest first
-    const uniqueDays = Object.keys(groupedMarkersByDay).sort((a, b) => new Date(b) - new Date(a));
+    const uniqueDays = Object.keys(groupedMarkersByDay).sort((a, b) => new Date(b) - new Date(a))
 
-    const dayCheckboxesHtml = uniqueDays.length > 0 ? uniqueDays.map(date => {
-      const markerCount = groupedMarkersByDay[date].length;
-      const displayDate = new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-      return `
+    const dayCheckboxesHtml = uniqueDays.length > 0
+      ? uniqueDays.map(date => {
+        const markerCount = groupedMarkersByDay[date].length
+        const displayDate = new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        return `
         <div class="form-group checkbox-group">
           <label class="checkbox-label">
             <input type="checkbox" name="selectedDay" value="${date}" />
@@ -1746,8 +1748,9 @@ export class ModalManager {
             ${displayDate} <span class="text-secondary text-xs">(${markerCount} markers)</span>
           </label>
         </div>
-      `;
-    }).join('') : '<p class="text-secondary">No markers with dates available for day-based export.</p>';
+      `
+      }).join('')
+      : '<p class="text-secondary">No markers with dates available for day-based export.</p>'
 
     const modalHtml = `
       <div class="modal" id="${modalId}">
@@ -1799,93 +1802,92 @@ export class ModalManager {
           </div>
         </div>
       </div>
-    `;
+    `
 
-    const parser = new DOMParser();
-    const modalDoc = parser.parseFromString(modalHtml, 'text/html');
-    const modal = modalDoc.querySelector('.modal');
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
     if (!modal) {
-      console.error('Failed to create export decision modal element.');
-      resolvePromise(null);
-      return userChoicePromise;
+      console.error('Failed to create export decision modal element.')
+      resolvePromise(null)
+      return userChoicePromise
     }
 
-    document.body.appendChild(modal);
-    this.activeModals.add(modal);
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
 
     const closeAndResolve = (result) => {
-      this.closeModal(modal).then(() => resolvePromise(result));
-    };
+      this.closeModal(modal).then(() => resolvePromise(result))
+    }
 
-    modal.querySelector('.modal-close')?.addEventListener('click', () => closeAndResolve(null));
-    modal.querySelector('.modal-backdrop')?.addEventListener('click', () => closeAndResolve(null));
-    modal.querySelector('#btn-cancel-export')?.addEventListener('click', () => closeAndResolve(null));
+    modal.querySelector('.modal-close')?.addEventListener('click', () => closeAndResolve(null))
+    modal.querySelector('.modal-backdrop')?.addEventListener('click', () => closeAndResolve(null))
+    modal.querySelector('#btn-cancel-export')?.addEventListener('click', () => closeAndResolve(null))
 
-    const completeExportBtn = modal.querySelector('#btn-export-complete');
-    const exportSelectedDaysBtn = modal.querySelector('#btn-export-selected-days');
-    const dayCheckboxes = modal.querySelectorAll('input[name="selectedDay"]');
+    const completeExportBtn = modal.querySelector('#btn-export-complete')
+    const exportSelectedDaysBtn = modal.querySelector('#btn-export-selected-days')
+    const dayCheckboxes = modal.querySelectorAll('input[name="selectedDay"]')
     // const exportDayFormatRadios = modal.querySelectorAll('input[name="exportDayFormat"]'); // Not directly used in listener
-    const selectedDaysSummary = modal.querySelector('#selected-days-summary');
+    const selectedDaysSummary = modal.querySelector('#selected-days-summary')
 
-    let currentlySelectedDays = new Set(); // To track selected dates
+    const currentlySelectedDays = new Set() // To track selected dates
 
     const updateSelectedDaysSummary = () => {
-      selectedDaysSummary.textContent = `${currentlySelectedDays.size} days selected`;
-      exportSelectedDaysBtn.disabled = currentlySelectedDays.size === 0;
+      selectedDaysSummary.textContent = `${currentlySelectedDays.size} days selected`
+      exportSelectedDaysBtn.disabled = currentlySelectedDays.size === 0
 
       // Enable/disable the "separate" radio button based on selection count
-      const separateRadio = modal.querySelector('input[name="exportDayFormat"][value="separate"]');
+      const separateRadio = modal.querySelector('input[name="exportDayFormat"][value="separate"]')
       if (separateRadio) {
-        separateRadio.disabled = currentlySelectedDays.size <= 1;
+        separateRadio.disabled = currentlySelectedDays.size <= 1
         // If it was selected and becomes disabled, switch back to combined
         if (separateRadio.disabled && separateRadio.checked) {
-          modal.querySelector('input[name="exportDayFormat"][value="combined"]').checked = true;
+          modal.querySelector('input[name="exportDayFormat"][value="combined"]').checked = true
         }
       }
-    };
+    }
 
     dayCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', (event) => { // Corrected 'events.target' to 'event.target'
         if (event.target.checked) {
-          currentlySelectedDays.add(event.target.value);
+          currentlySelectedDays.add(event.target.value)
         } else {
-          currentlySelectedDays.delete(event.target.value);
+          currentlySelectedDays.delete(event.target.value)
         }
-        updateSelectedDaysSummary();
-      });
-    });
+        updateSelectedDaysSummary()
+      })
+    })
 
     if (completeExportBtn) {
       completeExportBtn.addEventListener('click', () => {
-        closeAndResolve({ action: 'exportComplete' });
-      });
+        closeAndResolve({ action: 'exportComplete' })
+      })
     }
 
     if (exportSelectedDaysBtn) {
       exportSelectedDaysBtn.addEventListener('click', () => {
         if (currentlySelectedDays.size === 0) {
-          alert('Please select at least one day to export.');
-          return;
+          alert('Please select at least one day to export.')
+          return
         }
-        const exportAsSeparateFiles = modal.querySelector('input[name="exportDayFormat"]:checked').value === 'separate';
+        const exportAsSeparateFiles = modal.querySelector('input[name="exportDayFormat"]:checked').value === 'separate'
         closeAndResolve({
           action: 'exportByDays',
           selectedDates: Array.from(currentlySelectedDays),
-          exportAsSeparateFiles: exportAsSeparateFiles
-        });
-      });
+          exportAsSeparateFiles
+        })
+      })
     }
 
     // Initial state update for summary and button
-    updateSelectedDaysSummary();
+    updateSelectedDaysSummary()
     // In HTML itself, we already set disabled for 'separate' if uniqueDays.length === 0 || uniqueDays.length === 1
     // The updateSelectedDaysSummary will handle dynamic disabling/enabling correctly based on user checkbox selection.
 
-
     requestAnimationFrame(() => {
-      modal.classList.add('show');
-    });
+      modal.classList.add('show')
+    })
 
-    return userChoicePromise;
+    return userChoicePromise
   }
 }

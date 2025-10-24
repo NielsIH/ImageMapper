@@ -12,6 +12,8 @@ Thumbs.db
 *.swo
 GEMINI.md
 .serena/
+package-lock.json
+package.json
 
 # Node modules (if you add build tools later)
 node_modules/
