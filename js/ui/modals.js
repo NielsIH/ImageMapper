@@ -788,10 +788,10 @@ export class ModalManager {
           </div>
           <div class="modal-footer">
             <div class="modal-actions">
+              <button class="btn btn-primary" id="btn-add-photos" type="button">📸 Add Photos</button>
               <button class="btn btn-secondary" id="btn-edit-marker" type="button">✏️ Edit Marker</button>
               <button class="btn btn-primary hidden" id="btn-save-description" type="button">💾 Save</button>
               <button class="btn btn-secondary hidden" id="btn-cancel-description-edit" type="button">✖️ Cancel</button>
-              <button class="btn btn-primary" id="btn-add-photos" type="button">📸 Add Photos</button>
               <button class="btn btn-danger" id="btn-delete-marker" type="button">🗑️ Delete Marker</button>
             </div>
           </div>
@@ -1176,7 +1176,16 @@ export class ModalManager {
     <!-- General Settings Tab -->
     <div id="general-settings" class="tab-pane">
     <h4>General Settings</h4>
-    <p>Nothing yet.</p>
+    <div class="form-group">
+    <label class="checkbox-label toggle-switch-label">
+    <input type="checkbox" id="toggle-notifications" />
+    <span class="toggle-switch-slider"></span>
+    Enable Notifications
+    </label>
+    <small class="text-secondary mt-xs">
+    Toggle toast notifications for app events.
+    </small>
+    </div>
     </div>
     <!-- App Behavior Settings Tab -->
     <div id="app-behavior-settings" class="tab-pane">
@@ -1459,6 +1468,16 @@ export class ModalManager {
       allowDuplicatePhotos.addEventListener('change', () => {
         if (callbacks.setAllowDuplicatePhotos) {
           callbacks.setAllowDuplicatePhotos(allowDuplicatePhotos.checked)
+        }
+      })
+    }
+    // --- GENERAL SETTINGS LISTENERS (NEW) ---
+    const toggleNotifications = modal.querySelector('#toggle-notifications')
+    if (toggleNotifications && callbacks.getNotificationsEnabled) {
+      toggleNotifications.checked = callbacks.getNotificationsEnabled()
+      toggleNotifications.addEventListener('change', () => {
+        if (callbacks.setNotificationsEnabled) {
+          callbacks.setNotificationsEnabled(toggleNotifications.checked)
         }
       })
     }

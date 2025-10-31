@@ -31,26 +31,24 @@ class SnapSpotApp {
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
       searchMaps: (query) => this.searchMaps(query),
-      searchPhotos: (query) => this.searchPhotos(query), //  Photo search callback
-      switchToMap: (mapId) => this.switchToMap(mapId),
+      searchPhotos: (query) => this.searchPhotos(query),
       deleteMap: (mapId) => this.deleteMap(mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
       onSearchFileSelect: () => this.handleSearchFileSelection(),
       onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type),
-      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData) //  Show photo on map callback
+      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData)
     })
 
     this.mapRenderer = new MapRenderer('map-canvas')
     this.currentMap = null
     this.mapsList = []
     this.isLoading = false
-    this.uploadedFiles = new Map() // Store file references for rendering
+    this.uploadedFiles = new Map()
     this.thumbnailCache = new Map()
     this.imageProcessor = new ImageProcessor()
-    //  Load defaultImageQuality from localStorage for photos
     const savedPhotoQuality = parseFloat(localStorage.getItem('defaultPhotoQuality'))
-    const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality // Default to 0.5 (50%) if not found
+    const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality
 
     this.imageCompressionSettings = {
       map: {
@@ -58,33 +56,34 @@ class SnapSpotApp {
         maxHeight: 1920,
         quality: 0.8
       },
-      photo: { // For images attached to markers
+      photo: {
         maxWidth: 1000,
         maxHeight: 1000,
-        quality: initialPhotoQuality // <--- Use loaded value here
+        quality: initialPhotoQuality
       },
-      thumbnail: { // For very small thumbnails, like in lists
-        maxSize: 100, // Max dimension (either width or height)
+      thumbnail: {
+        maxSize: 100,
         quality: 0.7
       }
     }
     // Marker Size Control
-    this.markerDisplaySizeKey = 'normal' // Initial marker size
-    this.markerSizeCycle = ['normal', 'large', 'extraLarge'] // Cycle order
-    this.markerSizeLabelMap = { // For button text
+    this.markerDisplaySizeKey = 'normal'
+    this.markerSizeCycle = ['normal', 'large', 'extraLarge']
+    this.markerSizeLabelMap = {
       normal: 'Normal Markers',
       large: 'Large Markers',
-      extraLarge: 'XL Markers' // Abbreviated for button display
+      extraLarge: 'XL Markers'
     }
     // Max Markers Display Setting
-    this.maxMarkersToShow = parseInt(localStorage.getItem('maxMarkersToShow')) || 0 // Default to 50, 0 means unlimited
+    this.maxMarkersToShow = parseInt(localStorage.getItem('maxMarkersToShow')) || 0
     // (for Map Rotation Feature):
-    this.mapCurrentRotation = 0 // Current map rotation in degrees (0, 90, 180, 270)
+    this.mapCurrentRotation = 0
     // Define the cycle for rotation in degrees
     this.rotationCycle = [0, 90, 180, 270]
     // : App Behavior Settings
     this.autoCloseMarkerDetails = localStorage.getItem('autoCloseMarkerDetails') === 'true' || false
     this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
+    this.notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true' || true
 
     // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
@@ -105,9 +104,8 @@ class SnapSpotApp {
     // State to track the type of interaction
     this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
-    this.showCrosshair = true //  State to track crosshair visibility
-    this.markersLocked = true //  State to track if markers are globally locked (default: true)
-
+    this.showCrosshair = true
+    this.markersLocked = true
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init())
@@ -144,6 +142,7 @@ class SnapSpotApp {
       this.restoreCrosshairState()
       this.restoreMarkerLockState()
       this.restoreMarkerSizeState()
+      this.restoreNotificationsState() // NEW: Restore notifications state
       // this.mapCurrentRotation is set here, but NOT applied to mapRenderer yet.
       this.restoreMapRotationState()
 
@@ -194,12 +193,6 @@ class SnapSpotApp {
 
     // Touch and mouse events for future map interaction
     this.setupMapInteractionListeners()
-
-    //  Handle dynamic button for uploading new maps after initial setup
-    // const uploadNewMapBtn = document.getElementById('btn-upload-new-map')
-    // if (uploadNewMapBtn) {
-    //   uploadNewMapBtn.addEventListener('click', () => this.showUploadModal())
-    // }
   }
 
   /**
@@ -582,6 +575,11 @@ class SnapSpotApp {
         getMaxMarkersToShow: () => this.getMaxMarkersToShow(),
         setMaxMarkersToShow: (maxMarkers) => {
           this.setMaxMarkersToShow(maxMarkers)
+        },
+        // General Settings Callbacks
+        getNotificationsEnabled: () => this.getNotificationsEnabled(),
+        setNotificationsEnabled: (value) => {
+          this.setNotificationsEnabled(value)
         }
       }
       // Create and display the settings modal
@@ -1314,6 +1312,21 @@ class SnapSpotApp {
   }
 
   /**
+   * Restores the saved state of notifications from localStorage.
+   */
+  restoreNotificationsState () {
+    const savedState = localStorage.getItem('notificationsEnabled')
+    if (savedState !== null) {
+      this.notificationsEnabled = (savedState === 'true')
+    } else {
+      // Default state if nothing found in localStorage (initially true)
+      this.notificationsEnabled = true
+      localStorage.setItem('notificationsEnabled', this.notificationsEnabled)
+    }
+    console.log('Restored notifications state:', this.notificationsEnabled)
+  }
+
+  /**
    * Close any open modals
    */
   closeModals () {
@@ -1775,12 +1788,37 @@ class SnapSpotApp {
   // ========================================
 
   /**
+   * Returns whether notifications are enabled.
+   * @returns {boolean}
+   */
+  getNotificationsEnabled () {
+    return this.notificationsEnabled
+  }
+
+  /**
+   * Sets whether notifications are enabled and persists it.
+   * @param {boolean} value - true to enable notifications, false otherwise.
+   */
+  setNotificationsEnabled (value) {
+    this.notificationsEnabled = value
+    localStorage.setItem('notificationsEnabled', value)
+    this.showNotification(`Notifications: ${this.notificationsEnabled ? 'Enabled' : 'Disabled'}.`, 'info')
+    console.log('Notifications enabled:', this.notificationsEnabled)
+  }
+
+  /**
    * Show a proper toast notification to the user.
    * @param {string} message - The message to display.
    * @param {'info'|'success'|'warning'|'error'} [type='info'] - The type of notification.
    * @param {number} [duration=3000] - Duration in milliseconds before it starts to fade out.
    */
   showNotification (message, type = 'info', duration = 3000) {
+    // Only show notification if enabled
+    if (!this.notificationsEnabled) {
+      console.log(`Notification suppressed (disabled): ${message}`)
+      return
+    }
+
     console.log(`${type.toUpperCase()} Notification: ${message}`)
     this.updateAppStatus(message) // Keep updating app status for console/debug
 
