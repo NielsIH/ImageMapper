@@ -11,7 +11,9 @@ Thumbs.db
 *.swp
 *.swo
 GEMINI.md
+QWEN.md
 .serena/
+.qwen/
 package-lock.json
 package.json
 

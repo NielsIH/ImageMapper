@@ -22,8 +22,9 @@ export class MapDataExporterImporter {
    * @param {object} [options] - Optional export options.
    * @param {string[]} [options.datesToExport] - An array of YYYY-MM-DD date strings to filter markers by.
    * @param {boolean} [options.splitByDate] - If true, generates a separate file for each date in datesToExport.
+   * @param {MapStorage} [mapStorage] - An instance of MapStorage to update maps when imageHash is calculated.
    */
-  static async exportData (map, allMarkers, allPhotos, imageProcessor, options = {}) {
+  static async exportData (map, allMarkers, allPhotos, imageProcessor, options = {}, mapStorage = null) {
     console.log(`MapDataExporterImporter: Preparing data for export for map "${map.name}" (${map.id}).`)
 
     const { datesToExport, splitByDate } = options
@@ -51,16 +52,41 @@ export class MapDataExporterImporter {
     const exportMap = { ...map }
     delete exportMap.markers
     delete exportMap.filePath
+    
+    // Check if imageHash is missing and calculate it if possible
+    if (!exportMap.imageHash) {
+      console.log(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash. Checking if we can calculate it...`)
+      
+      // Calculate imageHash if we have image data and mapStorage is provided
+      if (mapStorage && exportMap.imageData instanceof Blob) {
+        console.log('MapDataExporterImporter: Calculating imageHash for map during export...')
+        try {
+          const arrayBuffer = await exportMap.imageData.arrayBuffer()
+          const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+          const calculatedImageHash = this._arrayBufferToHex(hashBuffer)
+          
+          // Update the export map with the calculated hash
+          exportMap.imageHash = calculatedImageHash
+          
+          // Update the map in storage with the new imageHash
+          await mapStorage.updateMap(exportMap.id, { imageHash: calculatedImageHash })
+          
+          console.log(`MapDataExporterImporter: Calculated and saved imageHash for map "${map.id}": ${calculatedImageHash}`)
+        } catch (error) {
+          console.error('MapDataExporterImporter: Failed to calculate imageHash for map:', error)
+        }
+      } else {
+        console.warn(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash and cannot calculate it (no mapStorage or imageData is not a Blob). Export will not be merge-capable.`)
+      }
+    }
+    
+    // Now convert image data to Base64 for export
     if (exportMap.imageData instanceof Blob) {
       exportMap.imageData = await imageProcessor.blobToBase64(exportMap.imageData)
     } else if (exportMap.imageData) {
       console.warn(`MapDataExporterImporter: Map "${map.id}" imageData is not a Blob but exists. Exporting as is.`)
     } else {
       console.warn(`MapDataExporterImporter: Map "${map.id}" has no imageData. Export will be missing map image.`)
-    }
-
-    if (!exportMap.imageHash) {
-      console.warn(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash. Export will not be merge-capable.`)
     }
 
     // Prepare Markers Data for export

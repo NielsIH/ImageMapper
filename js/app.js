@@ -2111,6 +2111,7 @@ class SnapSpotApp {
         fileSize: mapData.fileSize, // Updated with processed size
         fileType: mapData.fileType, // Updated with processed type
         isActive: mapData.isActive,
+        imageHash: mapData.imageHash, // Include imageHash for duplicate detection
         settings: mapData.settings,
         imageData: processedImageBlob // --- Store the actual BLOB data ---
       }
@@ -2639,7 +2640,9 @@ class SnapSpotApp {
           map,
           allMarkers, // Pass all markers
           allPhotos, // Pass all photos
-          this.imageProcessor
+          this.imageProcessor,
+          {}, // options
+          this.storage // mapStorage to update imageHash if missing
         )
         this.updateAppStatus(`JSON data for map "${map.name}" exported completely.`, 'success')
       } else if (exportDecision.action === 'exportByDays') {
@@ -2652,7 +2655,8 @@ class SnapSpotApp {
           {
             datesToExport: exportDecision.selectedDates,
             splitByDate: exportDecision.exportAsSeparateFiles
-          }
+          },
+          this.storage // mapStorage to update imageHash if missing
         )
         // Construct a more descriptive success message
         const numDates = exportDecision.selectedDates.length
