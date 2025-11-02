@@ -52,11 +52,11 @@ export class MapDataExporterImporter {
     const exportMap = { ...map }
     delete exportMap.markers
     delete exportMap.filePath
-    
+
     // Check if imageHash is missing and calculate it if possible
     if (!exportMap.imageHash) {
       console.log(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash. Checking if we can calculate it...`)
-      
+
       // Calculate imageHash if we have image data and mapStorage is provided
       if (mapStorage && exportMap.imageData instanceof Blob) {
         console.log('MapDataExporterImporter: Calculating imageHash for map during export...')
@@ -64,13 +64,13 @@ export class MapDataExporterImporter {
           const arrayBuffer = await exportMap.imageData.arrayBuffer()
           const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
           const calculatedImageHash = this._arrayBufferToHex(hashBuffer)
-          
+
           // Update the export map with the calculated hash
           exportMap.imageHash = calculatedImageHash
-          
+
           // Update the map in storage with the new imageHash
           await mapStorage.updateMap(exportMap.id, { imageHash: calculatedImageHash })
-          
+
           console.log(`MapDataExporterImporter: Calculated and saved imageHash for map "${map.id}": ${calculatedImageHash}`)
         } catch (error) {
           console.error('MapDataExporterImporter: Failed to calculate imageHash for map:', error)
@@ -79,7 +79,7 @@ export class MapDataExporterImporter {
         console.warn(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash and cannot calculate it (no mapStorage or imageData is not a Blob). Export will not be merge-capable.`)
       }
     }
-    
+
     // Now convert image data to Base64 for export
     if (exportMap.imageData instanceof Blob) {
       exportMap.imageData = await imageProcessor.blobToBase64(exportMap.imageData)
@@ -234,24 +234,46 @@ export class MapDataExporterImporter {
     if (importedImageHash) {
       existingMaps = await mapStorage.getMapsByImageHash(importedImageHash)
       if (existingMaps.length > 0) {
+        // Enhance the existing maps with marker counts for display
+        const enhancedExistingMaps = []
+        for (const map of existingMaps) {
+          const markers = await mapStorage.getMarkersForMap(map.id)
+          const enhancedMap = {
+            ...map,
+            markerCount: markers.length
+          }
+          enhancedExistingMaps.push(enhancedMap)
+        }
+
         // If there are existing maps with the same image hash, we offer merge/replace options
         // The UI (App.js) will need to prompt the user to choose one of these maps
         // and specify if they want to 'merge' or 'replace'.
         // For now, this function will simply return the potential matches.
         // The actual processing (generating new IDs or merging) will happen after user decision.
-        console.log(`MapDataExporterImporter: Found ${existingMaps.length} existing map(s) with the same image hash.`)
+        console.log(`MapDataExporterImporter: Found ${enhancedExistingMaps.length} existing map(s) with the same image hash.`)
         importType = 'decision_required' // Indicate that a user decision is needed
-        // We'll return the raw imported object and the existing maps for the UI to handle.
-        return { importObject, ImageProcessorClass, importType, existingMaps }
+        // We'll return the raw imported object and the enhanced existing maps for the UI to handle.
+        return { importObject, ImageProcessorClass, importType, existingMaps: enhancedExistingMaps }
       }
     } else {
       console.warn('MapDataExporterImporter: Imported data does not contain an imageHash. Treating as a new map import (legacy format).')
     }
 
-    // If no imageHash or no existing matches, proceed with processing as a new map import.
+    // If no imageHash or no existing matches, try secondary matching
+    let secondaryMatches = []
+    if (!importedImageHash || existingMaps.length === 0) {
+      secondaryMatches = await this.getSecondaryMapMatches(importObject.map, mapStorage)
+      if (secondaryMatches.length > 0) {
+        console.log(`MapDataExporterImporter: Found ${secondaryMatches.length} potential matches based on secondary criteria.`)
+        importType = 'decision_required' // Indicate that a user decision is needed
+        return { importObject, ImageProcessorClass, importType, existingMaps: [], secondaryMatches }
+      }
+    }
+
+    // If no secondary matches either, proceed with processing as a new map import.
     // This calls the helper function to generate new IDs for everything.
     const processedData = await this._processImportedDataForNewMap(importObject, ImageProcessorClass)
-    return { ...processedData, importType, existingMaps: [] }
+    return { ...processedData, importType, existingMaps: [], secondaryMatches: [] }
   }
 
   /**
@@ -512,5 +534,55 @@ export class MapDataExporterImporter {
     return Array.prototype.map.call(new Uint8Array(buffer), (x) =>
       ('00' + x.toString(16)).slice(-2)
     ).join('')
+  }
+
+  /**
+   * Get secondary map matches based on fuzzy matching criteria when imageHash doesn't match.
+   * @param {object} importedMap - The imported map object to match against
+   * @param {MapStorage} mapStorage - The storage instance to get all maps from
+   * @param {number} [tolerance=0.05] - Tolerance for matching (5%)
+   * @returns {Promise<Array>} - Array of potential matching maps with enhanced data
+   */
+  static async getSecondaryMapMatches (importedMap, mapStorage, tolerance = 0.05) {
+    const allMaps = await mapStorage.getAllMaps()
+
+    // For each matching map, get its marker count
+    const matchedMaps = []
+    for (const map of allMaps) {
+      // Check dimension similarity (with tolerance)
+      const widthMatch = importedMap.width && map.width &&
+                        Math.abs(map.width - importedMap.width) / map.width <= tolerance
+      const heightMatch = importedMap.height && map.height &&
+                         Math.abs(map.height - importedMap.height) / map.height <= tolerance
+
+      // Check file size similarity (with tolerance)
+      const sizeMatch = importedMap.fileSize && map.fileSize &&
+                       Math.abs(map.fileSize - importedMap.fileSize) / map.fileSize <= tolerance
+
+      // Check name similarity (substring match)
+      const nameMatch = importedMap.fileName && map.fileName &&
+                       (importedMap.fileName.toLowerCase().includes(map.fileName.toLowerCase()) ||
+                        map.fileName.toLowerCase().includes(importedMap.fileName.toLowerCase()))
+
+      // Check aspect ratio similarity (with tolerance)
+      const importedAspectRatio = importedMap.width / importedMap.height
+      const existingAspectRatio = map.width / map.height
+      const aspectRatioMatch = importedMap.width && importedMap.height &&
+                              map.width && map.height &&
+                              Math.abs(importedAspectRatio - existingAspectRatio) / importedAspectRatio <= tolerance
+
+      // If it's a match, add it with marker count
+      if ((widthMatch && heightMatch) && (sizeMatch || nameMatch || aspectRatioMatch)) {
+        // Get marker count for the map
+        const markers = await mapStorage.getMarkersForMap(map.id)
+        const enhancedMap = {
+          ...map,
+          markerCount: markers.length
+        }
+        matchedMaps.push(enhancedMap)
+      }
+    }
+
+    return matchedMaps
   }
 }

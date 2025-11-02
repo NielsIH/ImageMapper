@@ -1596,16 +1596,31 @@ export class ModalManager {
   }
 
   /**
+   * Format file size for display
+   * @param {number} bytes - Size in bytes
+   * @returns {string} - Formatted size string
+   */
+  formatFileSize (bytes) {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  /**
    * Creates and displays a modal for the user to decide how to process an imported map
-   * that matches existing maps by image content.
-   * @param {Array<Object>} existingMaps - An array of map objects that match the imported data's image hash.
+   * that matches existing maps by image content or secondary criteria.
+   * @param {Array<Object>} existingMaps - An array of map objects that match the imported data's image hash (primary matches).
+   * @param {Array<Object>} secondaryMatches - An array of map objects that match based on secondary criteria (fuzzy matching).
    * @returns {Promise<{action: string, selectedMapId?: string}|null>} A promise that resolves with the user's
    *          chosen action ('merge', 'replace', 'new') and the ID of the selected existing map (if applicable),
    *          or null if the user cancels.
    */
-  createImportDecisionModal (existingMaps) {
-    if (!existingMaps || existingMaps.length === 0) {
-      console.error('ModalManager: createImportDecisionModal called without existingMaps.')
+  createImportDecisionModal (existingMaps, secondaryMatches = []) {
+    // If no primary or secondary matches, return early (should be handled by caller)
+    if ((!existingMaps || existingMaps.length === 0) && (!secondaryMatches || secondaryMatches.length === 0)) {
+      console.error('ModalManager: createImportDecisionModal called without any matches.')
       return Promise.resolve(null)
     }
 
@@ -1615,16 +1630,98 @@ export class ModalManager {
       resolvePromise = resolve
     })
 
-    const mapsHtml = existingMaps.map(map => `
-      <div class="form-group map-selection-item">
-        <label class="radio-label">
-          <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" />
-          <span class="checkmark"></span>
-          <strong>${map.name}</strong> 
-          <span class="text-secondary text-xs">(${map.id.substring(map.id.length - 8)})</span>
-        </label>
-      </div>
-    `).join('')
+    // Create HTML for primary matches (imageHash matches) using map cards with radio selection
+    let primaryMatchesHtml = ''
+    if (existingMaps && existingMaps.length > 0) {
+      // Create HTML content for primary matches using the same layout as map cards in UIRenderer
+      const primaryCardsHtml = existingMaps.map(map => {
+        const initials = map.name ? map.name.substring(0, 2).toUpperCase() : '??'
+        const markerCountText = map.markerCount !== undefined ? (map.markerCount === 1 ? '1 Marker' : `${map.markerCount} Markers`) : 'Loading markers...'
+
+        // Create thumbnail HTML (similar to UIRenderer.createCardElement)
+        const thumbnailHtml = `
+          <div class="map-thumbnail-container">
+            ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map Thumbnail" class="map-thumbnail">` : `<span class="map-initials">${initials}</span>`}
+          </div>
+        `
+
+        return `
+          <div class="form-group map-selection-item">
+            <label class="map-card-label radio-label">
+              <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" data-match-type="primary"/>
+              <div class="map-card-content">
+                ${thumbnailHtml}
+                <div class="map-info">
+                  <span class="map-name">${map.name}</span>
+                  <div class="map-details">${markerCountText}</div>
+                  <div class="map-dimensions">${map.width} × ${map.height} px</div>
+                  <div class="map-size">${this.formatFileSize(map.fileSize)}</div>
+                </div>
+              </div>
+              <span class="checkmark"></span>
+            </label>
+          </div>
+        `
+      }).join('')
+
+      primaryMatchesHtml = `
+        <div class="form-group">
+          <label>Exact matches (by image content):</label>
+          <div class="map-selection-list">${primaryCardsHtml}</div>
+        </div>
+      `
+    }
+
+    // Create HTML for secondary matches (fuzzy matches) using map cards with radio selection
+    let secondaryMatchesHtml = ''
+    if (secondaryMatches && secondaryMatches.length > 0) {
+      const secondaryCardsHtml = secondaryMatches.map(map => {
+        const initials = map.name ? map.name.substring(0, 2).toUpperCase() : '??'
+        const markerCountText = map.markerCount !== undefined ? (map.markerCount === 1 ? '1 Marker' : `${map.markerCount} Markers`) : 'Loading markers...'
+
+        // Create thumbnail HTML (similar to UIRenderer.createCardElement)
+        const thumbnailHtml = `
+          <div class="map-thumbnail-container">
+            ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map Thumbnail" class="map-thumbnail">` : `<span class="map-initials">${initials}</span>`}
+          </div>
+        `
+
+        return `
+          <div class="form-group map-selection-item">
+            <label class="map-card-label radio-label">
+              <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" data-match-type="secondary"/>
+              <div class="map-card-content">
+                ${thumbnailHtml}
+                <div class="map-info">
+                  <span class="map-name">${map.name}</span>
+                  <div class="map-details">${markerCountText}</div>
+                  <div class="map-dimensions">${map.width} × ${map.height} px</div>
+                  <div class="map-size">${this.formatFileSize(map.fileSize)}</div>
+                </div>
+              </div>
+              <span class="checkmark"></span>
+            </label>
+          </div>
+        `
+      }).join('')
+
+      secondaryMatchesHtml = `
+        <div class="form-group">
+          <label>Potential matches (by secondary criteria):</label>
+          <div class="map-selection-list">${secondaryCardsHtml}</div>
+        </div>
+      `
+    }
+
+    // Determine the message based on type of matches
+    const hasPrimaryMatches = existingMaps && existingMaps.length > 0
+    const hasSecondaryMatches = secondaryMatches && secondaryMatches.length > 0
+    let message = 'An imported map matches existing map(s) on this device. Please choose how to proceed:'
+    if (!hasPrimaryMatches && hasSecondaryMatches) {
+      message = "An imported map doesn't match exactly but has potential matches based on secondary criteria. Please choose how to proceed:"
+    } else if (hasPrimaryMatches && !hasSecondaryMatches) {
+      message = 'An imported map matches existing map(s) on this device based on its image content. Please choose how to proceed:'
+    }
 
     const modalHtml = `
       <div class="modal" id="${modalId}">
@@ -1635,12 +1732,10 @@ export class ModalManager {
             <button class="modal-close" type="button" aria-label="Close">×</button>
           </div>
           <div class="modal-body">
-            <p>An imported map matches existing map(s) on this device based on its image content. Please choose how to proceed:</p>
+            <p>${message}</p>
             
-            <div class="form-group">
-                <label>Select an existing map to act upon:</label>
-                <div class="map-selection-list">${mapsHtml}</div>
-            </div>
+            ${primaryMatchesHtml}
+            ${secondaryMatchesHtml}
 
             <div class="button-group decision-buttons">
                 <button class="btn btn-primary" id="btn-action-merge" type="button" disabled>Merge into selected map</button>

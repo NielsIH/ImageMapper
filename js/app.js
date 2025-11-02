@@ -2860,8 +2860,12 @@ class SnapSpotApp {
    * @private
    */
   async _showImportDecisionModal (importResult) {
+    // Prepare maps with thumbnails and marker counts for display
+    const preparedExistingMaps = await this._getPreparedMapsForDisplay(importResult.existingMaps || [])
+    const preparedSecondaryMatches = await this._getPreparedMapsForDisplay(importResult.secondaryMatches || [])
+
     // Show the new modal to get user's decision
-    const userChoice = await this.modalManager.createImportDecisionModal(importResult.existingMaps)
+    const userChoice = await this.modalManager.createImportDecisionModal(preparedExistingMaps, preparedSecondaryMatches)
     return userChoice
   }
 
