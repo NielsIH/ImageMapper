@@ -249,6 +249,12 @@ class SnapSpotApp {
     if (toggleMarkerSizeBtn) {
       toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
     }
+    
+    // Gallery button
+    const galleryBtn = document.getElementById('btn-gallery')
+    if (galleryBtn) {
+      galleryBtn.addEventListener('click', () => this.showMapPhotoGallery())
+    }
   }
 
   /**
@@ -2380,9 +2386,87 @@ class SnapSpotApp {
           await this.deletePhotoFromMarker(markerIdFromModal, photoIdFromModal)
           await this.showMarkerDetails(markerIdFromModal) // Correctly calling itself by original name
         },
-        // onViewPhoto callback
+        // onViewPhoto callback - This now opens the photo gallery in single photo mode
         async (photoIdFromModal) => { // <--- This argument is provided by the modal
-          await this.handleViewImageInViewer(photoIdFromModal, 'photo')
+          // Get all photos for the current marker
+          const markerPhotos = await this.storage.getPhotosForMarker(markerId)
+          
+          // Get all markers for the current map to enrich photo data with marker descriptions
+          const allMarkersForMap = await this.storage.getMarkersForMap(this.currentMap.id)
+          const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
+
+          // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
+          const enrichedPhotos = await Promise.all(markerPhotos.map(async photo => {
+            const associatedMarker = markerMap.get(photo.markerId)
+            
+            let thumbnailDataUrl = photo.thumbnailDataUrl
+            // If thumbnailDataUrl is not set but thumbnailData exists, convert it
+            if (!thumbnailDataUrl && photo.thumbnailData) {
+              thumbnailDataUrl = photo.thumbnailData // thumbnailData should already be a data URL
+            }
+            // If neither exists but we have imageData, try to generate a thumbnail
+            else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
+              try {
+                thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(
+                  photo.imageData,
+                  this.imageCompressionSettings.thumbnail.maxSize
+                )
+              } catch (error) {
+                console.warn(`Failed to generate thumbnail for photo ${photo.id}:`, error)
+              }
+            }
+
+            return {
+              ...photo,
+              thumbnailDataUrl: thumbnailDataUrl || null,
+              markerDescription: associatedMarker ? associatedMarker.description : 'No marker description'
+            }
+          }))
+
+          // Close the marker details modal
+          this.modalManager.closeTopModal()
+          
+          // Show the photo gallery modal starting with the specific photo in single view
+          this.modalManager.createPhotoGalleryModal(
+            enrichedPhotos,
+            {
+              title: `Marker Gallery: ${marker.description || 'Untitled Marker'}`,
+              showOnMapOption: false,
+              initialPhotoId: photoIdFromModal
+            },
+            null, // onShowOnMap is not available for marker details
+            // onDeletePhoto callback for the gallery
+            async (photoIdToDelete) => {
+              // Delete the photo from storage
+              await this.storage.deletePhoto(photoIdToDelete)
+              console.log(`Photo ${photoIdToDelete} deleted from storage.`)
+
+              // Update the UI to reflect the deletion
+              if (this.currentMap) {
+                // Update local markers array if needed
+                const localMarker = this.markers.find(m => m.id === marker.id)
+                if (localMarker) {
+                  localMarker.photoIds = localMarker.photoIds.filter(id => id !== photoIdToDelete)
+                  localMarker.hasPhotos = (localMarker.photoIds.length > 0)
+                  this.mapRenderer.setMarkers(this.markers)
+                  this.mapRenderer.render()
+                }
+              }
+
+              this.showNotification('Photo deleted successfully.', 'success')
+
+              // Close and reopen the gallery to refresh the display
+              this.modalManager.closeTopModal()
+              await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to close
+              await this.showMarkerDetails(marker.id) // Show parent marker details again
+            },
+            // onClose callback
+            async () => {
+              console.log('Marker photo gallery closed.')
+              // Reopen marker details after gallery closes
+              await this.showMarkerDetails(marker.id)
+            }
+          )
         },
         // onClose callback
         () => {
@@ -2547,6 +2631,124 @@ class SnapSpotApp {
     } catch (error) {
       console.error('Failed to delete photo from marker:', error)
       this.showErrorMessage('Delete Photo Error', `Failed to remove photo: ${error.message}`)
+    } finally {
+      this.hideLoading()
+    }
+  }
+
+  /**
+   * Displays a photo gallery for all photos on the current map.
+   */
+  async showMapPhotoGallery() {
+    if (!this.currentMap) {
+      this.showNotification('Please load a map first before viewing the gallery.', 'warning')
+      return
+    }
+
+    this.showLoading('Loading photo gallery...')
+    try {
+      // Get all photos for the current map
+      const allPhotosForMap = await this.storage.getPhotosForMap(this.currentMap.id)
+
+      // Get all markers for the current map to enrich photo data with marker descriptions
+      const allMarkersForMap = await this.storage.getMarkersForMap(this.currentMap.id)
+      const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
+
+      // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
+      const enrichedPhotos = await Promise.all(allPhotosForMap.map(async photo => {
+        const associatedMarker = markerMap.get(photo.markerId)
+        
+        let thumbnailDataUrl = photo.thumbnailDataUrl
+        // If thumbnailDataUrl is not set but thumbnailData exists, convert it
+        if (!thumbnailDataUrl && photo.thumbnailData) {
+          thumbnailDataUrl = photo.thumbnailData // thumbnailData should already be a data URL
+        }
+        // If neither exists but we have imageData, try to generate a thumbnail
+        else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
+          try {
+            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(
+              photo.imageData,
+              this.imageCompressionSettings.thumbnail.maxSize
+            )
+          } catch (error) {
+            console.warn(`Failed to generate thumbnail for photo ${photo.id}:`, error)
+          }
+        }
+
+        return {
+          ...photo,
+          mapId: this.currentMap.id, // Add mapId for onShowPhotoOnMap function
+          mapName: this.currentMap.name, // Add mapName for display
+          thumbnailDataUrl: thumbnailDataUrl || null,
+          markerDescription: associatedMarker ? associatedMarker.description : 'No marker description'
+        }
+      }))
+
+      // Show the gallery modal
+      this.modalManager.createPhotoGalleryModal(
+        enrichedPhotos,
+        {
+          title: `Map Gallery: ${this.currentMap.name}`,
+          showOnMapOption: true
+        },
+        // onShowOnMap callback
+        async (photoId) => {
+          // Find the photo in the enriched array
+          const photo = enrichedPhotos.find(p => p.id === photoId)
+          if (!photo) {
+            this.showNotification('Photo not found.', 'warning')
+            return
+          }
+
+          // Close gallery modal
+          this.modalManager.closeTopModal()
+
+          // Switch to the map where the photo's marker is located (current map in this case)
+          // and focus on the marker
+          await this.onShowPhotoOnMap(photo)
+        },
+        // onDeletePhoto callback
+        async (photoId) => {
+          // Find the photo to get its markerId
+          const photo = enrichedPhotos.find(p => p.id === photoId)
+          if (!photo) {
+            this.showNotification('Photo not found.', 'warning')
+            return
+          }
+
+          // Delete the photo from storage
+          await this.storage.deletePhoto(photoId)
+          console.log(`Photo ${photoId} deleted from storage.`)
+
+          // Update the UI to reflect the deletion
+          if (this.currentMap) {
+            // Update local markers array if needed
+            const localMarker = this.markers.find(m => m.id === photo.markerId)
+            if (localMarker) {
+              localMarker.photoIds = localMarker.photoIds.filter(id => id !== photoId)
+              localMarker.hasPhotos = (localMarker.photoIds.length > 0)
+              this.mapRenderer.setMarkers(this.markers)
+              this.mapRenderer.render()
+            }
+          }
+
+          this.showNotification('Photo deleted successfully.', 'success')
+
+          // Close and reopen the gallery to refresh the display
+          this.modalManager.closeTopModal()
+          await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to close
+          await this.showMapPhotoGallery()
+        },
+        // onClose callback
+        () => {
+          console.log('Map photo gallery closed.')
+          this.updateAppStatus('Ready')
+        }
+      )
+      this.updateAppStatus(`Viewing photo gallery for map: ${this.currentMap.name}`)
+    } catch (error) {
+      console.error('Failed to load photo gallery:', error)
+      this.showErrorMessage('Gallery Error', `Failed to load photo gallery: ${error.message}`)
     } finally {
       this.hideLoading()
     }

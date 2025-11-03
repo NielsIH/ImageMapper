@@ -1,0 +1,359 @@
+/* Photo Gallery Modal Styles */
+
+.photo-gallery-modal .modal-content {
+  width: 90%;
+  max-width: 1200px;
+  height: 90vh;
+  max-height: 800px;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-gallery-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.photo-gallery-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Gallery Views */
+.gallery-view {
+  display: none;
+  height: 100%;
+  width: 100%;
+}
+
+.gallery-view.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* List View Styles */
+#gallery-list-view {
+  padding: 1rem;
+  overflow: auto;
+  flex: 1;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.photo-grid-item {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 120px; /* Minimum height to accommodate just images */
+  position: relative; /* For potential hover effects */
+}
+
+.photo-grid-item:hover {
+  border-color: #007bff;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.photo-grid-thumbnail {
+  width: 100%;
+  min-height: 120px; /* Minimum height for the image */
+  max-height: 250px; /* Increased height to focus on images */
+  object-fit: contain; /* Contain the image without cropping */
+  display: block;
+  background: white; /* Background for transparent images */
+  flex: 1; /* Take all available space */
+}
+
+/* Hide photo-grid-info in gallery view to show only photos */
+.photo-grid-info {
+  display: none;
+}
+
+.pagination-controls-footer {
+  display: flex;
+  justify-content: flex-start; /* Align to the start in the footer */
+  align-items: center;
+  gap: 1rem;
+  flex: 1; /* Take available space */
+}
+
+.pagination-prev, .pagination-next {
+  padding: 0.5rem 1rem;
+  min-width: auto;
+}
+
+.pagination-info {
+  color: #6c757d;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+}
+
+/* Single Photo View Styles */
+#gallery-single-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  
+  /* Only display when active */
+  display: none;
+}
+
+#gallery-single-view.active {
+  display: flex;
+}
+
+.single-photo-viewer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden; /* Ensure content doesn't overflow */
+}
+
+/* Photo display area - only for the image */
+.photo-display-container {
+  position: relative; /* Enable absolute positioning for overlays */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.current-photo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Overlay for navigation controls */
+.nav-controls {
+  position: absolute;
+  top: 1rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  z-index: 10;
+}
+
+.nav-btn {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+.nav-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.list-btn {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+.list-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Info displayed on photo */
+.photo-overlay-info {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  text-align: left;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 8px;
+  z-index: 10;
+  max-height: 100px; /* Limit height for overlay */
+  overflow: hidden;
+}
+
+.photo-overlay-info h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  color: white;
+}
+
+.photo-overlay-info p {
+  margin: 0.125rem 0;
+  font-size: 0.85rem;
+  color: #ddd;
+}
+
+/* Footer for pagination and action buttons */
+.photo-gallery-modal .modal-footer {
+  padding: 0.75rem;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column; /* Stack elements vertically by default */
+  align-items: center; /* Center align by default */
+  gap: 0.5rem;
+  flex-shrink: 0;
+  width: 100%; /* Full width */
+}
+
+/* Pagination controls container */
+.pagination-controls-footer {
+  display: flex;
+  justify-content: center; /* Center pagination controls */
+  align-items: center;
+  gap: 0.5rem; /* Reduced gap */
+  width: 100%; /* Full width */
+  flex-wrap: wrap; /* Allow wrapping */
+}
+
+/* Make the pagination buttons and text stack properly */
+.pagination-prev, .pagination-next {
+  padding: 0.5rem 1rem;
+  white-space: nowrap; /* Prevent text from wrapping within buttons */
+}
+
+.pagination-info {
+  color: #6c757d;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+  text-align: center; /* Center the text */
+  width: 100%; /* Text takes full width and appears on its own line */
+  order: 1; /* Position it in the middle */
+  margin: 0.25rem 0; /* Add vertical spacing */
+}
+
+/* Action buttons container */
+.photo-gallery-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end; /* Right-align action buttons */
+  gap: 0.5rem;
+  width: 100%; /* Full width */
+  flex-wrap: wrap; /* Allow wrapping */
+}
+
+/* On larger screens, arrange horizontally */
+@media (min-width: 769px) {
+  .photo-gallery-modal .modal-footer {
+    flex-direction: row; /* Arrange horizontally on larger screens */
+    align-items: center;
+  }
+  
+  .pagination-controls-footer {
+    justify-content: center; /* Center align on larger screens */
+    width: auto; /* Auto width */
+    margin-right: auto; /* Push action buttons to the right */
+  }
+  
+  .pagination-info {
+    width: auto; /* Auto width */
+    order: 0; /* Position between buttons on desktop */
+    margin: 0 0.5rem; /* Side margin */
+  }
+  
+  .photo-gallery-modal .modal-actions {
+    justify-content: flex-end; /* Right align on larger screens */
+    width: auto; /* Auto width */
+    flex: 0 0 auto; /* Don't grow, take only required space */
+    flex-wrap: nowrap; /* No wrapping on larger screens */
+  }
+}
+
+.photo-gallery-modal .modal-actions .btn {
+  margin: 0; /* Remove the centered layout */
+  font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .photo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .photo-grid-thumbnail {
+    min-height: 100px;
+    max-height: 200px; /* Increased max height for better image display */
+  }
+  
+  .nav-btn, .list-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+  
+  .photo-gallery-modal .modal-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .photo-gallery-modal .modal-actions .btn {
+    width: 100%;
+    max-width: 100%; /* Full width on mobile */
+    margin: 0.25rem 0;
+  }
+  
+  .photo-overlay-info {
+    bottom: 70px; /* Position above the action buttons on mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .current-photo {
+    max-height: 90vh; /* Use most of the available space on small screens */
+  }
+  
+  .nav-btn, .list-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+}

@@ -25,5 +25,8 @@
 /* Export decision modal specific styles */
 @import url('./modals/export-decision.css');
 
+/* Photo gallery modal specific styles */
+@import url('./modals/photo-gallery.css');
+
 /* Responsive breakpoints for all modals */
 @import url('./modals/responsive.css');
