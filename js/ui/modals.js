@@ -951,14 +951,14 @@ export class ModalManager {
     modal.querySelectorAll('.photo-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
       const photoId = img.dataset.photoId
       const photo = markerDetails.photos.find(p => p.id === photoId)
-      
+
       if (photo) {
         // First, try to use the full-size image if available
         if (photo.imageData) {
           try {
             const imageUrl = URL.createObjectURL(photo.imageData)
             this.trackObjectUrl(modalId, imageUrl)
-            
+
             // Set up the fallback to thumbnail BEFORE setting the src
             img.addEventListener('error', () => {
               // On error, try thumbnail as fallback
@@ -966,16 +966,15 @@ export class ModalManager {
                 img.src = photo.thumbnailData
               }
             }, { once: true })
-            
+
             // Now set the source to the full-size image
             img.src = imageUrl
-            
+
             // Optional: Set up load success handling
             img.addEventListener('load', () => {
               // Image loaded successfully, no action needed
               // The object URL will be cleaned up when the modal closes
             }, { once: true })
-            
           } catch (error) {
             console.error('Failed to create object URL, falling back to thumbnail:', error)
             // On creation failure, fallback to thumbnail
@@ -1179,21 +1178,21 @@ export class ModalManager {
 
     // Determine initial view: 'list' or 'single'
     const initialView = initialPhotoId ? 'single' : 'list'
-    const initialPhotoIndex = initialPhotoId 
-      ? photos.findIndex(photo => photo.id === initialPhotoId) 
+    const initialPhotoIndex = initialPhotoId
+      ? photos.findIndex(photo => photo.id === initialPhotoId)
       : 0
 
-    let currentView = initialView
-    let currentPhotoIndex = initialPhotoIndex !== -1 ? initialPhotoIndex : 0
-    let photoObjectUrls = {} // To store object URLs for each photo
+    const currentView = initialView
+    const currentPhotoIndex = initialPhotoIndex !== -1 ? initialPhotoIndex : 0
+    const photoObjectUrls = {} // To store object URLs for each photo
 
     // Pagination setup
-    const itemsPerPage = 20; // Reduced from 50 to 20 for better performance
-    const totalPages = Math.ceil(photos.length / itemsPerPage);
-    const hasPagination = totalPages > 1;
-    
+    const itemsPerPage = 20 // Reduced from 50 to 20 for better performance
+    // const totalPages = Math.ceil(photos.length / itemsPerPage)
+    // const hasPagination = totalPages > 1
+
     // Show the first page of photos
-    const firstPagePhotos = photos.length > 0 ? photos.slice(0, itemsPerPage) : photos;
+    const firstPagePhotos = photos.length > 0 ? photos.slice(0, itemsPerPage) : photos
 
     const modalHtml = `
       <div class="modal photo-gallery-modal" id="photo-gallery-modal">
@@ -1311,30 +1310,30 @@ export class ModalManager {
    * @param {Function} onClose - Callback when the modal is closed
    */
   setupPhotoGalleryModal (modal, photos, options, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose) {
-    const { initialView, currentPhotoIndex: initialPhotoIndex, showOnMapOption } = options
+    const { initialView, currentPhotoIndex: initialPhotoIndex } = options
     let currentView = initialView
     let currentPhotoIndex = initialPhotoIndex
 
     // Get modal elements
     const closeBtn = modal.querySelector('.modal-close')
     const backdrop = modal.querySelector('.modal-backdrop')
-    
+
     // View containers
     const listView = modal.querySelector('#gallery-list-view')
     const singleView = modal.querySelector('#gallery-single-view')
-    
+
     // Navigation elements
     const prevPhotoBtn = modal.querySelector('#prev-photo-btn')
     const nextPhotoBtn = modal.querySelector('#next-photo-btn')
     const viewListBtn = modal.querySelector('#view-list-btn')
-    
+
     // Single photo elements
     const currentPhotoDisplay = modal.querySelector('#current-photo-display')
     const currentPhotoTitle = modal.querySelector('#current-photo-title')
     const markerDescription = modal.querySelector('#marker-description')
     const showOnMapBtn = modal.querySelector('#show-on-map-btn')
     const deletePhotoBtn = modal.querySelector('#delete-photo-btn')
-    
+
     // Set up close functionality
     const closeModal = () => {
       // Clean up all object URLs when closing the modal
@@ -1343,172 +1342,171 @@ export class ModalManager {
           URL.revokeObjectURL(url)
         }
       })
-      
+
       this.closeModal(modal)
       if (onClose) onClose()
     }
 
     // Setup for Pagination functionality
-    const itemsPerPage = 20; // Reduced from 50 to 20 for better performance
-    const totalPages = Math.ceil(photos.length / itemsPerPage);
-    const hasPagination = totalPages > 1;
-    let currentPage = 1;
-    
+    const itemsPerPage = 20 // Reduced from 50 to 20 for better performance
+    const totalPages = Math.ceil(photos.length / itemsPerPage)
+    const hasPagination = totalPages > 1
+    let currentPage = 1
+
     // Set up list view photo click handlers for gallery
     const setupGalleryPhotoClickHandlers = () => {
       // Get the photos that are actually displayed in the current view
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = Math.min(startIndex + itemsPerPage, photos.length);
-      const currentPhotos = photos.slice(startIndex, endIndex);
-      
+      // const startIndex = (currentPage - 1) * itemsPerPage
+      // const endIndex = Math.min(startIndex + itemsPerPage, photos.length)
+      // const currentPhotos = photos.slice(startIndex, endIndex)
+
       modal.querySelectorAll('.photo-grid-item').forEach((item, index) => {
         // The index here corresponds to the current page photos, not the full set
         item.addEventListener('click', () => {
           // Find the actual index in the full photos array to ensure correct navigation
-          const photoId = item.dataset.photoId;
-          const actualIndex = photos.findIndex(photo => photo.id === photoId);
+          const photoId = item.dataset.photoId
+          const actualIndex = photos.findIndex(photo => photo.id === photoId)
           if (actualIndex !== -1) {
-            showSingleView(actualIndex);
+            showSingleView(actualIndex)
           }
         })
-      });
-      
+      })
+
       // Load images with fallback strategy - try full-size first, fallback to thumbnail for grid view
       modal.querySelectorAll('.photo-grid-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
-        const photoId = img.dataset.photoId;
-        const photo = photos.find(p => p.id === photoId); // Use the full photos array to find the photo
-        
+        const photoId = img.dataset.photoId
+        const photo = photos.find(p => p.id === photoId) // Use the full photos array to find the photo
+
         if (photo) {
           // First, try to use the full-size image if available
           if (photo.imageData) {
             try {
-              const imageUrl = URL.createObjectURL(photo.imageData);
-              this.trackObjectUrl(modal.id, imageUrl);
-              
+              const imageUrl = URL.createObjectURL(photo.imageData)
+              this.trackObjectUrl(modal.id, imageUrl)
+
               // Set up the fallback to thumbnail BEFORE setting the src
               img.addEventListener('error', () => {
                 // On error, try thumbnail as fallback
                 if (photo.thumbnailDataUrl) {
-                  img.src = photo.thumbnailDataUrl;
+                  img.src = photo.thumbnailDataUrl
                 }
-              }, { once: true });
-              
+              }, { once: true })
+
               // Now set the source to the full-size image
-              img.src = imageUrl;
-              
+              img.src = imageUrl
+
               // Optional: Set up load success handling
               img.addEventListener('load', () => {
                 // Image loaded successfully, no action needed
                 // The object URL will be cleaned up when the modal closes
-              }, { once: true });
-              
+              }, { once: true })
             } catch (error) {
-              console.error('Failed to create object URL for grid view, falling back to thumbnail:', error);
+              console.error('Failed to create object URL for grid view, falling back to thumbnail:', error)
               // On creation failure, fallback to thumbnail
               if (photo.thumbnailDataUrl) {
-                img.src = photo.thumbnailDataUrl;
+                img.src = photo.thumbnailDataUrl
               } else {
                 // If no thumbnail, show a placeholder
-                img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>';
+                img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
               }
             }
           } else if (photo.thumbnailDataUrl) {
             // If no full-size image available, use thumbnail
-            img.src = photo.thumbnailDataUrl;
+            img.src = photo.thumbnailDataUrl
           } else {
             // If no thumbnail either, show a placeholder
-            img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>';
+            img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
           }
         }
-      });
-    };
+      })
+    }
 
     const updateGalleryDisplay = () => {
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = Math.min(startIndex + itemsPerPage, photos.length);
-      const currentPhotos = photos.slice(startIndex, endIndex);
-      
+      const startIndex = (currentPage - 1) * itemsPerPage
+      const endIndex = Math.min(startIndex + itemsPerPage, photos.length)
+      const currentPhotos = photos.slice(startIndex, endIndex)
+
       // Update the photo grid
-      const photoGridContainer = modal.querySelector('#photo-grid-container');
+      const photoGridContainer = modal.querySelector('#photo-grid-container')
       if (photoGridContainer) {
-        photoGridContainer.innerHTML = this._generatePhotoGridItems(currentPhotos);
-        
+        photoGridContainer.innerHTML = this._generatePhotoGridItems(currentPhotos)
+
         // Re-attach event listeners for the new photo grid items
-        setupGalleryPhotoClickHandlers();
+        setupGalleryPhotoClickHandlers()
       }
-      
+
       // Update pagination controls in footer
-      const paginationControls = modal.querySelector('.pagination-controls-footer');
+      const paginationControls = modal.querySelector('.pagination-controls-footer')
       if (paginationControls) {
-        const prevBtn = paginationControls.querySelector('.pagination-prev');
-        const nextBtn = paginationControls.querySelector('.pagination-next');
-        const infoText = paginationControls.querySelector('.pagination-info');
-        
+        const prevBtn = paginationControls.querySelector('.pagination-prev')
+        const nextBtn = paginationControls.querySelector('.pagination-next')
+        const infoText = paginationControls.querySelector('.pagination-info')
+
         if (prevBtn) {
-          prevBtn.disabled = currentPage <= 1;
+          prevBtn.disabled = currentPage <= 1
         }
         if (nextBtn) {
-          nextBtn.disabled = currentPage >= totalPages;
+          nextBtn.disabled = currentPage >= totalPages
         }
         if (infoText) {
-          infoText.textContent = `Page ${currentPage} of ${totalPages} (${startIndex + 1}-${endIndex} of ${photos.length} photos)`;
+          infoText.textContent = `Page ${currentPage} of ${totalPages} (${startIndex + 1}-${endIndex} of ${photos.length} photos)`
         }
       }
-    };
-    
+    }
+
     // Add pagination controls to the modal footer only for gallery view
-    const modalFooter = modal.querySelector('.modal-footer');
+    const modalFooter = modal.querySelector('.modal-footer')
     if (modalFooter && hasPagination) {
       // Create pagination controls container
-      const paginationContainer = document.createElement('div');
-      paginationContainer.className = 'pagination-controls-footer';
+      const paginationContainer = document.createElement('div')
+      paginationContainer.className = 'pagination-controls-footer'
       paginationContainer.innerHTML = `
         <button class="btn pagination-prev" title="Previous Page">← Prev</button>
         <span class="pagination-info">Page 1 of ${totalPages}</span>
         <button class="btn pagination-next" title="Next Page">Next →</button>
-      `;
-      
+      `
+
       // Insert before the existing action buttons
-      modalFooter.insertBefore(paginationContainer, modalFooter.firstChild);
-      
-      const prevBtn = paginationContainer.querySelector('.pagination-prev');
-      const nextBtn = paginationContainer.querySelector('.pagination-next');
-      
+      modalFooter.insertBefore(paginationContainer, modalFooter.firstChild)
+
+      const prevBtn = paginationContainer.querySelector('.pagination-prev')
+      const nextBtn = paginationContainer.querySelector('.pagination-next')
+
       if (prevBtn) {
         prevBtn.addEventListener('click', () => {
           if (currentPage > 1) {
-            currentPage--;
-            updateGalleryDisplay();
+            currentPage--
+            updateGalleryDisplay()
           }
-        });
+        })
       }
-      
+
       if (nextBtn) {
         nextBtn.addEventListener('click', () => {
           if (currentPage < totalPages) {
-            currentPage++;
-            updateGalleryDisplay();
+            currentPage++
+            updateGalleryDisplay()
           }
-        });
+        })
       }
-      
+
       // Initially show pagination controls only in gallery view
       const updatePaginationVisibility = () => {
         if (paginationContainer) {
           if (currentView === 'list') {
-            paginationContainer.style.display = 'flex';
+            paginationContainer.style.display = 'flex'
           } else {
-            paginationContainer.style.display = 'none';
+            paginationContainer.style.display = 'none'
           }
         }
-      };
-      
+      }
+
       // Set initial visibility
-      updatePaginationVisibility();
+      updatePaginationVisibility()
     }
-    
+
     // Initialize the first page
-    updateGalleryDisplay();
+    updateGalleryDisplay()
 
     closeBtn?.addEventListener('click', closeModal)
     backdrop?.addEventListener('click', closeModal)
@@ -1518,17 +1516,17 @@ export class ModalManager {
       currentView = 'list'
       listView.classList.add('active')
       singleView.classList.remove('active')
-      
+
       // Update action buttons visibility (hide in list view)
       const modalActions = modal.querySelector('.modal-actions')
       if (modalActions) {
         modalActions.style.display = 'none'
       }
-      
+
       // Update pagination visibility
-      const paginationContainer = modal.querySelector('.pagination-controls-footer');
+      const paginationContainer = modal.querySelector('.pagination-controls-footer')
       if (paginationContainer) {
-        paginationContainer.style.display = hasPagination ? 'flex' : 'none';
+        paginationContainer.style.display = hasPagination ? 'flex' : 'none'
       }
     }
 
@@ -1562,85 +1560,18 @@ export class ModalManager {
       currentView = 'single'
       singleView.classList.add('active')
       listView.classList.remove('active')
-      
+
       // Update action buttons visibility (show in single photo view)
       const modalActions = modal.querySelector('.modal-actions')
       if (modalActions) {
         modalActions.style.display = 'flex'
       }
-      
-      // Hide pagination controls in single photo view
-      const paginationContainer = modal.querySelector('.pagination-controls-footer');
-      if (paginationContainer) {
-        paginationContainer.style.display = 'none';
-      }
-    }
 
-    // Set up list view photo click handlers
-    const setupPhotoClickHandlers = () => {
-      // Get the photos that are actually displayed in the grid (could be limited set)
-      const displayedPhotos = photos.length > 50 ? photos.slice(0, 50) : photos;
-      
-      modal.querySelectorAll('.photo-grid-item').forEach((item, index) => {
-        // The index here corresponds to the displayed photos, not the full set
-        item.addEventListener('click', () => {
-          // Find the actual index in the full photos array to ensure correct navigation
-          const photoId = item.dataset.photoId;
-          const actualIndex = photos.findIndex(photo => photo.id === photoId);
-          if (actualIndex !== -1) {
-            showSingleView(actualIndex);
-          }
-        })
-      })
-      
-      // Load images with fallback strategy - try full-size first, fallback to thumbnail for grid view
-      modal.querySelectorAll('.photo-grid-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
-        const photoId = img.dataset.photoId
-        const photo = photos.find(p => p.id === photoId) // Use the full photos array to find the photo
-        
-        if (photo) {
-          // First, try to use the full-size image if available
-          if (photo.imageData) {
-            try {
-              const imageUrl = URL.createObjectURL(photo.imageData)
-              this.trackObjectUrl(modal.id, imageUrl)
-              
-              // Set up the fallback to thumbnail BEFORE setting the src
-              img.addEventListener('error', () => {
-                // On error, try thumbnail as fallback
-                if (photo.thumbnailDataUrl) {
-                  img.src = photo.thumbnailDataUrl
-                }
-              }, { once: true })
-              
-              // Now set the source to the full-size image
-              img.src = imageUrl
-              
-              // Optional: Set up load success handling
-              img.addEventListener('load', () => {
-                // Image loaded successfully, no action needed
-                // The object URL will be cleaned up when the modal closes
-              }, { once: true })
-              
-            } catch (error) {
-              console.error('Failed to create object URL for grid view, falling back to thumbnail:', error)
-              // On creation failure, fallback to thumbnail
-              if (photo.thumbnailDataUrl) {
-                img.src = photo.thumbnailDataUrl
-              } else {
-                // If no thumbnail, show a placeholder
-                img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
-              }
-            }
-          } else if (photo.thumbnailDataUrl) {
-            // If no full-size image available, use thumbnail
-            img.src = photo.thumbnailDataUrl
-          } else {
-            // If no thumbnail either, show a placeholder
-            img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
-          }
-        }
-      })
+      // Hide pagination controls in single photo view
+      const paginationContainer = modal.querySelector('.pagination-controls-footer')
+      if (paginationContainer) {
+        paginationContainer.style.display = 'none'
+      }
     }
 
     // Set up navigation buttons
@@ -1723,17 +1654,17 @@ export class ModalManager {
       singleView.classList.remove('active')
       listView.classList.add('active')
       setupGalleryPhotoClickHandlers()
-      
+
       // Hide action buttons in footer when starting with list view
       const modalActions = modal.querySelector('.modal-actions')
       if (modalActions) {
         modalActions.style.display = 'none'
       }
-      
+
       // Show pagination controls in footer when starting with list view
-      const paginationContainer = modal.querySelector('.pagination-controls-footer');
+      const paginationContainer = modal.querySelector('.pagination-controls-footer')
       if (paginationContainer) {
-        paginationContainer.style.display = hasPagination ? 'flex' : 'none';
+        paginationContainer.style.display = hasPagination ? 'flex' : 'none'
       }
     } else {
       listView.classList.remove('active')

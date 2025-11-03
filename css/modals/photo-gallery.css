@@ -49,6 +49,7 @@
   padding: 1rem 0;
   overflow-y: auto;
   flex: 1;
+  align-content: start; /* Align grid items to the start instead of stretching them */
 }
 
 .photo-grid-item {
@@ -313,6 +314,7 @@
   .photo-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 0.75rem;
+    align-content: start;
   }
   
   .photo-grid-thumbnail {
@@ -345,6 +347,7 @@
 @media (max-width: 480px) {
   .photo-grid {
     grid-template-columns: repeat(2, 1fr);
+    align-content: start;
   }
   
   .current-photo {

@@ -249,7 +249,7 @@ class SnapSpotApp {
     if (toggleMarkerSizeBtn) {
       toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
     }
-    
+
     // Gallery button
     const galleryBtn = document.getElementById('btn-gallery')
     if (galleryBtn) {
@@ -2390,7 +2390,7 @@ class SnapSpotApp {
         async (photoIdFromModal) => { // <--- This argument is provided by the modal
           // Get all photos for the current marker
           const markerPhotos = await this.storage.getPhotosForMarker(markerId)
-          
+
           // Get all markers for the current map to enrich photo data with marker descriptions
           const allMarkersForMap = await this.storage.getMarkersForMap(this.currentMap.id)
           const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
@@ -2398,14 +2398,12 @@ class SnapSpotApp {
           // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
           const enrichedPhotos = await Promise.all(markerPhotos.map(async photo => {
             const associatedMarker = markerMap.get(photo.markerId)
-            
+
             let thumbnailDataUrl = photo.thumbnailDataUrl
             // If thumbnailDataUrl is not set but thumbnailData exists, convert it
             if (!thumbnailDataUrl && photo.thumbnailData) {
-              thumbnailDataUrl = photo.thumbnailData // thumbnailData should already be a data URL
-            }
-            // If neither exists but we have imageData, try to generate a thumbnail
-            else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
+              thumbnailDataUrl = photo.thumbnailData
+            } else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
               try {
                 thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(
                   photo.imageData,
@@ -2425,7 +2423,7 @@ class SnapSpotApp {
 
           // Close the marker details modal
           this.modalManager.closeTopModal()
-          
+
           // Show the photo gallery modal starting with the specific photo in single view
           this.modalManager.createPhotoGalleryModal(
             enrichedPhotos,
@@ -2639,7 +2637,7 @@ class SnapSpotApp {
   /**
    * Displays a photo gallery for all photos on the current map.
    */
-  async showMapPhotoGallery() {
+  async showMapPhotoGallery () {
     if (!this.currentMap) {
       this.showNotification('Please load a map first before viewing the gallery.', 'warning')
       return
@@ -2657,14 +2655,13 @@ class SnapSpotApp {
       // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
       const enrichedPhotos = await Promise.all(allPhotosForMap.map(async photo => {
         const associatedMarker = markerMap.get(photo.markerId)
-        
+
         let thumbnailDataUrl = photo.thumbnailDataUrl
         // If thumbnailDataUrl is not set but thumbnailData exists, convert it
         if (!thumbnailDataUrl && photo.thumbnailData) {
           thumbnailDataUrl = photo.thumbnailData // thumbnailData should already be a data URL
-        }
         // If neither exists but we have imageData, try to generate a thumbnail
-        else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
+        } else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
           try {
             thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(
               photo.imageData,
@@ -2763,10 +2760,10 @@ class SnapSpotApp {
   async exportHtmlReport (mapId) {
     // Close any open modals before export to prevent conflicts
     this.modalManager.closeAllModals()
-    
+
     // Small delay to ensure cleanup is complete
     await new Promise(resolve => setTimeout(resolve, 100))
-    
+
     this.updateAppStatus(`Generating HTML report for map ${mapId}...`)
     try {
       const map = await this.storage.getMap(mapId)
@@ -2811,10 +2808,10 @@ class SnapSpotApp {
   async exportJsonMap (mapId) { // Renamed from _handleExportMapJson to match your existing method name
     // Close any open modals before export to prevent conflicts
     this.modalManager.closeAllModals()
-    
+
     // Small delay to ensure cleanup is complete
     await new Promise(resolve => setTimeout(resolve, 100))
-    
+
     this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`)
     try {
       const map = await this.storage.getMap(mapId)
