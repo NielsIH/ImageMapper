@@ -17,6 +17,7 @@ export class ModalManager {
     this.activeModals = new Set()
     this.setupGlobalListeners()
     this.currentObjectUrl = null // To store the URL created by createObjectURL
+    this.activeObjectUrls = new Map() // Track object URLs by modal ID
   }
 
   /**
@@ -29,6 +30,31 @@ export class ModalManager {
         this.closeTopModal()
       }
     })
+  }
+
+  // Track object URLs for cleanup (essential for all platforms)
+  trackObjectUrl (modalId, url) {
+    if (!this.activeObjectUrls.has(modalId)) {
+      this.activeObjectUrls.set(modalId, new Set())
+    }
+    if (url) {
+      this.activeObjectUrls.get(modalId).add(url)
+    }
+  }
+
+  // Revoke all object URLs for a modal
+  revokeObjectUrlsForModal (modalId) {
+    if (this.activeObjectUrls.has(modalId)) {
+      const urls = this.activeObjectUrls.get(modalId)
+      urls.forEach(url => {
+        try {
+          URL.revokeObjectURL(url)
+        } catch (e) {
+          console.debug('URL already revoked:', e.message)
+        }
+      })
+      this.activeObjectUrls.delete(modalId)
+    }
   }
 
   /**
@@ -608,6 +634,9 @@ export class ModalManager {
         return
       }
 
+      // Essential cleanup: Revoke all object URLs associated with this modal before closing
+      this.revokeObjectUrlsForModal(modal.id)
+
       modal.classList.remove('show')
       this.activeModals.delete(modal)
       console.log(
@@ -677,6 +706,7 @@ export class ModalManager {
      */
   closeAllModals () {
     Array.from(this.activeModals).forEach((modal) => {
+      this.revokeObjectUrlsForModal(modal.id) // Clean up before closing
       this.closeModal(modal)
     })
   }
@@ -913,26 +943,55 @@ export class ModalManager {
         }
       })
     })
-    // Load full-size images for thumbnails in marker details
+    // Track object URLs for this specific modal (essential for cleanup)
+    const modalId = modal.id
+    this.trackObjectUrl(modalId, null) // Initialize the set
+
+    // Load images with fallback strategy - try full-size first, fallback to thumbnail
     modal.querySelectorAll('.photo-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
       const photoId = img.dataset.photoId
       const photo = markerDetails.photos.find(p => p.id === photoId)
-      if (photo && photo.imageData) {
-        try {
-          // Create object URL from the full-size image blob
-          const imageUrl = URL.createObjectURL(photo.imageData)
-          img.src = imageUrl
-
-          // Clean up the object URL when the image loads or errors
-          const cleanup = () => URL.revokeObjectURL(imageUrl)
-          img.addEventListener('load', cleanup, { once: true })
-          img.addEventListener('error', cleanup, { once: true })
-        } catch (error) {
-          console.error('Failed to load full-size image for thumbnail:', error)
-          // Fallback to thumbnail if available
-          if (photo.thumbnailData) {
-            img.src = photo.thumbnailData
+      
+      if (photo) {
+        // First, try to use the full-size image if available
+        if (photo.imageData) {
+          try {
+            const imageUrl = URL.createObjectURL(photo.imageData)
+            this.trackObjectUrl(modalId, imageUrl)
+            
+            // Set up the fallback to thumbnail BEFORE setting the src
+            img.addEventListener('error', () => {
+              // On error, try thumbnail as fallback
+              if (photo.thumbnailData) {
+                img.src = photo.thumbnailData
+              }
+            }, { once: true })
+            
+            // Now set the source to the full-size image
+            img.src = imageUrl
+            
+            // Optional: Set up load success handling
+            img.addEventListener('load', () => {
+              // Image loaded successfully, no action needed
+              // The object URL will be cleaned up when the modal closes
+            }, { once: true })
+            
+          } catch (error) {
+            console.error('Failed to create object URL, falling back to thumbnail:', error)
+            // On creation failure, fallback to thumbnail
+            if (photo.thumbnailData) {
+              img.src = photo.thumbnailData
+            } else {
+              // If no thumbnail, show a placeholder
+              img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
+            }
           }
+        } else if (photo.thumbnailData) {
+          // If no full-size image available, use thumbnail
+          img.src = photo.thumbnailData
+        } else {
+          // If no thumbnail either, show a placeholder
+          img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
         }
       }
     })

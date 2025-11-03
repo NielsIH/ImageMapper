@@ -2555,9 +2555,16 @@ class SnapSpotApp {
   /**
      * Exports a map's data to an HTML report.
      * Modified to fit the new callback signature from MapsModal.
+     * Added modal cleanup and delay to prevent export issues on constrained devices.
      * @param {string} mapId The ID of the map to export.
      */
   async exportHtmlReport (mapId) {
+    // Close any open modals before export to prevent conflicts
+    this.modalManager.closeAllModals()
+    
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
     this.updateAppStatus(`Generating HTML report for map ${mapId}...`)
     try {
       const map = await this.storage.getMap(mapId)
@@ -2596,9 +2603,16 @@ class SnapSpotApp {
   /**
  * Handles the request to export map data as JSON.
  * This method will now show an export options modal.
+ * Added modal cleanup and delay to prevent export issues on constrained devices.
  * @param {string} mapId The ID of the map to export.
  */
   async exportJsonMap (mapId) { // Renamed from _handleExportMapJson to match your existing method name
+    // Close any open modals before export to prevent conflicts
+    this.modalManager.closeAllModals()
+    
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
     this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`)
     try {
       const map = await this.storage.getMap(mapId)
@@ -2879,7 +2893,7 @@ class SnapSpotApp {
     this.showLoading('Deleting image...')
     try {
       // 1. Close the image viewer modal first
-      this.modalManager.closeTopModal() // This also revokes the object URL
+      this.modalManager.closeTopModal() // This also handles object URL cleanup
 
       // 2. Call the existing method to handle the actual deletion from storage and UI updates
       await this.deletePhotoFromMarker(markerId, photoId)
@@ -2954,7 +2968,10 @@ class SnapSpotApp {
       }
 
       // Create object URL and pass to modalManager
-      this.modalManager.currentObjectUrl = URL.createObjectURL(imageBlob)
+      const imageUrl = URL.createObjectURL(imageBlob)
+      // Track this object URL for cleanup if needed in the future
+      this.modalManager.trackObjectUrl('image-viewer-modal', imageUrl)
+      this.modalManager.currentObjectUrl = imageUrl
 
       this.modalManager.createImageViewerModal(
         this.modalManager.currentObjectUrl,
@@ -2962,6 +2979,11 @@ class SnapSpotApp {
         photoIdForViewer,
         onDeleteCallback,
         () => {
+          // Clean up the object URL when the image viewer closes
+          if (this.modalManager.currentObjectUrl) {
+            URL.revokeObjectURL(this.modalManager.currentObjectUrl)
+            this.modalManager.currentObjectUrl = null
+          }
           this.updateAppStatus('Image viewer closed.')
         }
       )
