@@ -993,12 +993,13 @@ export class MapRenderer {
    * @param {Array<object>} originalMarkers - All original markers to be hidden during reference placement
    * @param {Function} onComplete - Callback function to call when 3 reference markers are placed
    */
-  enterMigrationReferenceMode (map, originalMarkers, onComplete) {
+  enterMigrationReferenceMode (map, originalMarkers, onComplete, onCancel) {
     console.log('MapRenderer: Entering migration reference mode')
 
     // Store original markers to restore later
     this.originalMarkersForMigration = [...originalMarkers]
     this.migrationOnCompleteCallback = onComplete
+    this.migrationOnCancelCallback = onCancel
 
     // Temporarily hide original markers during reference placement
     this.markers = []
@@ -1019,8 +1020,9 @@ export class MapRenderer {
   exitMigrationReferenceMode () {
     console.log('MapRenderer: Exiting migration reference mode')
 
-    // Hide instruction overlay
+    // Hide instruction overlay and action buttons
     this.hideMigrationInstructionOverlay()
+    this.hideMigrationActionButtons()
 
     // Restore original markers
     if (this.originalMarkersForMigration) {
@@ -1031,6 +1033,7 @@ export class MapRenderer {
     this.isInMigrationMode = false
     this.migrationReferenceMarkers = null
     this.migrationOnCompleteCallback = null
+    this.migrationOnCancelCallback = null
 
     this.render()
   }
@@ -1089,13 +1092,10 @@ export class MapRenderer {
     // Update instruction overlay to show progress
     this.updateMigrationInstructionOverlay()
 
-    // If we've placed 3 markers, complete the process
-    if (this.migrationReferenceMarkers.length === 3 && this.migrationOnCompleteCallback) {
-      // Hide the instruction overlay
-      this.hideMigrationInstructionOverlay()
-
-      // Call the completion callback with the reference markers
-      this.migrationOnCompleteCallback(this.migrationReferenceMarkers)
+    // Show action buttons when 3 markers are placed
+    if (this.migrationReferenceMarkers.length === 3) {
+      // Update the instruction overlay to show action buttons instead of progress
+      this.showMigrationActionButtons()
     }
 
     this.render()
@@ -1145,6 +1145,100 @@ export class MapRenderer {
    */
   hideMigrationInstructionOverlay () {
     const overlay = document.getElementById('migration-instruction-overlay')
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay)
+    }
+  }
+
+  /**
+   * Show migration action buttons when 3 reference markers are placed
+   */
+  showMigrationActionButtons () {
+    // Remove the existing instruction overlay
+    this.hideMigrationInstructionOverlay()
+    
+    // Create a new overlay with action buttons
+    let overlay = document.getElementById('migration-action-overlay')
+    if (!overlay) {
+      overlay = document.createElement('div')
+      overlay.id = 'migration-action-overlay'
+      overlay.className = 'migration-instruction-overlay'
+      overlay.style.cssText = `
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        text-align: center;
+        z-index: 1000;
+        border-radius: 5px;
+      `
+      
+      // Create the content container
+      const contentContainer = document.createElement('div')
+      contentContainer.style.marginBottom = '10px'
+      contentContainer.textContent = '3 reference markers placed. Reposition if needed or continue with export.'
+      overlay.appendChild(contentContainer)
+      
+      // Create buttons container
+      const buttonsContainer = document.createElement('div')
+      buttonsContainer.style.cssText = `
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+      `
+      
+      // Create Cancel button
+      const cancelButton = document.createElement('button')
+      cancelButton.textContent = 'Cancel'
+      cancelButton.style.cssText = `
+        padding: 8px 16px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      `
+      cancelButton.onclick = () => {
+        // Call the cancel callback if available
+        if (this.migrationOnCancelCallback) {
+          this.migrationOnCancelCallback()
+        }
+      }
+      
+      // Create Export button
+      const exportButton = document.createElement('button')
+      exportButton.textContent = 'Export'
+      exportButton.style.cssText = `
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      `
+      exportButton.onclick = () => {
+        // Call the completion callback with the reference markers
+        if (this.migrationOnCompleteCallback) {
+          this.migrationOnCompleteCallback(this.migrationReferenceMarkers)
+        }
+      }
+      
+      buttonsContainer.appendChild(cancelButton)
+      buttonsContainer.appendChild(exportButton)
+      overlay.appendChild(buttonsContainer)
+      
+      this.canvas.parentElement.appendChild(overlay)
+    }
+  }
+
+  /**
+   * Hide migration action buttons
+   */
+  hideMigrationActionButtons () {
+    const overlay = document.getElementById('migration-action-overlay')
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay)
     }

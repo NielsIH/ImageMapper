@@ -3224,6 +3224,28 @@ class SnapSpotApp {
   }
 
   /**
+   * Exit migration mode without performing export
+   */
+  exitMigrationModeWithoutExport () {
+    console.log('App: Exiting migration mode without export')
+
+    // Clean up temporary data
+    this.migrationOriginalMarkers = null
+    this.migrationOriginalPhotos = null
+    this.migrationMap = null
+
+    // Reset the migration mode flag
+    this.isInMigrationModeForExport = false
+
+    // Exit migration reference mode in map renderer
+    if (this.mapRenderer) {
+      this.mapRenderer.exitMigrationReferenceMode()
+    }
+
+    this.updateAppStatus('Migration export cancelled', 'info')
+  }
+
+  /**
    * Toggle debug info on map renderer
    */
   toggleMapDebugInfo () {
@@ -3255,10 +3277,18 @@ class SnapSpotApp {
 
     // Set up the map renderer for reference marker placement mode
     if (this.mapRenderer) {
-      this.mapRenderer.enterMigrationReferenceMode(map, allMarkers, async (referenceMarkers) => {
-        // When the user has placed all 3 reference markers, export the data
-        await this.completeMigrationExport(referenceMarkers)
-      })
+      this.mapRenderer.enterMigrationReferenceMode(
+        map, 
+        allMarkers, 
+        async (referenceMarkers) => {
+          // When the user has placed all 3 reference markers and clicks Export, export the data
+          await this.completeMigrationExport(referenceMarkers)
+        },
+        () => {
+          // Cancel callback - exit migration mode without exporting
+          this.exitMigrationModeWithoutExport()
+        }
+      )
     }
 
     this.updateAppStatus('Migration export: Place 3 reference markers on easily recognizable features', 'info')

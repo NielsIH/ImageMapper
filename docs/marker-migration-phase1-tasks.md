@@ -13,7 +13,7 @@ Phase 1 focuses on implementing the export functionality for migration, allowing
 ### 1.2: Add Reference Marker Placement Mode
 - [ ] Implement temporary marker hiding functionality in `js/mapRenderer.js`
 - [ ] Add overlay instruction display during reference placement: "Place 3 reference markers on easily recognizable features of the map"
-- [ ] Modify marker placement logic to handle reference markers differently
+- [ ] Modify marker placement logic to handle reference markers differently (using the existing "Place Marker" button functionality rather than direct clicks)
 - [ ] Create visual distinction for reference markers (crosshair-style with clear center point that aligns with map crosshair)
 - [ ] Add number (1, 2, or 3) displayed above each reference marker, clearly visible and not obscuring the center
 
@@ -22,6 +22,8 @@ Phase 1 focuses on implementing the export functionality for migration, allowing
 - [ ] Store reference marker coordinates with their descriptions and zoomed images
 - [ ] Implement sequential numbering of reference markers (1, 2, 3)
 - [ ] Add temporary state tracking for reference marker count
+- [ ] Ensure reference markers can be repositioned using the same unlock/drag mechanism as regular markers
+- [ ] Add "Cancel" and "Export" buttons to migration overlay that appear after third marker is placed
 
 ### 1.4: Create Migration Data Structure
 - [ ] Update the export data structure to include migration metadata in `js/MapDataExporterImporter.js`

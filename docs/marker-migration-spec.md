@@ -44,8 +44,9 @@ const MIGRATION_STORE = 'temp_migrations';
 3. In the export decision modal, a new "Export for Migration" option appears alongside existing options
 4. After selecting "Export for Migration", user sees the source map view without existing markers
 5. A temporary overlay/instruction appears: "Place 3 reference markers on easily recognizable features of the map"
-6. User places 3 reference markers on distinct, identifiable features of the map
-   - Each reference marker is visually distinct from regular markers
+6. User places 3 reference markers using the "Place Marker" button in the action bar
+   - Reference markers are placed at the map center (crosshair location) like regular markers
+   - Each reference marker is visually distinct from regular markers with numbered crosshair design
    - After placing each marker, the system captures a zoomed-in image of that area
 7. System temporarily stores the map data with:
    - All original markers (excluding the 3 reference markers)
@@ -84,9 +85,11 @@ const MIGRATION_STORE = 'temp_migrations';
 17. User places 3 reference markers sequentially on the destination map at equivalent locations
     - Each placement is guided by memory of the reference images seen in gallery
     - System provides visual feedback: numbered markers (1, 2, 3) on map
-    - User can reposition markers using existing marker movement functionality
+    - User can reposition markers using existing marker movement functionality (unlock markers first)
     - User cannot delete already placed reference markers during this phase
-18. When the third reference marker is placed, a "Complete Migration" button appears
+18. After the third reference marker is placed, migration action buttons appear in the overlay
+    - "Cancel" button: Ends migration mode and cancels the export (returns to active map with regular markers)
+    - "Export" button: Enables when third reference marker has been placed, starts the actual export (returns to active map with regular markers)
 
 ### Phase 3: Import and Transform
 
@@ -131,6 +134,7 @@ const MIGRATION_STORE = 'temp_migrations';
 - Temporary overlay showing instructions to the user
 - Visual feedback during reference marker placement
 - Migration mode state management (buttons disabled/enabled)
+- Integration with existing "Place Marker" button for reference marker placement
 
 #### Map Management/Settings Modal (`js/ui/modals.js` - ModalManager)
 - Possibly add an indicator that a map is prepared for migration import
