@@ -1087,39 +1087,62 @@ class SnapSpotApp {
       return
     }
 
-    this.showLoading('Placing marker...')
-
-    try {
-      const centerX = this.mapRenderer.canvas.width / 2
-      const centerY = this.mapRenderer.canvas.height / 2
-
-      // Convert canvas center coordinates to map (image) coordinates
-      const mapCoords = this.mapRenderer.screenToMap(centerX, centerY)
-
-      if (!mapCoords) {
-        throw new Error('Failed to convert screen coordinates to map coordinates.')
+    // Check if we're in migration mode for reference marker placement
+    if (this.isInMigrationModeForExport) {
+      // In migration mode, place a reference marker instead of a regular marker
+      this.showLoading('Placing reference marker...')
+      
+      try {
+        const centerX = this.mapRenderer.canvas.width / 2
+        const centerY = this.mapRenderer.canvas.height / 2
+        
+        // Call the mapRenderer method to place a reference marker at the center
+        await this.mapRenderer.placeMigrationReferenceMarkerAtScreenCoords(centerX, centerY)
+        
+        this.showNotification('Reference marker placed successfully!', 'success')
+        this.updateAppStatus('Reference marker added')
+      } catch (error) {
+        console.error('Failed to place reference marker:', error)
+        this.showErrorMessage('Error Placing Reference Marker', error.message)
+      } finally {
+        this.hideLoading()
       }
+    } else {
+      // Regular marker placement
+      this.showLoading('Placing marker...')
 
-      const newMarker = {
-        mapId: this.currentMap.id,
-        x: mapCoords.x,
-        y: mapCoords.y,
-        description: `Marker at ${mapCoords.x.toFixed(0)}, ${mapCoords.y.toFixed(0)}` // Default description
+      try {
+        const centerX = this.mapRenderer.canvas.width / 2
+        const centerY = this.mapRenderer.canvas.height / 2
+
+        // Convert canvas center coordinates to map (image) coordinates
+        const mapCoords = this.mapRenderer.screenToMap(centerX, centerY)
+
+        if (!mapCoords) {
+          throw new Error('Failed to convert screen coordinates to map coordinates.')
+        }
+
+        const newMarker = {
+          mapId: this.currentMap.id,
+          x: mapCoords.x,
+          y: mapCoords.y,
+          description: `Marker at ${mapCoords.x.toFixed(0)}, ${mapCoords.y.toFixed(0)}` // Default description
+        }
+
+        const savedMarker = await this.storage.addMarker(newMarker)
+        this.markers.push(savedMarker) // Add to local array
+        this.mapRenderer.setMarkers(this.markers) // Update mapRenderer
+        this.mapRenderer.render() // Re-render to show the new marker
+
+        this.showNotification('Marker placed successfully!', 'success')
+        this.updateAppStatus('Marker added')
+        console.log('Placed new marker:', savedMarker)
+      } catch (error) {
+        console.error('Failed to place marker:', error)
+        this.showErrorMessage('Error Placing Marker', error.message)
+      } finally {
+        this.hideLoading()
       }
-
-      const savedMarker = await this.storage.addMarker(newMarker)
-      this.markers.push(savedMarker) // Add to local array
-      this.mapRenderer.setMarkers(this.markers) // Update mapRenderer
-      this.mapRenderer.render() // Re-render to show the new marker
-
-      this.showNotification('Marker placed successfully!', 'success')
-      this.updateAppStatus('Marker added')
-      console.log('Placed new marker:', savedMarker)
-    } catch (error) {
-      console.error('Failed to place marker:', error)
-      this.showErrorMessage('Error Placing Marker', error.message)
-    } finally {
-      this.hideLoading()
     }
   }
 
@@ -3227,6 +3250,9 @@ class SnapSpotApp {
     this.migrationOriginalPhotos = [...allPhotos]
     this.migrationMap = map
 
+    // Set the migration mode flag so that placeMarker knows to use migration reference placement
+    this.isInMigrationModeForExport = true
+
     // Set up the map renderer for reference marker placement mode
     if (this.mapRenderer) {
       this.mapRenderer.enterMigrationReferenceMode(map, allMarkers, async (referenceMarkers) => {
@@ -3259,6 +3285,9 @@ class SnapSpotApp {
     this.migrationOriginalMarkers = null
     this.migrationOriginalPhotos = null
     this.migrationMap = null
+
+    // Reset the migration mode flag
+    this.isInMigrationModeForExport = false
 
     // Exit migration reference mode in map renderer
     if (this.mapRenderer) {
