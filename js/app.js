@@ -3221,7 +3221,7 @@ class SnapSpotApp {
 
     // We need to temporarily hide existing markers during reference placement
     // and then collect the 3 reference markers placed by the user
-    
+
     // First, store the original markers to be used later for export
     this.migrationOriginalMarkers = [...allMarkers]
     this.migrationOriginalPhotos = [...allPhotos]
@@ -3234,7 +3234,7 @@ class SnapSpotApp {
         await this.completeMigrationExport(referenceMarkers)
       })
     }
-    
+
     this.updateAppStatus('Migration export: Place 3 reference markers on easily recognizable features', 'info')
   }
 
