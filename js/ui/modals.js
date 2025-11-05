@@ -2459,6 +2459,14 @@ export class ModalManager {
             <hr class="my-md">
 
             <div class="export-option-section">
+              <h4>Migration Export</h4>
+              <button class="btn btn-warning" id="btn-export-migration" type="button">📍 Export for Migration</button>
+              <p class="text-secondary text-xs mt-sm">Exports map data with 3 reference markers for geometric transformation to another map.</p>
+            </div>
+
+            <hr class="my-md">
+
+            <div class="export-option-section">
               <h4>Day-based Export (<span id="selected-days-summary">0 days selected</span>)</h4>
               <div class="day-selection-list">
                 ${dayCheckboxesHtml}
@@ -2548,6 +2556,13 @@ export class ModalManager {
     if (completeExportBtn) {
       completeExportBtn.addEventListener('click', () => {
         closeAndResolve({ action: 'exportComplete' })
+      })
+    }
+
+    const exportMigrationBtn = modal.querySelector('#btn-export-migration')
+    if (exportMigrationBtn) {
+      exportMigrationBtn.addEventListener('click', () => {
+        closeAndResolve({ action: 'exportForMigration' })
       })
     }
 

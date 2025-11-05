@@ -978,6 +978,317 @@ export class MapRenderer {
   }
 
   /**
+   * Enter migration reference placement mode
+   * @param {object} map - The map object being exported for migration
+   * @param {Array<object>} originalMarkers - All original markers to be hidden during reference placement
+   * @param {Function} onComplete - Callback function to call when 3 reference markers are placed
+   */
+  enterMigrationReferenceMode (map, originalMarkers, onComplete) {
+    console.log('MapRenderer: Entering migration reference mode')
+    
+    // Store original markers to restore later
+    this.originalMarkersForMigration = [...originalMarkers]
+    this.migrationOnCompleteCallback = onComplete
+
+    // Temporarily hide original markers during reference placement
+    this.markers = []
+    
+    // Track reference markers as they are placed
+    this.migrationReferenceMarkers = []
+    this.isInMigrationMode = true
+
+    // Add event listeners for placing reference markers
+    this.setupMigrationModeEventListeners()
+
+    // Show instruction overlay
+    this.showMigrationInstructionOverlay()
+
+    this.render()
+  }
+
+  /**
+   * Exit migration reference placement mode
+   */
+  exitMigrationReferenceMode () {
+    console.log('MapRenderer: Exiting migration reference mode')
+    
+    // Remove event listeners
+    this.removeMigrationModeEventListeners()
+
+    // Hide instruction overlay
+    this.hideMigrationInstructionOverlay()
+
+    // Restore original markers
+    if (this.originalMarkersForMigration) {
+      this.markers = [...this.originalMarkersForMigration]
+      this.originalMarkersForMigration = null
+    }
+
+    this.isInMigrationMode = false
+    this.migrationReferenceMarkers = null
+    this.migrationOnCompleteCallback = null
+
+    this.render()
+  }
+
+  /**
+   * Set up event listeners for migration mode
+   */
+  setupMigrationModeEventListeners () {
+    // Remove any existing place marker event listeners to prevent conflicts
+    this.canvas.removeEventListener('click', this._placeMarkerHandler)
+    this.canvas.removeEventListener('touchend', this._placeMarkerTouchHandler)
+
+    // Add new handlers for migration reference placement
+    this._migrationClickHandler = (e) => this.handleMigrationReferencePlacement(e)
+    this._migrationTouchHandler = (e) => this.handleMigrationReferencePlacement(e)
+
+    this.canvas.addEventListener('click', this._migrationClickHandler)
+    this.canvas.addEventListener('touchend', this._migrationTouchHandler)
+  }
+
+  /**
+   * Remove event listeners for migration mode
+   */
+  removeMigrationModeEventListeners () {
+    if (this._migrationClickHandler) {
+      this.canvas.removeEventListener('click', this._migrationClickHandler)
+      this._migrationClickHandler = null
+    }
+    if (this._migrationTouchHandler) {
+      this.canvas.removeEventListener('touchend', this._migrationTouchHandler)
+      this._migrationTouchHandler = null
+    }
+  }
+
+  /**
+   * Handle placement of migration reference markers
+   * @param {Event} e - The click or touch event
+   */
+  async handleMigrationReferencePlacement (e) {
+    if (!this.currentMap || !this.isInMigrationMode) return
+
+    // If we already have 3 reference markers, ignore additional clicks
+    if (this.migrationReferenceMarkers.length >= 3) return
+
+    // Calculate map coordinates from canvas coordinates
+    const rect = this.canvas.getBoundingClientRect()
+    let clientX, clientY
+
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX
+      clientY = e.touches[0].clientY
+    } else {
+      clientX = e.clientX
+      clientY = e.clientY
+    }
+
+    const canvasX = clientX - rect.left
+    const canvasY = clientY - rect.top
+
+    // Use the existing screenToMap method that correctly handles rotation
+    const mapCoords = this.screenToMap(canvasX, canvasY)
+    if (!mapCoords) {
+      console.error('MapRenderer: Could not convert screen coordinates to map coordinates')
+      return
+    }
+
+    const mapX = mapCoords.x
+    const mapY = mapCoords.y
+
+    // Create a reference marker
+    const referenceMarker = {
+      id: crypto.randomUUID(), // Generate a new ID for this marker
+      mapId: this.currentMap.id,
+      x: rotatedCoords.x,
+      y: rotatedCoords.y,
+      createdDate: new Date(),
+      description: `Reference Point ${this.migrationReferenceMarkers.length + 1}`,
+      photoIds: [] // No photos associated with reference markers
+    }
+
+    // Add the reference marker to the collection
+    this.migrationReferenceMarkers.push(referenceMarker)
+
+    // Add to the markers array so it gets rendered
+    this.markers.push(referenceMarker)
+
+    // Update instruction overlay to show progress
+    this.updateMigrationInstructionOverlay()
+
+    // If we've placed 3 markers, complete the process
+    if (this.migrationReferenceMarkers.length === 3 && this.migrationOnCompleteCallback) {
+      // Remove event listeners to prevent additional markers being placed
+      this.removeMigrationModeEventListeners()
+
+      // Hide the instruction overlay
+      this.hideMigrationInstructionOverlay()
+
+      // Call the completion callback with the reference markers
+      this.migrationOnCompleteCallback(this.migrationReferenceMarkers)
+    }
+
+    this.render()
+  }
+
+  /**
+   * Show instruction overlay for migration reference placement
+   */
+  showMigrationInstructionOverlay () {
+    // Create or update the instruction overlay
+    let overlay = document.getElementById('migration-instruction-overlay')
+    if (!overlay) {
+      overlay = document.createElement('div')
+      overlay.id = 'migration-instruction-overlay'
+      overlay.className = 'migration-instruction-overlay'
+      overlay.style.cssText = `
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        text-align: center;
+        z-index: 1000;
+        border-radius: 5px;
+        pointer-events: none;
+      `
+      this.canvas.parentElement.appendChild(overlay)
+    }
+
+    overlay.textContent = `Place 3 reference markers on easily recognizable features of the map (${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3)`
+  }
+
+  /**
+   * Update instruction overlay to show placement progress
+   */
+  updateMigrationInstructionOverlay () {
+    const overlay = document.getElementById('migration-instruction-overlay')
+    if (overlay) {
+      overlay.textContent = `Place 3 reference markers on easily recognizable features of the map (${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3)`
+    }
+  }
+
+  /**
+   * Hide instruction overlay
+   */
+  hideMigrationInstructionOverlay () {
+    const overlay = document.getElementById('migration-instruction-overlay')
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay)
+    }
+  }
+
+  /**
+   * Override the render method to draw crosshair-style reference markers during migration mode
+   */
+  render () {
+    if (!this.ctx || !this.imageData) {
+      console.warn('MapRenderer: Missing context or image data for rendering')
+      return
+    }
+
+    // Clear canvas
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+
+    // Draw map image
+    this.ctx.save()
+    this.ctx.translate(this.offsetX, this.offsetY)
+    this.ctx.scale(this.scale, this.scale)
+
+    // Apply rotation if necessary
+    if (this.currentMapRotation !== 0) {
+      const centerX = this.currentMap.width / 2
+      const centerY = this.currentMap.height / 2
+      this.ctx.translate(centerX, centerY)
+      this.ctx.rotate((this.currentMapRotation * Math.PI) / 180)
+      this.ctx.translate(-centerX, -centerY)
+    }
+
+    // Draw the map image data (which is already rotated if needed)
+    this.ctx.drawImage(this.imageData, 0, 0)
+
+    this.ctx.restore()
+
+    // Draw crosshair-style reference markers during migration mode
+    if (this.isInMigrationMode && this.migrationReferenceMarkers) {
+      for (let i = 0; i < this.migrationReferenceMarkers.length; i++) {
+        const marker = this.migrationReferenceMarkers[i]
+        this._drawCrosshairReferenceMarker(marker, i + 1)
+      }
+    } else {
+      // Draw regular markers if not in migration mode
+      for (const marker of this.markers) {
+        this._drawMarker(marker)
+      }
+    }
+
+    // Draw crosshair if enabled
+    if (this.showCrosshair) {
+      this._drawCrosshair()
+    }
+
+    // Draw debug info if enabled
+    if (this.showDebugInfo) {
+      this._drawDebugInfo()
+    }
+  }
+
+  /**
+   * Draw a crosshair-style reference marker for migration
+   * @param {object} marker - The marker object to draw
+   * @param {number} number - The reference number to display (1, 2, or 3)
+   */
+  _drawCrosshairReferenceMarker (marker, number) {
+    if (!this.currentMap) return
+
+    // Use the existing mapToScreen method that correctly handles rotation
+    const screenCoords = this.mapToScreen(marker.x, marker.y)
+    if (!screenCoords) {
+      console.warn('MapRenderer: Could not transform marker coordinates to screen coordinates')
+      return
+    }
+    
+    const finalX = screenCoords.x
+    const finalY = screenCoords.y
+
+    // Set up drawing context
+    this.ctx.save()
+
+    // Draw crosshair-style marker with number above it
+    const size = this.markerSizeSettings[this.markerCurrentDisplaySizeKey].radius
+    const crosshairSize = size * 1.5 // Make crosshairs slightly larger than regular markers
+
+    // Draw the crosshair
+    this.ctx.strokeStyle = '#FF5722' // Use a distinctive color for reference markers
+    this.ctx.lineWidth = 2
+    this.ctx.beginPath()
+    
+    // Horizontal line
+    this.ctx.moveTo(finalX - crosshairSize, finalY)
+    this.ctx.lineTo(finalX + crosshairSize, finalY)
+    
+    // Vertical line
+    this.ctx.moveTo(finalX, finalY - crosshairSize)
+    this.ctx.lineTo(finalX, finalY + crosshairSize)
+    
+    // Small circle at center
+    this.ctx.moveTo(finalX + crosshairSize/2, finalY)
+    this.ctx.arc(finalX, finalY, 4, 0, 2 * Math.PI)
+    this.ctx.stroke()
+
+    // Draw the number above the marker
+    this.ctx.fillStyle = '#FF5722'
+    this.ctx.font = `${Math.max(16, size * 0.8)}px Arial`
+    this.ctx.textAlign = 'center'
+    this.ctx.textBaseline = 'bottom'
+    this.ctx.fillText(String(number), finalX, finalY - crosshairSize - 5)
+
+    this.ctx.restore()
+  }
+
+  /**
    * Clean up resources
    * MODIFIED: Also revoke originalImageData object URL
    */
@@ -985,6 +1296,12 @@ export class MapRenderer {
     // Clean up any object URLs or resources
     if (this.originalImageData && this.originalImageData.src && this.originalImageData.src.startsWith('blob:')) {
       URL.revokeObjectURL(this.originalImageData.src)
+    }
+
+    // Clean up any migration-related resources
+    if (this.isInMigrationMode) {
+      this.removeMigrationModeEventListeners()
+      this.hideMigrationInstructionOverlay()
     }
 
     this.imageData = null // The canvas element itself

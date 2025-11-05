@@ -2875,6 +2875,11 @@ class SnapSpotApp {
         const numDates = exportDecision.selectedDates.length
         const exportType = exportDecision.exportAsSeparateFiles ? 'separate files' : 'a single file'
         this.updateAppStatus(`JSON data for map "${map.name}" for ${numDates} day(s) exported as ${exportType}.`, 'success')
+      } else if (exportDecision.action === 'exportForMigration') {
+        // Perform migration export - this requires special handling to collect reference markers
+        this.updateAppStatus(`Starting migration export for map "${map.name}"...`, 'info')
+        // Initiate the migration export process which needs to collect 3 reference markers
+        await this.initiateMigrationExportProcess(map, allMarkers, allPhotos)
       }
     } catch (error) {
       console.error('App: Error during map export process:', error)
@@ -3202,6 +3207,65 @@ class SnapSpotApp {
     if (this.mapRenderer) {
       this.mapRenderer.toggleDebugInfo()
     }
+  }
+
+  /**
+   * Initiates the migration export process which requires the user to place 3 reference markers
+   * on the map at easily recognizable features.
+   * @param {object} map - The map object to export for migration
+   * @param {Array<object>} allMarkers - All markers for the map
+   * @param {Array<object>} allPhotos - All photos for the map
+   */
+  async initiateMigrationExportProcess (map, allMarkers, allPhotos) {
+    console.log('App: Initiating migration export process')
+
+    // We need to temporarily hide existing markers during reference placement
+    // and then collect the 3 reference markers placed by the user
+    
+    // First, store the original markers to be used later for export
+    this.migrationOriginalMarkers = [...allMarkers]
+    this.migrationOriginalPhotos = [...allPhotos]
+    this.migrationMap = map
+
+    // Set up the map renderer for reference marker placement mode
+    if (this.mapRenderer) {
+      this.mapRenderer.enterMigrationReferenceMode(map, allMarkers, async (referenceMarkers) => {
+        // When the user has placed all 3 reference markers, export the data
+        await this.completeMigrationExport(referenceMarkers)
+      })
+    }
+    
+    this.updateAppStatus('Migration export: Place 3 reference markers on easily recognizable features', 'info')
+  }
+
+  /**
+   * Completes the migration export using the reference markers placed by the user
+   * @param {Array<object>} referenceMarkers - The 3 reference markers placed by the user
+   */
+  async completeMigrationExport (referenceMarkers) {
+    console.log('App: Completing migration export with', referenceMarkers.length, 'reference markers')
+
+    // Export the map data specifically for migration using the reference markers
+    await MapDataExporterImporter.exportForMigration(
+      this.migrationMap,
+      this.migrationOriginalMarkers,
+      this.migrationOriginalPhotos,
+      referenceMarkers,
+      this.imageProcessor,
+      this.storage
+    )
+
+    // Clean up temporary data
+    this.migrationOriginalMarkers = null
+    this.migrationOriginalPhotos = null
+    this.migrationMap = null
+
+    // Exit migration reference mode in map renderer
+    if (this.mapRenderer) {
+      this.mapRenderer.exitMigrationReferenceMode()
+    }
+
+    this.updateAppStatus('Migration export completed', 'success')
   }
 }
 

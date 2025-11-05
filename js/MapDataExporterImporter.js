@@ -158,6 +158,135 @@ export class MapDataExporterImporter {
   }
 
   /**
+   * Exports map data specifically for migration, including the necessary reference points.
+   * This requires special handling as it needs the 3 reference markers to be placed by the user.
+   * 
+   * @param {object} map The map object to export (without the 3 reference markers).
+   * @param {Array<object>} originalMarkers All original marker objects (excluding reference markers).
+   * @param {Array<object>} originalPhotos All original photo objects associated with the original markers.
+   * @param {Array<object>} referenceMarkers The 3 reference markers placed by the user.
+   * @param {object} imageProcessor An instance of the ImageProcessor class.
+   * @param {MapStorage} [mapStorage] - An instance of MapStorage to update maps when imageHash is calculated.
+   */
+  static async exportForMigration (map, originalMarkers, originalPhotos, referenceMarkers, imageProcessor, mapStorage = null) {
+    console.log(`MapDataExporterImporter: Preparing migration data export for map "${map.name}" (${map.id}).`)
+
+    // Combine original markers with reference markers
+    const markersToExport = [...originalMarkers, ...referenceMarkers]
+    
+    // Process all photos (original photos only, reference markers don't have photos)
+    let photosToExport = [...originalPhotos]
+
+    // Prepare Map Data for export
+    const exportMap = { ...map }
+    delete exportMap.markers
+    delete exportMap.filePath
+
+    // Check if imageHash is missing and calculate it if possible
+    if (!exportMap.imageHash) {
+      console.log(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash. Checking if we can calculate it...`)
+
+      // Calculate imageHash if we have image data and mapStorage is provided
+      if (mapStorage && exportMap.imageData instanceof Blob) {
+        console.log('MapDataExporterImporter: Calculating imageHash for map during export...')
+        try {
+          const arrayBuffer = await exportMap.imageData.arrayBuffer()
+          const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+          const calculatedImageHash = this._arrayBufferToHex(hashBuffer)
+
+          // Update the export map with the calculated hash
+          exportMap.imageHash = calculatedImageHash
+
+          // Update the map in storage with the new imageHash
+          await mapStorage.updateMap(exportMap.id, { imageHash: calculatedImageHash })
+
+          console.log(`MapDataExporterImporter: Calculated and saved imageHash for map "${map.id}": ${calculatedImageHash}`)
+        } catch (error) {
+          console.error('MapDataExporterImporter: Failed to calculate imageHash for map:', error)
+        }
+      } else {
+        console.warn(`MapDataExporterImporter: Map "${map.id}" does not have an imageHash and cannot calculate it (no mapStorage or imageData is not a Blob). Export will not be merge-capable.`)
+      }
+    }
+
+    // Convert map image data to Base64 for export
+    if (exportMap.imageData instanceof Blob) {
+      exportMap.imageData = await imageProcessor.blobToBase64(exportMap.imageData)
+    } else if (exportMap.imageData) {
+      console.warn(`MapDataExporterImporter: Map "${map.id}" imageData is not a Blob but exists. Exporting as is.`)
+    } else {
+      console.warn(`MapDataExporterImporter: Map "${map.id}" has no imageData. Export will be missing map image.`)
+    }
+
+    // Prepare Markers Data for export
+    const processedMarkers = markersToExport.map(marker => ({ ...marker }))
+
+    // Prepare Photos Data for export
+    const processedPhotos = await Promise.all(photosToExport.map(async photo => {
+      const exportPhoto = { ...photo }
+      if (exportPhoto.imageData instanceof Blob) {
+        exportPhoto.imageData = await imageProcessor.blobToBase64(exportPhoto.imageData)
+      } else if (typeof exportPhoto.imageData !== 'string' || !exportPhoto.imageData.startsWith('data:')) {
+        console.warn(`MapDataExporterImporter: Photo "${photo.id}" imageData is not a Blob or a Base64 string. Exporting as is (possibly null/undefined).`)
+      }
+      return exportPhoto
+    }))
+
+    // Create the migration-specific export object with additional metadata
+    const exportObject = this._createMigrationExportObject(exportMap, processedMarkers, processedPhotos, referenceMarkers)
+    const jsonString = JSON.stringify(exportObject, null, 2)
+    
+    // Use a different filename format to distinguish migration exports
+    const dateSuffix = new Date().toISOString().slice(0, 10)
+    this._triggerDownload(jsonString, `SnapSpot_Migration_${map.name.replace(/\s+/g, '_')}_${dateSuffix}.json`)
+    console.log(`MapDataExporterImporter: Migration data for map "${map.name}" exported successfully.`)
+  }
+
+  /**
+   * Helper to create the migration export object format with additional metadata.
+   * @param {object} map - The map object prepared for export.
+   * @param {Array<object>} markers - The marker objects prepared for export.
+   * @param {Array<object>} photos - The photo objects prepared for export.
+   * @param {Array<object>} referenceMarkers - The 3 reference markers with location information.
+   * @returns {object} The complete migration export object.
+   * @private
+   */
+  static _createMigrationExportObject (map, markers, photos, referenceMarkers) {
+    // Extract the reference markers from the full markers array
+    const originalMarkers = markers.filter(marker => 
+      !referenceMarkers.some(refMarker => refMarker.id === marker.id)
+    )
+
+    // Create zoomed-in images for each reference point (this would be captured in the UI)
+    const referencePoints = referenceMarkers.map((refMarker, index) => ({
+      original: { x: refMarker.x, y: refMarker.y },
+      description: refMarker.description || `Reference Point ${index + 1}`,
+      // In the actual implementation, these would be the zoomed-in images captured when placing the markers
+      zoomedImageData: null, // This will be filled in when captured
+      zoomFactor: 4 // Example zoom factor
+    }))
+
+    return {
+      version: '1.1',
+      type: 'SnapSpotDataExport',
+      sourceApp: 'SnapSpot PWA',
+      timestamp: new Date().toISOString(),
+      map,
+      markers: originalMarkers, // Only original markers, not reference markers
+      photos,
+      migrationData: {
+        isMigration: true,
+        sourceMapDimensions: {
+          width: map.width,
+          height: map.height
+        },
+        referencePoints,
+        exportTimestamp: Date.now()
+      }
+    }
+  }
+
+  /**
    * Helper to export data split by date into multiple files.
    * @param {object} baseMap - The map object (full map data, not filtered).
    * @param {Array<object>} allProcessedMarkers - All markers, already processed (Base64 photos are part of photos).
