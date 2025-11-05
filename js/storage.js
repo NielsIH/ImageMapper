@@ -13,11 +13,12 @@
 export class MapStorage {
   constructor () {
     this.dbName = 'SnapSpotDB'
-    this.version = 3 // Increment the database version for schema changes!
+    this.version = 4 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps' // Renamed for clarity
     this.markerStoreName = 'markers' // New store name
     this.photoStoreName = 'photos' // New store name
+    this.migrationStoreName = 'temp_migrations' // Migration data store
     this.keyPath = 'id' // Common keyPath for all stores
   }
 
@@ -35,9 +36,18 @@ export class MapStorage {
         reject(new Error(`Failed to initialize storage: ${request.error}`))
       }
 
-      request.onsuccess = () => {
+      request.onsuccess = async () => {
         this.db = request.result
         console.log('MapStorage: IndexedDB initialized successfully')
+        
+        // Run automatic cleanup of expired migration data
+        try {
+          await this.runAutomaticCleanup()
+        } catch (error) {
+          console.error('MapStorage: Error during automatic cleanup on init:', error)
+          // Don't reject the init because of cleanup failure
+        }
+        
         resolve()
       }
 
@@ -96,6 +106,16 @@ export class MapStorage {
           photoStore.createIndex('markerId', 'markerId', { unique: false }) // Index to quickly find photos for a marker
           photoStore.createIndex('createdDate', 'createdDate', { unique: false })
           console.log('MapStorage: Photos object store created/upgraded with indexes')
+        }
+        
+        // --- NEW: Create temporary migration data object store ---
+        if (!db.objectStoreNames.contains(this.migrationStoreName)) {
+          const migrationStore = db.createObjectStore(this.migrationStoreName, {
+            keyPath: this.keyPath
+          })
+          migrationStore.createIndex('timestamp', 'timestamp', { unique: false }) // Index to quickly find by creation time
+          migrationStore.createIndex('expires', 'expires', { unique: false }) // Index to quickly find by expiration time
+          console.log('MapStorage: Temporary migration data object store created/upgraded with indexes')
         }
       }
     })
@@ -1326,6 +1346,178 @@ export class MapStorage {
     return !!this.db &&
            this.db.objectStoreNames.contains(this.mapStoreName) &&
            this.db.objectStoreNames.contains(this.markerStoreName) &&
-           this.db.objectStoreNames.contains(this.photoStoreName)
+           this.db.objectStoreNames.contains(this.photoStoreName) &&
+           this.db.objectStoreNames.contains(this.migrationStoreName) // Check for migration store
+  }
+
+  /**
+   * Store migration data temporarily with expiration
+   * @param {object} migrationData - The migration data to store
+   * @param {string} migrationData.id - The ID of this migration session
+   * @param {object} migrationData.sourceData - The parsed migration file content
+   * @param {number} [ttlHours=24] - Time to live in hours (default 24 hours)
+   * @returns {Promise<object>} - The stored migration object
+   */
+  async storeMigrationData (migrationData, ttlHours = 24) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    const now = Date.now()
+    const ttlMs = ttlHours * 60 * 60 * 1000 // Convert hours to milliseconds
+    const expires = now + ttlMs
+
+    const migrationToStore = {
+      id: migrationData.id,
+      sourceData: migrationData.sourceData,
+      timestamp: now,
+      expires: expires
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.migrationStoreName], 'readwrite')
+      const store = transaction.objectStore(this.migrationStoreName)
+      const request = store.put(migrationToStore)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Migration data stored successfully', migrationToStore.id)
+        resolve(migrationToStore)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to store migration data', request.error)
+        reject(new Error(`Failed to store migration data: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Retrieve migration data by ID
+   * @param {string} migrationId - The ID of the migration session to retrieve
+   * @returns {Promise<object|null>} - The migration data object or null if not found
+   */
+  async getMigrationData (migrationId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.migrationStoreName], 'readonly')
+      const store = transaction.objectStore(this.migrationStoreName)
+      const request = store.get(migrationId)
+
+      request.onsuccess = () => {
+        const migrationData = request.result
+        if (migrationData) {
+          // Check if the data has expired
+          if (Date.now() > migrationData.expires) {
+            console.log('MapStorage: Migration data found but has expired, removing it', migrationId)
+            // Remove the expired data and return null
+            this.deleteMigrationData(migrationId).then(() => {
+              resolve(null)
+            }).catch(error => {
+              console.error('MapStorage: Error deleting expired migration data', error)
+              resolve(null)
+            })
+          } else {
+            console.log('MapStorage: Migration data retrieved successfully', migrationId)
+            resolve(migrationData)
+          }
+        } else {
+          console.log('MapStorage: Migration data not found', migrationId)
+          resolve(null)
+        }
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to retrieve migration data', request.error)
+        reject(new Error(`Failed to retrieve migration data: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete migration data by ID
+   * @param {string} migrationId - The ID of the migration session to delete
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deleteMigrationData (migrationId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.migrationStoreName], 'readwrite')
+      const store = transaction.objectStore(this.migrationStoreName)
+      const request = store.delete(migrationId)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Migration data deleted successfully', migrationId)
+        resolve(true)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to delete migration data', request.error)
+        reject(new Error(`Failed to delete migration data: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Clean up expired migration data entries
+   * @returns {Promise<number>} - Number of entries cleaned up
+   */
+  async cleanupExpiredMigrationData () {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.migrationStoreName], 'readwrite')
+      const store = transaction.objectStore(this.migrationStoreName)
+      const index = store.index('expires') // Use the expires index to find expired entries efficiently
+      const now = Date.now()
+
+      // Get entries that have expired (expires < now)
+      const range = IDBKeyRange.upperBound(now)
+      const request = index.openCursor(range)
+
+      let deletedCount = 0
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result
+
+        if (cursor) {
+          // Delete this expired entry
+          cursor.delete()
+          deletedCount++
+          console.log('MapStorage: Deleted expired migration data', cursor.value.id)
+          cursor.continue()
+        } else {
+          // No more expired entries found
+          console.log('MapStorage: Cleanup completed, deleted', deletedCount, 'expired migration entries')
+          resolve(deletedCount)
+        }
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to clean up expired migration data', request.error)
+        reject(new Error(`Failed to clean up migration data: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Run automatic cleanup of expired migration data (runs once at initialization)
+   * @returns {Promise<number>} - Number of entries cleaned up
+   */
+  async runAutomaticCleanup () {
+    try {
+      const deletedCount = await this.cleanupExpiredMigrationData()
+      return deletedCount
+    } catch (error) {
+      console.error('MapStorage: Error during automatic cleanup of migration data:', error)
+      throw error
+    }
   }
 }
