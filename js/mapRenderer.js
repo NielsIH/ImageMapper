@@ -993,13 +993,14 @@ export class MapRenderer {
    * @param {Array<object>} originalMarkers - All original markers to be hidden during reference placement
    * @param {Function} onComplete - Callback function to call when 3 reference markers are placed
    */
-  enterMigrationReferenceMode (map, originalMarkers, onComplete, onCancel) {
+  enterMigrationReferenceMode (map, originalMarkers, onComplete, onCancel, onUpdateMarkers) {
     console.log('MapRenderer: Entering migration reference mode')
 
     // Store original markers to restore later
     this.originalMarkersForMigration = [...originalMarkers]
     this.migrationOnCompleteCallback = onComplete
     this.migrationOnCancelCallback = onCancel
+    this.migrationOnUpdateMarkersCallback = onUpdateMarkers
 
     // Temporarily hide original markers during reference placement
     this.markers = []
@@ -1040,6 +1041,7 @@ export class MapRenderer {
     this.migrationReferenceMarkers = null
     this.migrationOnCompleteCallback = null
     this.migrationOnCancelCallback = null
+    this.migrationOnUpdateMarkersCallback = null
 
     this.render()
   }
@@ -1097,6 +1099,11 @@ export class MapRenderer {
 
     // Update instruction overlay to show progress
     this.updateMigrationInstructionOverlay()
+
+    // Call the update markers callback if provided
+    if (this.migrationOnUpdateMarkersCallback) {
+      this.migrationOnUpdateMarkersCallback([...this.markers])
+    }
 
     // Show action buttons when 3 markers are placed
     if (this.migrationReferenceMarkers.length === 3) {

@@ -3245,6 +3245,12 @@ class SnapSpotApp {
     // Reset the migration mode flag
     this.isInMigrationModeForExport = false
 
+    // Restore original markers for the app
+    if (this.migrationOriginalMarkersForApp) {
+      this.markers = [...this.migrationOriginalMarkersForApp]
+      this.migrationOriginalMarkersForApp = null
+    }
+
     // Exit migration reference mode in map renderer
     if (this.mapRenderer) {
       this.mapRenderer.exitMigrationReferenceMode()
@@ -3320,6 +3326,9 @@ class SnapSpotApp {
     // Set the migration mode flag so that placeMarker knows to use migration reference placement
     this.isInMigrationModeForExport = true
 
+    // Store the original markers for restoration later
+    this.migrationOriginalMarkersForApp = [...this.markers]
+    
     // Set up the map renderer for reference marker placement mode
     if (this.mapRenderer) {
       this.mapRenderer.enterMigrationReferenceMode(
@@ -3332,12 +3341,20 @@ class SnapSpotApp {
         () => {
           // Cancel callback - exit migration mode without exporting
           this.exitMigrationModeWithoutExport()
+        },
+        (updatedMarkers) => {
+          // Update callback - update the app's markers array with the renderer's markers
+          this.markers = [...updatedMarkers]
         }
       )
       
       // Ensure markers are unlocked during migration for repositioning
       this.markersLocked = false
       this.mapRenderer.setMarkersEditable(!this.markersLocked)
+      
+      // Update the app's markers array to be empty initially (the renderer handles reference markers)
+      this.markers = []
+      this.mapRenderer.setMarkers(this.markers) // Update renderer with empty array initially
     }
 
     this.updateAppStatus('Migration export: Place 3 reference markers on easily recognizable features', 'info')
@@ -3367,6 +3384,12 @@ class SnapSpotApp {
 
     // Reset the migration mode flag
     this.isInMigrationModeForExport = false
+
+    // Restore original markers for the app
+    if (this.migrationOriginalMarkersForApp) {
+      this.markers = [...this.migrationOriginalMarkersForApp]
+      this.migrationOriginalMarkersForApp = null
+    }
 
     // Exit migration reference mode in map renderer
     if (this.mapRenderer) {
