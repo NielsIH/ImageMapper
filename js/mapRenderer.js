@@ -1096,15 +1096,19 @@ export class MapRenderer {
     const mapX = mapCoords.x
     const mapY = mapCoords.y
 
+    // Capture a zoomed-in image of the reference point location
+    const zoomedImageData = this._captureZoomedImageAtCoords(mapX, mapY)
+    
     // Create a reference marker
     const referenceMarker = {
       id: crypto.randomUUID(), // Generate a new ID for this marker
       mapId: this.currentMap.id,
-      x: rotatedCoords.x,
-      y: rotatedCoords.y,
+      x: mapX,
+      y: mapY,
       createdDate: new Date(),
       description: `Reference Point ${this.migrationReferenceMarkers.length + 1}`,
-      photoIds: [] // No photos associated with reference markers
+      photoIds: [], // No photos associated with reference markers
+      zoomedImageData: zoomedImageData // Include the captured zoomed image
     }
 
     // Add the reference marker to the collection
@@ -1286,6 +1290,90 @@ export class MapRenderer {
     this.ctx.fillText(String(number), finalX, finalY - crosshairSize - 5)
 
     this.ctx.restore()
+  }
+
+  /**
+   * Capture a zoomed-in image of the map at specific coordinates
+   * @param {number} mapX - X coordinate in map space
+   * @param {number} mapY - Y coordinate in map space
+   * @param {number} [size=200] - Size of the square area to capture (in pixels)
+   * @param {number} [zoomFactor=4] - How much to zoom in on the area
+   * @returns {string|null} - Data URL of the captured image, or null if capture fails
+   */
+  _captureZoomedImageAtCoords (mapX, mapY, size = 200, zoomFactor = 4) {
+    if (!this.imageData || !this.originalImageData) {
+      console.warn('MapRenderer: Cannot capture zoomed image - missing image data')
+      return null
+    }
+
+    // Create an offscreen canvas for the zoomed image
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    
+    const zoomedSize = size * zoomFactor
+    canvas.width = size
+    canvas.height = size
+    
+    // Calculate the source coordinates on the rotated image
+    // We need to account for rotation to get the correct area
+    let sourceX, sourceY
+    const originalWidth = this.originalImageData.naturalWidth
+    const originalHeight = this.originalImageData.naturalHeight
+    
+    switch (this.currentMapRotation) {
+      case 0:
+        sourceX = mapX
+        sourceY = mapY
+        break
+      case 90:
+        // In a 90° rotation, the X and Y are swapped and Y is inverted
+        sourceX = originalHeight - mapY
+        sourceY = mapX
+        break
+      case 180:
+        sourceX = originalWidth - mapX
+        sourceY = originalHeight - mapY
+        break
+      case 270:
+        // In a 270° rotation, the X and Y are swapped and X is inverted
+        sourceX = mapY
+        sourceY = originalWidth - mapX
+        break
+      default:
+        sourceX = mapX
+        sourceY = mapY
+    }
+
+    // Calculate the source rectangle for the zoomed area
+    const halfSize = size / (2 * zoomFactor)
+    const sourceXStart = Math.max(0, sourceX - halfSize)
+    const sourceYStart = Math.max(0, sourceY - halfSize)
+    const sourceWidth = Math.min(size / zoomFactor, originalWidth - sourceXStart)
+    const sourceHeight = Math.min(size / zoomFactor, originalHeight - sourceYStart)
+
+    // Draw the zoomed area to the offscreen canvas
+    try {
+      // First, draw the source area at a larger size to create the zoomed effect
+      const tempCanvas = document.createElement('canvas')
+      const tempCtx = tempCanvas.getContext('2d')
+      tempCanvas.width = size
+      tempCanvas.height = size
+
+      // Draw the source area scaled up
+      tempCtx.drawImage(
+        this.imageData,
+        sourceXStart, sourceYStart, sourceWidth, sourceHeight, // source
+        0, 0, size, size // destination
+      )
+
+      // Then copy this to our target canvas at full size
+      ctx.drawImage(tempCanvas, 0, 0)
+
+      return canvas.toDataURL('image/png')
+    } catch (error) {
+      console.error('MapRenderer: Error capturing zoomed image:', error)
+      return null
+    }
   }
 
   /**
