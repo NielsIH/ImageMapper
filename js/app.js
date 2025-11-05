@@ -1377,8 +1377,11 @@ class SnapSpotApp {
    */
   getMarkerAtPoint (clientX, clientY) {
     if (!this.mapRenderer || !this.markers || this.markers.length === 0) {
+      console.log('getMarkerAtPoint: No renderer, markers, or empty markers array')
       return null
     }
+
+    console.log(`getMarkerAtPoint: Checking ${this.markers.length} markers at client coordinates (${clientX}, ${clientY}) - In migration mode: ${this.isInMigrationModeForExport}`)
 
     const canvasRect = this.mapRenderer.canvas.getBoundingClientRect()
     const screenX = clientX - canvasRect.left
@@ -1389,6 +1392,8 @@ class SnapSpotApp {
     // Define a hit area radius around the marker (e.g., marker radius + some padding)
     const hitRadius = currentMarkerSize.radius + 5 // Use current radius plus 5px padding
 
+    console.log(`  Screen coordinates: (${screenX}, ${screenY}), hitRadius: ${hitRadius}`)
+
     for (let i = this.markers.length - 1; i >= 0; i--) { // Iterate backwards to hit top-most marker first
       const marker = this.markers[i]
       const markerScreenCoords = this.mapRenderer.mapToScreen(marker.x, marker.y)
@@ -1398,11 +1403,16 @@ class SnapSpotApp {
         const dy = screenY - markerScreenCoords.y
         const distance = Math.sqrt(dx * dx + dy * dy)
 
+        console.log(`  Marker ${marker.id}: map pos (${marker.x}, ${marker.y}), screen pos (${markerScreenCoords.x}, ${markerScreenCoords.y}), distance: ${distance}, hitRadius: ${hitRadius}`)
+
         if (distance <= hitRadius) {
+          console.log(`  Hit detected for marker ${marker.id}`)
           return marker
         }
       }
     }
+    
+    console.log('  No marker hit detected')
     return null
   }
 
@@ -1412,10 +1422,14 @@ class SnapSpotApp {
   handleMapMouseDown (event) {
     if (!this.currentMap || event.button !== 0) return // Only left click and if map is loaded
 
+    console.log(`handleMapMouseDown: In migration mode: ${this.isInMigrationModeForExport}, markersLocked: ${this.markersLocked}`)
+
     this.initialDownX = event.clientX
     this.initialDownY = event.clientY
 
     const clickedMarker = this.getMarkerAtPoint(event.clientX, event.clientY)
+
+    console.log(`handleMapMouseDown: clickedMarker=${!!clickedMarker}, markersLocked=${this.markersLocked}`)
 
     // MODIFIED: Only allow marker dragging if markers are NOT locked
     if (clickedMarker && !this.markersLocked) {
@@ -1584,8 +1598,12 @@ class SnapSpotApp {
     }
 
     if (this.activeTouches.size === 1) { // Single touch for panning or marker dragging
+      console.log(`handleMapTouchStart: In migration mode: ${this.isInMigrationModeForExport}, markersLocked: ${this.markersLocked}`)
+      
       const touch = event.changedTouches[0]
       const touchedMarker = this.getMarkerAtPoint(touch.clientX, touch.clientY)
+
+      console.log(`handleMapTouchStart: touchedMarker=${!!touchedMarker}, markersLocked=${this.markersLocked}`)
 
       // MODIFIED: Only allow marker dragging if markers are NOT locked
       if (touchedMarker && !this.markersLocked) {
