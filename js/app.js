@@ -3270,8 +3270,41 @@ class SnapSpotApp {
     
     // Restore original marker lock state
     this.mapRenderer.setMarkersEditable(!this.markersLocked)
+    
+    // Refresh the markers display to ensure proper visual state (with/without photos)
+    if (this.currentMap) {
+      this.refreshMarkersDisplay()
+    }
 
     this.updateAppStatus('Migration export cancelled', 'info')
+  }
+
+  /**
+   * Refresh the markers display with proper photo status information
+   */
+  async refreshMarkersDisplay () {
+    if (!this.currentMap) return
+
+    try {
+      // Fetch all markers for the current map
+      let fetchedMarkers = await this.storage.getMarkersForMap(this.currentMap.id)
+
+      // Enrich markers with photo status to determine their visual appearance
+      this.markers = await Promise.all(fetchedMarkers.map(async marker => {
+        const photoCount = await this.storage.getMarkerPhotoCount(marker.id)
+        return {
+          ...marker,
+          hasPhotos: photoCount > 0
+        }
+      }))
+
+      // Update the renderer with the enriched markers
+      this.mapRenderer.setMarkers(this.markers)
+      this.mapRenderer.render() // Re-render to update visual appearance
+    } catch (error) {
+      console.error('Failed to refresh markers display:', error)
+      this.showErrorMessage('Error', `Failed to refresh markers: ${error.message}`)
+    }
   }
 
   /**
@@ -3412,6 +3445,11 @@ class SnapSpotApp {
     
     // Restore original marker lock state
     this.mapRenderer.setMarkersEditable(!this.markersLocked)
+    
+    // Refresh the markers display to ensure proper visual state (with/without photos)
+    if (this.currentMap) {
+      this.refreshMarkersDisplay()
+    }
 
     this.updateAppStatus('Migration export completed', 'success')
   }
