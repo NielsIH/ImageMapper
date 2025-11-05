@@ -1010,6 +1010,9 @@ export class MapRenderer {
 
     // Show instruction overlay
     this.showMigrationInstructionOverlay()
+    
+    // Ensure markers are editable during migration mode
+    this.setMarkersEditable(true)
 
     this.render()
   }
@@ -1028,6 +1031,9 @@ export class MapRenderer {
     if (this.originalMarkersForMigration) {
       this.markers = [...this.originalMarkersForMigration]
       this.originalMarkersForMigration = null
+    } else {
+      // If there were no original markers, ensure markers array is empty
+      this.markers = []
     }
 
     this.isInMigrationMode = false

@@ -3231,6 +3231,9 @@ class SnapSpotApp {
     if (this.mapRenderer) {
       this.mapRenderer.exitMigrationReferenceMode()
     }
+    
+    // Restore original marker lock state
+    this.mapRenderer.setMarkersEditable(!this.markersLocked)
 
     this.updateAppStatus('Migration export cancelled', 'info')
   }
@@ -3313,6 +3316,10 @@ class SnapSpotApp {
           this.exitMigrationModeWithoutExport()
         }
       )
+      
+      // Ensure markers are unlocked during migration for repositioning
+      this.markersLocked = false
+      this.mapRenderer.setMarkersEditable(!this.markersLocked)
     }
 
     this.updateAppStatus('Migration export: Place 3 reference markers on easily recognizable features', 'info')
@@ -3347,6 +3354,9 @@ class SnapSpotApp {
     if (this.mapRenderer) {
       this.mapRenderer.exitMigrationReferenceMode()
     }
+    
+    // Restore original marker lock state
+    this.mapRenderer.setMarkersEditable(!this.markersLocked)
 
     this.updateAppStatus('Migration export completed', 'success')
   }
