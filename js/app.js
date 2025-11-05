@@ -1503,12 +1503,7 @@ class SnapSpotApp {
         } else {
           // It was an actual drag, save its new position
           try {
-            await this.storage.updateMarker(markerToSave.id, {
-              x: markerToSave.x,
-              y: markerToSave.y,
-              lastModified: new Date()
-            })
-            console.log(`Marker ${markerToSave.id} position saved after drag.`)
+            await this.updateMarkerPosition(markerToSave, markerToSave.x, markerToSave.y)
             this.showNotification('Marker moved and saved.', 'success')
           } catch (error) {
             console.error('Failed to save dragged marker position:', error)
@@ -1740,12 +1735,7 @@ class SnapSpotApp {
         } else {
           // It was an actual drag, save its new position
           try {
-            await this.storage.updateMarker(markerToSave.id, {
-              x: markerToSave.x,
-              y: markerToSave.y,
-              lastModified: new Date()
-            })
-            console.log(`Marker ${markerToSave.id} position saved after touch drag.`)
+            await this.updateMarkerPosition(markerToSave, markerToSave.x, markerToSave.y)
             this.showNotification('Marker moved and saved.', 'success')
           } catch (error) {
             console.error('Failed to save dragged marker position:', error)
@@ -3243,6 +3233,40 @@ class SnapSpotApp {
     }
 
     this.updateAppStatus('Migration export cancelled', 'info')
+  }
+
+  /**
+   * Update marker position in appropriate storage based on migration mode
+   * @param {Object} marker - The marker object to update
+   * @param {number} newX - New X coordinate
+   * @param {number} newY - New Y coordinate
+   */
+  async updateMarkerPosition (marker, newX, newY) {
+    if (this.isInMigrationModeForExport) {
+      // Update the migration reference marker in the renderer's migration array
+      const refMarkerIndex = this.mapRenderer.migrationReferenceMarkers?.findIndex(m => m.id === marker.id)
+      if (refMarkerIndex !== -1) {
+        this.mapRenderer.migrationReferenceMarkers[refMarkerIndex].x = newX
+        this.mapRenderer.migrationReferenceMarkers[refMarkerIndex].y = newY
+        console.log(`Migration reference marker ${marker.id} position updated in renderer migration array.`)
+      }
+      
+      // Update the marker in the renderer's markers array as well
+      const rendererMarkerIndex = this.mapRenderer.markers.findIndex(m => m.id === marker.id)
+      if (rendererMarkerIndex !== -1) {
+        this.mapRenderer.markers[rendererMarkerIndex].x = newX
+        this.mapRenderer.markers[rendererMarkerIndex].y = newY
+        this.mapRenderer.render() // Re-render to show the updated position
+      }
+    } else {
+      // Normal mode - update in storage
+      await this.storage.updateMarker(marker.id, {
+        x: newX,
+        y: newY,
+        lastModified: new Date()
+      })
+      console.log(`Marker ${marker.id} position saved to storage.`)
+    }
   }
 
   /**

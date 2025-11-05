@@ -1122,21 +1122,73 @@ export class MapRenderer {
         text-align: center;
         z-index: 1000;
         border-radius: 5px;
-        pointer-events: none;
       `
+      
+      // Create the content container
+      const contentContainer = document.createElement('div')
+      contentContainer.id = 'migration-content'
+      contentContainer.style.marginBottom = '10px'
+      contentContainer.textContent = 'Place 3 reference markers on easily recognizable features of the map'
+      overlay.appendChild(contentContainer)
+      
+      // Create the progress container
+      const progressContainer = document.createElement('div')
+      progressContainer.id = 'migration-progress'
+      progressContainer.textContent = `${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3 reference markers placed`
+      overlay.appendChild(progressContainer)
+      
+      // Create buttons container with Cancel button always visible
+      const buttonsContainer = document.createElement('div')
+      buttonsContainer.style.cssText = `
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+      `
+      
+      // Create Cancel button
+      const cancelButton = document.createElement('button')
+      cancelButton.id = 'migration-cancel-btn'
+      cancelButton.textContent = 'Cancel'
+      cancelButton.style.cssText = `
+        padding: 8px 16px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        pointer-events: auto;
+      `
+      cancelButton.onclick = () => {
+        // Call the cancel callback if available
+        if (this.migrationOnCancelCallback) {
+          this.migrationOnCancelCallback()
+        }
+      }
+      
+      buttonsContainer.appendChild(cancelButton)
+      overlay.appendChild(buttonsContainer)
+      
       this.canvas.parentElement.appendChild(overlay)
     }
-
-    overlay.textContent = `Place 3 reference markers on easily recognizable features of the map (${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3)`
   }
 
   /**
    * Update instruction overlay to show placement progress
    */
   updateMigrationInstructionOverlay () {
-    const overlay = document.getElementById('migration-instruction-overlay')
-    if (overlay) {
-      overlay.textContent = `Place 3 reference markers on easily recognizable features of the map (${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3)`
+    const progressContainer = document.getElementById('migration-progress')
+    if (progressContainer) {
+      progressContainer.textContent = `${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3 reference markers placed`
+    }
+    
+    const contentContainer = document.getElementById('migration-content')
+    if (contentContainer) {
+      if (this.migrationReferenceMarkers && this.migrationReferenceMarkers.length >= 3) {
+        contentContainer.textContent = '3 reference markers placed. Reposition if needed or continue with export.'
+      } else {
+        contentContainer.textContent = 'Place 3 reference markers on easily recognizable features of the map'
+      }
     }
   }
 
