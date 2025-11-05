@@ -251,7 +251,17 @@ export class MapRenderer {
 
     if (this.imageData) {
       this.renderImage()
-      this.renderMarkers()
+      // Conditionally render markers based on migration mode
+      if (this.isInMigrationMode && this.migrationReferenceMarkers) {
+        // Draw crosshair-style reference markers during migration mode
+        for (let i = 0; i < this.migrationReferenceMarkers.length; i++) {
+          const marker = this.migrationReferenceMarkers[i]
+          this._drawCrosshairReferenceMarker(marker, i + 1)
+        }
+      } else {
+        // Draw regular markers if not in migration mode
+        this.renderMarkers()
+      }
     } else if (this.currentMap) {
       this.renderPlaceholder()
     } else {
@@ -1184,60 +1194,7 @@ export class MapRenderer {
     }
   }
 
-  /**
-   * Override the render method to draw crosshair-style reference markers during migration mode
-   */
-  render () {
-    if (!this.ctx || !this.imageData) {
-      console.warn('MapRenderer: Missing context or image data for rendering')
-      return
-    }
 
-    // Clear canvas
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-
-    // Draw map image
-    this.ctx.save()
-    this.ctx.translate(this.offsetX, this.offsetY)
-    this.ctx.scale(this.scale, this.scale)
-
-    // Apply rotation if necessary
-    if (this.currentMapRotation !== 0) {
-      const centerX = this.currentMap.width / 2
-      const centerY = this.currentMap.height / 2
-      this.ctx.translate(centerX, centerY)
-      this.ctx.rotate((this.currentMapRotation * Math.PI) / 180)
-      this.ctx.translate(-centerX, -centerY)
-    }
-
-    // Draw the map image data (which is already rotated if needed)
-    this.ctx.drawImage(this.imageData, 0, 0)
-
-    this.ctx.restore()
-
-    // Draw crosshair-style reference markers during migration mode
-    if (this.isInMigrationMode && this.migrationReferenceMarkers) {
-      for (let i = 0; i < this.migrationReferenceMarkers.length; i++) {
-        const marker = this.migrationReferenceMarkers[i]
-        this._drawCrosshairReferenceMarker(marker, i + 1)
-      }
-    } else {
-      // Draw regular markers if not in migration mode
-      for (const marker of this.markers) {
-        this._drawMarker(marker)
-      }
-    }
-
-    // Draw crosshair if enabled
-    if (this.showCrosshair) {
-      this._drawCrosshair()
-    }
-
-    // Draw debug info if enabled
-    if (this.showDebugInfo) {
-      this._drawDebugInfo()
-    }
-  }
 
   /**
    * Draw a crosshair-style reference marker for migration
