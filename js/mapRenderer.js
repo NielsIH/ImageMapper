@@ -995,20 +995,17 @@ export class MapRenderer {
    */
   enterMigrationReferenceMode (map, originalMarkers, onComplete) {
     console.log('MapRenderer: Entering migration reference mode')
-    
+
     // Store original markers to restore later
     this.originalMarkersForMigration = [...originalMarkers]
     this.migrationOnCompleteCallback = onComplete
 
     // Temporarily hide original markers during reference placement
     this.markers = []
-    
+
     // Track reference markers as they are placed
     this.migrationReferenceMarkers = []
     this.isInMigrationMode = true
-
-    // Add event listeners for placing reference markers
-    this.setupMigrationModeEventListeners()
 
     // Show instruction overlay
     this.showMigrationInstructionOverlay()
@@ -1021,9 +1018,6 @@ export class MapRenderer {
    */
   exitMigrationReferenceMode () {
     console.log('MapRenderer: Exiting migration reference mode')
-    
-    // Remove event listeners
-    this.removeMigrationModeEventListeners()
 
     // Hide instruction overlay
     this.hideMigrationInstructionOverlay()
@@ -1041,63 +1035,28 @@ export class MapRenderer {
     this.render()
   }
 
-  /**
-   * Set up event listeners for migration mode
-   */
-  setupMigrationModeEventListeners () {
-    // Remove any existing place marker event listeners to prevent conflicts
-    this.canvas.removeEventListener('click', this._placeMarkerHandler)
-    this.canvas.removeEventListener('touchend', this._placeMarkerTouchHandler)
 
-    // Add new handlers for migration reference placement
-    this._migrationClickHandler = (e) => this.handleMigrationReferencePlacement(e)
-    this._migrationTouchHandler = (e) => this.handleMigrationReferencePlacement(e)
-
-    this.canvas.addEventListener('click', this._migrationClickHandler)
-    this.canvas.addEventListener('touchend', this._migrationTouchHandler)
-  }
 
   /**
-   * Remove event listeners for migration mode
+   * Place a migration reference marker at the specified screen coordinates
+   * This method should be called from the main app when the "Place Marker" button is pressed
+   * @param {number} screenX - The X coordinate in screen space (canvas coordinates)
+   * @param {number} screenY - The Y coordinate in screen space (canvas coordinates)
    */
-  removeMigrationModeEventListeners () {
-    if (this._migrationClickHandler) {
-      this.canvas.removeEventListener('click', this._migrationClickHandler)
-      this._migrationClickHandler = null
-    }
-    if (this._migrationTouchHandler) {
-      this.canvas.removeEventListener('touchend', this._migrationTouchHandler)
-      this._migrationTouchHandler = null
-    }
-  }
-
-  /**
-   * Handle placement of migration reference markers
-   * @param {Event} e - The click or touch event
-   */
-  async handleMigrationReferencePlacement (e) {
-    if (!this.currentMap || !this.isInMigrationMode) return
-
-    // If we already have 3 reference markers, ignore additional clicks
-    if (this.migrationReferenceMarkers.length >= 3) return
-
-    // Calculate map coordinates from canvas coordinates
-    const rect = this.canvas.getBoundingClientRect()
-    let clientX, clientY
-
-    if (e.touches && e.touches.length > 0) {
-      clientX = e.touches[0].clientX
-      clientY = e.touches[0].clientY
-    } else {
-      clientX = e.clientX
-      clientY = e.clientY
+  async placeMigrationReferenceMarkerAtScreenCoords (screenX, screenY) {
+    if (!this.currentMap || !this.isInMigrationMode) {
+      console.warn('MapRenderer: Cannot place migration reference marker - not in migration mode or no map loaded')
+      return
     }
 
-    const canvasX = clientX - rect.left
-    const canvasY = clientY - rect.top
+    // If we already have 3 reference markers, ignore additional placements
+    if (this.migrationReferenceMarkers.length >= 3) {
+      console.log('MapRenderer: Already have 3 reference markers, ignoring additional placement')
+      return
+    }
 
-    // Use the existing screenToMap method that correctly handles rotation
-    const mapCoords = this.screenToMap(canvasX, canvasY)
+    // Convert screen coordinates to map coordinates
+    const mapCoords = this.screenToMap(screenX, screenY)
     if (!mapCoords) {
       console.error('MapRenderer: Could not convert screen coordinates to map coordinates')
       return
@@ -1108,7 +1067,7 @@ export class MapRenderer {
 
     // Capture a zoomed-in image of the reference point location
     const zoomedImageData = this._captureZoomedImageAtCoords(mapX, mapY)
-    
+
     // Create a reference marker
     const referenceMarker = {
       id: crypto.randomUUID(), // Generate a new ID for this marker
@@ -1118,7 +1077,7 @@ export class MapRenderer {
       createdDate: new Date(),
       description: `Reference Point ${this.migrationReferenceMarkers.length + 1}`,
       photoIds: [], // No photos associated with reference markers
-      zoomedImageData: zoomedImageData // Include the captured zoomed image
+      zoomedImageData // Include the captured zoomed image
     }
 
     // Add the reference marker to the collection
@@ -1132,9 +1091,6 @@ export class MapRenderer {
 
     // If we've placed 3 markers, complete the process
     if (this.migrationReferenceMarkers.length === 3 && this.migrationOnCompleteCallback) {
-      // Remove event listeners to prevent additional markers being placed
-      this.removeMigrationModeEventListeners()
-
       // Hide the instruction overlay
       this.hideMigrationInstructionOverlay()
 
@@ -1194,8 +1150,6 @@ export class MapRenderer {
     }
   }
 
-
-
   /**
    * Draw a crosshair-style reference marker for migration
    * @param {object} marker - The marker object to draw
@@ -1210,7 +1164,7 @@ export class MapRenderer {
       console.warn('MapRenderer: Could not transform marker coordinates to screen coordinates')
       return
     }
-    
+
     const finalX = screenCoords.x
     const finalY = screenCoords.y
 
@@ -1225,17 +1179,17 @@ export class MapRenderer {
     this.ctx.strokeStyle = '#FF5722' // Use a distinctive color for reference markers
     this.ctx.lineWidth = 2
     this.ctx.beginPath()
-    
+
     // Horizontal line
     this.ctx.moveTo(finalX - crosshairSize, finalY)
     this.ctx.lineTo(finalX + crosshairSize, finalY)
-    
+
     // Vertical line
     this.ctx.moveTo(finalX, finalY - crosshairSize)
     this.ctx.lineTo(finalX, finalY + crosshairSize)
-    
+
     // Small circle at center
-    this.ctx.moveTo(finalX + crosshairSize/2, finalY)
+    this.ctx.moveTo(finalX + crosshairSize / 2, finalY)
     this.ctx.arc(finalX, finalY, 4, 0, 2 * Math.PI)
     this.ctx.stroke()
 
@@ -1266,17 +1220,17 @@ export class MapRenderer {
     // Create an offscreen canvas for the zoomed image
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
-    
-    const zoomedSize = size * zoomFactor
+
+    // const zoomedSize = size * zoomFactor
     canvas.width = size
     canvas.height = size
-    
+
     // Calculate the source coordinates on the rotated image
     // We need to account for rotation to get the correct area
     let sourceX, sourceY
     const originalWidth = this.originalImageData.naturalWidth
     const originalHeight = this.originalImageData.naturalHeight
-    
+
     switch (this.currentMapRotation) {
       case 0:
         sourceX = mapX
