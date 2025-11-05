@@ -1513,7 +1513,10 @@ class SnapSpotApp {
         if (distanceMoved < CLICK_THRESHOLD) {
           // It was a short drag, treat as a click to open details
           console.log('Marker clicked (via short drag):', markerToSave.id)
-          this.showMarkerDetails(markerToSave.id)
+          // During migration mode, don't show details for reference markers
+          if (!this.isInMigrationModeForExport) {
+            this.showMarkerDetails(markerToSave.id)
+          }
         } else {
           // It was an actual drag, save its new position
           try {
@@ -1532,7 +1535,10 @@ class SnapSpotApp {
         const clickedMarker = this.getMarkerAtPoint(mouseUpX, mouseUpY)
         if (clickedMarker) {
           console.log('Marker clicked (via short map pan interaction):', clickedMarker.id)
-          this.showMarkerDetails(clickedMarker.id)
+          // During migration mode, don't show details for reference markers
+          if (!this.isInMigrationModeForExport) {
+            this.showMarkerDetails(clickedMarker.id)
+          }
         } else {
           console.log('Map or empty space clicked (via short map pan interaction).')
         }
@@ -1749,7 +1755,10 @@ class SnapSpotApp {
         if (distanceMoved < CLICK_THRESHOLD) {
           // It was a short drag, treat as a tap to open details
           console.log('Marker tapped (via short touch drag):', markerToSave.id)
-          this.showMarkerDetails(markerToSave.id)
+          // During migration mode, don't show details for reference markers
+          if (!this.isInMigrationModeForExport) {
+            this.showMarkerDetails(markerToSave.id)
+          }
         } else {
           // It was an actual drag, save its new position
           try {
@@ -1768,7 +1777,10 @@ class SnapSpotApp {
         const clickedMarker = this.getMarkerAtPoint(touchEndX, touchEndY)
         if (clickedMarker) {
           console.log('Marker tapped (via short map pan interaction):', clickedMarker.id)
-          this.showMarkerDetails(clickedMarker.id)
+          // During migration mode, don't show details for reference markers
+          if (!this.isInMigrationModeForExport) {
+            this.showMarkerDetails(clickedMarker.id)
+          }
         } else {
           console.log('Map or empty space tapped (via short map pan interaction).')
         }
@@ -3348,9 +3360,11 @@ class SnapSpotApp {
         }
       )
       
-      // Ensure markers are unlocked during migration for repositioning
-      this.markersLocked = false
+      // During migration, markers start in locked state by default (users can unlock if needed)
+      this.markersLocked = true // Keep markers locked initially during migration
       this.mapRenderer.setMarkersEditable(!this.markersLocked)
+      // Update the lock button UI to reflect the new state
+      this.updateMarkerLockButtonUI()
       
       // Update the app's markers array to be empty initially (the renderer handles reference markers)
       this.markers = []
