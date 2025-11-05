@@ -160,7 +160,7 @@ export class MapDataExporterImporter {
   /**
    * Exports map data specifically for migration, including the necessary reference points.
    * This requires special handling as it needs the 3 reference markers to be placed by the user.
-   * 
+   *
    * @param {object} map The map object to export (without the 3 reference markers).
    * @param {Array<object>} originalMarkers All original marker objects (excluding reference markers).
    * @param {Array<object>} originalPhotos All original photo objects associated with the original markers.
@@ -173,9 +173,9 @@ export class MapDataExporterImporter {
 
     // Combine original markers with reference markers
     const markersToExport = [...originalMarkers, ...referenceMarkers]
-    
+
     // Process all photos (original photos only, reference markers don't have photos)
-    let photosToExport = [...originalPhotos]
+    const photosToExport = [...originalPhotos]
 
     // Prepare Map Data for export
     const exportMap = { ...map }
@@ -235,7 +235,7 @@ export class MapDataExporterImporter {
     // Create the migration-specific export object with additional metadata
     const exportObject = this._createMigrationExportObject(exportMap, processedMarkers, processedPhotos, referenceMarkers)
     const jsonString = JSON.stringify(exportObject, null, 2)
-    
+
     // Use a different filename format to distinguish migration exports
     const dateSuffix = new Date().toISOString().slice(0, 10)
     this._triggerDownload(jsonString, `SnapSpot_Migration_${map.name.replace(/\s+/g, '_')}_${dateSuffix}.json`)
@@ -253,7 +253,7 @@ export class MapDataExporterImporter {
    */
   static _createMigrationExportObject (map, markers, photos, referenceMarkers) {
     // Extract the reference markers from the full markers array
-    const originalMarkers = markers.filter(marker => 
+    const originalMarkers = markers.filter(marker =>
       !referenceMarkers.some(refMarker => refMarker.id === marker.id)
     )
 

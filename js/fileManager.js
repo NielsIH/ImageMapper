@@ -344,7 +344,7 @@ export class FileManager {
         originalFile: file, // Keep reference to original file for direct storage if needed
         thumbnail,
         isActive: mapDetails.isActive || false,
-        imageHash: imageHash, // NEW: Add image hash to mapData
+        imageHash, // NEW: Add image hash to mapData
         settings: {
           defaultZoom: this.calculateDefaultZoom(metadata.width, metadata.height),
           allowMarkers: true,

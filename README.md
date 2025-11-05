@@ -220,6 +220,7 @@ This project focuses on versatile photo-to-location mapping. Future phases will 
 
 ### Code Standards
 - Use ES6+ JavaScript features
+- Follow Javascript Standard Style conventionsI
 - Follow BEM methodology for CSS classes where applicable
 - Maintain touch-friendly interface standards
 - Ensure all features work offline

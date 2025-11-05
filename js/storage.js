@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-/* global indexedDB */
+/* global indexedDB IDBKeyRange */
 
 /**
  * SnapSpot PWA - Storage System
@@ -39,7 +39,7 @@ export class MapStorage {
       request.onsuccess = async () => {
         this.db = request.result
         console.log('MapStorage: IndexedDB initialized successfully')
-        
+
         // Run automatic cleanup of expired migration data
         try {
           await this.runAutomaticCleanup()
@@ -47,7 +47,7 @@ export class MapStorage {
           console.error('MapStorage: Error during automatic cleanup on init:', error)
           // Don't reject the init because of cleanup failure
         }
-        
+
         resolve()
       }
 
@@ -107,7 +107,7 @@ export class MapStorage {
           photoStore.createIndex('createdDate', 'createdDate', { unique: false })
           console.log('MapStorage: Photos object store created/upgraded with indexes')
         }
-        
+
         // --- NEW: Create temporary migration data object store ---
         if (!db.objectStoreNames.contains(this.migrationStoreName)) {
           const migrationStore = db.createObjectStore(this.migrationStoreName, {
@@ -1371,7 +1371,7 @@ export class MapStorage {
       id: migrationData.id,
       sourceData: migrationData.sourceData,
       timestamp: now,
-      expires: expires
+      expires
     }
 
     return new Promise((resolve, reject) => {
