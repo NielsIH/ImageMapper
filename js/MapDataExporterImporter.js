@@ -257,13 +257,12 @@ export class MapDataExporterImporter {
       !referenceMarkers.some(refMarker => refMarker.id === marker.id)
     )
 
-    // Create zoomed-in images for each reference point (this would be captured in the UI)
+    // Create reference points data from the reference markers with their captured zoomed images
     const referencePoints = referenceMarkers.map((refMarker, index) => ({
       original: { x: refMarker.x, y: refMarker.y },
       description: refMarker.description || `Reference Point ${index + 1}`,
-      // In the actual implementation, these would be the zoomed-in images captured when placing the markers
-      zoomedImageData: null, // This will be filled in when captured
-      zoomFactor: 4 // Example zoom factor
+      zoomedImageData: refMarker.zoomedImageData, // Use the captured zoomed image data
+      zoomFactor: 4 // Default zoom factor used when capturing the image
     }))
 
     return {
