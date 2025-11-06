@@ -31,26 +31,24 @@ class SnapSpotApp {
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
       searchMaps: (query) => this.searchMaps(query),
-      searchPhotos: (query) => this.searchPhotos(query), //  Photo search callback
-      switchToMap: (mapId) => this.switchToMap(mapId),
+      searchPhotos: (query) => this.searchPhotos(query),
       deleteMap: (mapId) => this.deleteMap(mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
       onSearchFileSelect: () => this.handleSearchFileSelection(),
       onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type),
-      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData) //  Show photo on map callback
+      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData)
     })
 
     this.mapRenderer = new MapRenderer('map-canvas')
     this.currentMap = null
     this.mapsList = []
     this.isLoading = false
-    this.uploadedFiles = new Map() // Store file references for rendering
+    this.uploadedFiles = new Map()
     this.thumbnailCache = new Map()
     this.imageProcessor = new ImageProcessor()
-    //  Load defaultImageQuality from localStorage for photos
     const savedPhotoQuality = parseFloat(localStorage.getItem('defaultPhotoQuality'))
-    const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality // Default to 0.5 (50%) if not found
+    const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality
 
     this.imageCompressionSettings = {
       map: {
@@ -58,33 +56,34 @@ class SnapSpotApp {
         maxHeight: 1920,
         quality: 0.8
       },
-      photo: { // For images attached to markers
+      photo: {
         maxWidth: 1000,
         maxHeight: 1000,
-        quality: initialPhotoQuality // <--- Use loaded value here
+        quality: initialPhotoQuality
       },
-      thumbnail: { // For very small thumbnails, like in lists
-        maxSize: 100, // Max dimension (either width or height)
+      thumbnail: {
+        maxSize: 100,
         quality: 0.7
       }
     }
     // Marker Size Control
-    this.markerDisplaySizeKey = 'normal' // Initial marker size
-    this.markerSizeCycle = ['normal', 'large', 'extraLarge'] // Cycle order
-    this.markerSizeLabelMap = { // For button text
+    this.markerDisplaySizeKey = 'normal'
+    this.markerSizeCycle = ['normal', 'large', 'extraLarge']
+    this.markerSizeLabelMap = {
       normal: 'Normal Markers',
       large: 'Large Markers',
-      extraLarge: 'XL Markers' // Abbreviated for button display
+      extraLarge: 'XL Markers'
     }
     // Max Markers Display Setting
-    this.maxMarkersToShow = parseInt(localStorage.getItem('maxMarkersToShow')) || 0 // Default to 50, 0 means unlimited
+    this.maxMarkersToShow = parseInt(localStorage.getItem('maxMarkersToShow')) || 0
     // (for Map Rotation Feature):
-    this.mapCurrentRotation = 0 // Current map rotation in degrees (0, 90, 180, 270)
+    this.mapCurrentRotation = 0
     // Define the cycle for rotation in degrees
     this.rotationCycle = [0, 90, 180, 270]
     // : App Behavior Settings
     this.autoCloseMarkerDetails = localStorage.getItem('autoCloseMarkerDetails') === 'true' || false
     this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
+    this.notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true' || true
 
     // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
@@ -105,9 +104,8 @@ class SnapSpotApp {
     // State to track the type of interaction
     this.interactionType = 'none' // 'none', 'map_pan', 'marker_drag', 'pinch_zoom'
 
-    this.showCrosshair = true //  State to track crosshair visibility
-    this.markersLocked = true //  State to track if markers are globally locked (default: true)
-
+    this.showCrosshair = true
+    this.markersLocked = true
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init())
@@ -144,6 +142,7 @@ class SnapSpotApp {
       this.restoreCrosshairState()
       this.restoreMarkerLockState()
       this.restoreMarkerSizeState()
+      this.restoreNotificationsState() // NEW: Restore notifications state
       // this.mapCurrentRotation is set here, but NOT applied to mapRenderer yet.
       this.restoreMapRotationState()
 
@@ -194,12 +193,6 @@ class SnapSpotApp {
 
     // Touch and mouse events for future map interaction
     this.setupMapInteractionListeners()
-
-    //  Handle dynamic button for uploading new maps after initial setup
-    // const uploadNewMapBtn = document.getElementById('btn-upload-new-map')
-    // if (uploadNewMapBtn) {
-    //   uploadNewMapBtn.addEventListener('click', () => this.showUploadModal())
-    // }
   }
 
   /**
@@ -255,6 +248,12 @@ class SnapSpotApp {
     const toggleMarkerSizeBtn = document.getElementById('btn-toggle-marker-size')
     if (toggleMarkerSizeBtn) {
       toggleMarkerSizeBtn.addEventListener('click', () => this.toggleMarkerSize())
+    }
+
+    // Gallery button
+    const galleryBtn = document.getElementById('btn-gallery')
+    if (galleryBtn) {
+      galleryBtn.addEventListener('click', () => this.showMapPhotoGallery())
     }
   }
 
@@ -582,6 +581,11 @@ class SnapSpotApp {
         getMaxMarkersToShow: () => this.getMaxMarkersToShow(),
         setMaxMarkersToShow: (maxMarkers) => {
           this.setMaxMarkersToShow(maxMarkers)
+        },
+        // General Settings Callbacks
+        getNotificationsEnabled: () => this.getNotificationsEnabled(),
+        setNotificationsEnabled: (value) => {
+          this.setNotificationsEnabled(value)
         }
       }
       // Create and display the settings modal
@@ -1314,6 +1318,21 @@ class SnapSpotApp {
   }
 
   /**
+   * Restores the saved state of notifications from localStorage.
+   */
+  restoreNotificationsState () {
+    const savedState = localStorage.getItem('notificationsEnabled')
+    if (savedState !== null) {
+      this.notificationsEnabled = (savedState === 'true')
+    } else {
+      // Default state if nothing found in localStorage (initially true)
+      this.notificationsEnabled = true
+      localStorage.setItem('notificationsEnabled', this.notificationsEnabled)
+    }
+    console.log('Restored notifications state:', this.notificationsEnabled)
+  }
+
+  /**
    * Close any open modals
    */
   closeModals () {
@@ -1775,12 +1794,37 @@ class SnapSpotApp {
   // ========================================
 
   /**
+   * Returns whether notifications are enabled.
+   * @returns {boolean}
+   */
+  getNotificationsEnabled () {
+    return this.notificationsEnabled
+  }
+
+  /**
+   * Sets whether notifications are enabled and persists it.
+   * @param {boolean} value - true to enable notifications, false otherwise.
+   */
+  setNotificationsEnabled (value) {
+    this.notificationsEnabled = value
+    localStorage.setItem('notificationsEnabled', value)
+    this.showNotification(`Notifications: ${this.notificationsEnabled ? 'Enabled' : 'Disabled'}.`, 'info')
+    console.log('Notifications enabled:', this.notificationsEnabled)
+  }
+
+  /**
    * Show a proper toast notification to the user.
    * @param {string} message - The message to display.
    * @param {'info'|'success'|'warning'|'error'} [type='info'] - The type of notification.
    * @param {number} [duration=3000] - Duration in milliseconds before it starts to fade out.
    */
   showNotification (message, type = 'info', duration = 3000) {
+    // Only show notification if enabled
+    if (!this.notificationsEnabled) {
+      console.log(`Notification suppressed (disabled): ${message}`)
+      return
+    }
+
     console.log(`${type.toUpperCase()} Notification: ${message}`)
     this.updateAppStatus(message) // Keep updating app status for console/debug
 
@@ -2073,6 +2117,7 @@ class SnapSpotApp {
         fileSize: mapData.fileSize, // Updated with processed size
         fileType: mapData.fileType, // Updated with processed type
         isActive: mapData.isActive,
+        imageHash: mapData.imageHash, // Include imageHash for duplicate detection
         settings: mapData.settings,
         imageData: processedImageBlob // --- Store the actual BLOB data ---
       }
@@ -2341,9 +2386,85 @@ class SnapSpotApp {
           await this.deletePhotoFromMarker(markerIdFromModal, photoIdFromModal)
           await this.showMarkerDetails(markerIdFromModal) // Correctly calling itself by original name
         },
-        // onViewPhoto callback
+        // onViewPhoto callback - This now opens the photo gallery in single photo mode
         async (photoIdFromModal) => { // <--- This argument is provided by the modal
-          await this.handleViewImageInViewer(photoIdFromModal, 'photo')
+          // Get all photos for the current marker
+          const markerPhotos = await this.storage.getPhotosForMarker(markerId)
+
+          // Get all markers for the current map to enrich photo data with marker descriptions
+          const allMarkersForMap = await this.storage.getMarkersForMap(this.currentMap.id)
+          const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
+
+          // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
+          const enrichedPhotos = await Promise.all(markerPhotos.map(async photo => {
+            const associatedMarker = markerMap.get(photo.markerId)
+
+            let thumbnailDataUrl = photo.thumbnailDataUrl
+            // If thumbnailDataUrl is not set but thumbnailData exists, convert it
+            if (!thumbnailDataUrl && photo.thumbnailData) {
+              thumbnailDataUrl = photo.thumbnailData
+            } else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
+              try {
+                thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(
+                  photo.imageData,
+                  this.imageCompressionSettings.thumbnail.maxSize
+                )
+              } catch (error) {
+                console.warn(`Failed to generate thumbnail for photo ${photo.id}:`, error)
+              }
+            }
+
+            return {
+              ...photo,
+              thumbnailDataUrl: thumbnailDataUrl || null,
+              markerDescription: associatedMarker ? associatedMarker.description : 'No marker description'
+            }
+          }))
+
+          // Close the marker details modal
+          this.modalManager.closeTopModal()
+
+          // Show the photo gallery modal starting with the specific photo in single view
+          this.modalManager.createPhotoGalleryModal(
+            enrichedPhotos,
+            {
+              title: `Marker Gallery: ${marker.description || 'Untitled Marker'}`,
+              showOnMapOption: false,
+              initialPhotoId: photoIdFromModal
+            },
+            null, // onShowOnMap is not available for marker details
+            // onDeletePhoto callback for the gallery
+            async (photoIdToDelete) => {
+              // Delete the photo from storage
+              await this.storage.deletePhoto(photoIdToDelete)
+              console.log(`Photo ${photoIdToDelete} deleted from storage.`)
+
+              // Update the UI to reflect the deletion
+              if (this.currentMap) {
+                // Update local markers array if needed
+                const localMarker = this.markers.find(m => m.id === marker.id)
+                if (localMarker) {
+                  localMarker.photoIds = localMarker.photoIds.filter(id => id !== photoIdToDelete)
+                  localMarker.hasPhotos = (localMarker.photoIds.length > 0)
+                  this.mapRenderer.setMarkers(this.markers)
+                  this.mapRenderer.render()
+                }
+              }
+
+              this.showNotification('Photo deleted successfully.', 'success')
+
+              // Close and reopen the gallery to refresh the display
+              this.modalManager.closeTopModal()
+              await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to close
+              await this.showMarkerDetails(marker.id) // Show parent marker details again
+            },
+            // onClose callback
+            async () => {
+              console.log('Marker photo gallery closed.')
+              // Reopen marker details after gallery closes
+              await this.showMarkerDetails(marker.id)
+            }
+          )
         },
         // onClose callback
         () => {
@@ -2514,11 +2635,135 @@ class SnapSpotApp {
   }
 
   /**
+   * Displays a photo gallery for all photos on the current map.
+   */
+  async showMapPhotoGallery () {
+    if (!this.currentMap) {
+      this.showNotification('Please load a map first before viewing the gallery.', 'warning')
+      return
+    }
+
+    this.showLoading('Loading photo gallery...')
+    try {
+      // Get all photos for the current map
+      const allPhotosForMap = await this.storage.getPhotosForMap(this.currentMap.id)
+
+      // Get all markers for the current map to enrich photo data with marker descriptions
+      const allMarkersForMap = await this.storage.getMarkersForMap(this.currentMap.id)
+      const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
+
+      // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
+      const enrichedPhotos = await Promise.all(allPhotosForMap.map(async photo => {
+        const associatedMarker = markerMap.get(photo.markerId)
+
+        let thumbnailDataUrl = photo.thumbnailDataUrl
+        // If thumbnailDataUrl is not set but thumbnailData exists, convert it
+        if (!thumbnailDataUrl && photo.thumbnailData) {
+          thumbnailDataUrl = photo.thumbnailData // thumbnailData should already be a data URL
+        // If neither exists but we have imageData, try to generate a thumbnail
+        } else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
+          try {
+            thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(
+              photo.imageData,
+              this.imageCompressionSettings.thumbnail.maxSize
+            )
+          } catch (error) {
+            console.warn(`Failed to generate thumbnail for photo ${photo.id}:`, error)
+          }
+        }
+
+        return {
+          ...photo,
+          mapId: this.currentMap.id, // Add mapId for onShowPhotoOnMap function
+          mapName: this.currentMap.name, // Add mapName for display
+          thumbnailDataUrl: thumbnailDataUrl || null,
+          markerDescription: associatedMarker ? associatedMarker.description : 'No marker description'
+        }
+      }))
+
+      // Show the gallery modal
+      this.modalManager.createPhotoGalleryModal(
+        enrichedPhotos,
+        {
+          title: `Map Gallery: ${this.currentMap.name}`,
+          showOnMapOption: true
+        },
+        // onShowOnMap callback
+        async (photoId) => {
+          // Find the photo in the enriched array
+          const photo = enrichedPhotos.find(p => p.id === photoId)
+          if (!photo) {
+            this.showNotification('Photo not found.', 'warning')
+            return
+          }
+
+          // Close gallery modal
+          this.modalManager.closeTopModal()
+
+          // Switch to the map where the photo's marker is located (current map in this case)
+          // and focus on the marker
+          await this.onShowPhotoOnMap(photo)
+        },
+        // onDeletePhoto callback
+        async (photoId) => {
+          // Find the photo to get its markerId
+          const photo = enrichedPhotos.find(p => p.id === photoId)
+          if (!photo) {
+            this.showNotification('Photo not found.', 'warning')
+            return
+          }
+
+          // Delete the photo from storage
+          await this.storage.deletePhoto(photoId)
+          console.log(`Photo ${photoId} deleted from storage.`)
+
+          // Update the UI to reflect the deletion
+          if (this.currentMap) {
+            // Update local markers array if needed
+            const localMarker = this.markers.find(m => m.id === photo.markerId)
+            if (localMarker) {
+              localMarker.photoIds = localMarker.photoIds.filter(id => id !== photoId)
+              localMarker.hasPhotos = (localMarker.photoIds.length > 0)
+              this.mapRenderer.setMarkers(this.markers)
+              this.mapRenderer.render()
+            }
+          }
+
+          this.showNotification('Photo deleted successfully.', 'success')
+
+          // Close and reopen the gallery to refresh the display
+          this.modalManager.closeTopModal()
+          await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to close
+          await this.showMapPhotoGallery()
+        },
+        // onClose callback
+        () => {
+          console.log('Map photo gallery closed.')
+          this.updateAppStatus('Ready')
+        }
+      )
+      this.updateAppStatus(`Viewing photo gallery for map: ${this.currentMap.name}`)
+    } catch (error) {
+      console.error('Failed to load photo gallery:', error)
+      this.showErrorMessage('Gallery Error', `Failed to load photo gallery: ${error.message}`)
+    } finally {
+      this.hideLoading()
+    }
+  }
+
+  /**
      * Exports a map's data to an HTML report.
      * Modified to fit the new callback signature from MapsModal.
+     * Added modal cleanup and delay to prevent export issues on constrained devices.
      * @param {string} mapId The ID of the map to export.
      */
   async exportHtmlReport (mapId) {
+    // Close any open modals before export to prevent conflicts
+    this.modalManager.closeAllModals()
+
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     this.updateAppStatus(`Generating HTML report for map ${mapId}...`)
     try {
       const map = await this.storage.getMap(mapId)
@@ -2557,9 +2802,16 @@ class SnapSpotApp {
   /**
  * Handles the request to export map data as JSON.
  * This method will now show an export options modal.
+ * Added modal cleanup and delay to prevent export issues on constrained devices.
  * @param {string} mapId The ID of the map to export.
  */
   async exportJsonMap (mapId) { // Renamed from _handleExportMapJson to match your existing method name
+    // Close any open modals before export to prevent conflicts
+    this.modalManager.closeAllModals()
+
+    // Small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`)
     try {
       const map = await this.storage.getMap(mapId)
@@ -2601,7 +2853,9 @@ class SnapSpotApp {
           map,
           allMarkers, // Pass all markers
           allPhotos, // Pass all photos
-          this.imageProcessor
+          this.imageProcessor,
+          {}, // options
+          this.storage // mapStorage to update imageHash if missing
         )
         this.updateAppStatus(`JSON data for map "${map.name}" exported completely.`, 'success')
       } else if (exportDecision.action === 'exportByDays') {
@@ -2614,7 +2868,8 @@ class SnapSpotApp {
           {
             datesToExport: exportDecision.selectedDates,
             splitByDate: exportDecision.exportAsSeparateFiles
-          }
+          },
+          this.storage // mapStorage to update imageHash if missing
         )
         // Construct a more descriptive success message
         const numDates = exportDecision.selectedDates.length
@@ -2818,8 +3073,12 @@ class SnapSpotApp {
    * @private
    */
   async _showImportDecisionModal (importResult) {
+    // Prepare maps with thumbnails and marker counts for display
+    const preparedExistingMaps = await this._getPreparedMapsForDisplay(importResult.existingMaps || [])
+    const preparedSecondaryMatches = await this._getPreparedMapsForDisplay(importResult.secondaryMatches || [])
+
     // Show the new modal to get user's decision
-    const userChoice = await this.modalManager.createImportDecisionModal(importResult.existingMaps)
+    const userChoice = await this.modalManager.createImportDecisionModal(preparedExistingMaps, preparedSecondaryMatches)
     return userChoice
   }
 
@@ -2833,7 +3092,7 @@ class SnapSpotApp {
     this.showLoading('Deleting image...')
     try {
       // 1. Close the image viewer modal first
-      this.modalManager.closeTopModal() // This also revokes the object URL
+      this.modalManager.closeTopModal() // This also handles object URL cleanup
 
       // 2. Call the existing method to handle the actual deletion from storage and UI updates
       await this.deletePhotoFromMarker(markerId, photoId)
@@ -2908,7 +3167,10 @@ class SnapSpotApp {
       }
 
       // Create object URL and pass to modalManager
-      this.modalManager.currentObjectUrl = URL.createObjectURL(imageBlob)
+      const imageUrl = URL.createObjectURL(imageBlob)
+      // Track this object URL for cleanup if needed in the future
+      this.modalManager.trackObjectUrl('image-viewer-modal', imageUrl)
+      this.modalManager.currentObjectUrl = imageUrl
 
       this.modalManager.createImageViewerModal(
         this.modalManager.currentObjectUrl,
@@ -2916,6 +3178,11 @@ class SnapSpotApp {
         photoIdForViewer,
         onDeleteCallback,
         () => {
+          // Clean up the object URL when the image viewer closes
+          if (this.modalManager.currentObjectUrl) {
+            URL.revokeObjectURL(this.modalManager.currentObjectUrl)
+            this.modalManager.currentObjectUrl = null
+          }
           this.updateAppStatus('Image viewer closed.')
         }
       )

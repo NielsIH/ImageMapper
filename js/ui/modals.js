@@ -17,6 +17,7 @@ export class ModalManager {
     this.activeModals = new Set()
     this.setupGlobalListeners()
     this.currentObjectUrl = null // To store the URL created by createObjectURL
+    this.activeObjectUrls = new Map() // Track object URLs by modal ID
   }
 
   /**
@@ -29,6 +30,31 @@ export class ModalManager {
         this.closeTopModal()
       }
     })
+  }
+
+  // Track object URLs for cleanup (essential for all platforms)
+  trackObjectUrl (modalId, url) {
+    if (!this.activeObjectUrls.has(modalId)) {
+      this.activeObjectUrls.set(modalId, new Set())
+    }
+    if (url) {
+      this.activeObjectUrls.get(modalId).add(url)
+    }
+  }
+
+  // Revoke all object URLs for a modal
+  revokeObjectUrlsForModal (modalId) {
+    if (this.activeObjectUrls.has(modalId)) {
+      const urls = this.activeObjectUrls.get(modalId)
+      urls.forEach(url => {
+        try {
+          URL.revokeObjectURL(url)
+        } catch (e) {
+          console.debug('URL already revoked:', e.message)
+        }
+      })
+      this.activeObjectUrls.delete(modalId)
+    }
   }
 
   /**
@@ -608,6 +634,9 @@ export class ModalManager {
         return
       }
 
+      // Essential cleanup: Revoke all object URLs associated with this modal before closing
+      this.revokeObjectUrlsForModal(modal.id)
+
       modal.classList.remove('show')
       this.activeModals.delete(modal)
       console.log(
@@ -677,6 +706,7 @@ export class ModalManager {
      */
   closeAllModals () {
     Array.from(this.activeModals).forEach((modal) => {
+      this.revokeObjectUrlsForModal(modal.id) // Clean up before closing
       this.closeModal(modal)
     })
   }
@@ -788,10 +818,10 @@ export class ModalManager {
           </div>
           <div class="modal-footer">
             <div class="modal-actions">
+              <button class="btn btn-primary" id="btn-add-photos" type="button">📸 Add Photos</button>
               <button class="btn btn-secondary" id="btn-edit-marker" type="button">✏️ Edit Marker</button>
               <button class="btn btn-primary hidden" id="btn-save-description" type="button">💾 Save</button>
               <button class="btn btn-secondary hidden" id="btn-cancel-description-edit" type="button">✖️ Cancel</button>
-              <button class="btn btn-primary" id="btn-add-photos" type="button">📸 Add Photos</button>
               <button class="btn btn-danger" id="btn-delete-marker" type="button">🗑️ Delete Marker</button>
             </div>
           </div>
@@ -913,26 +943,54 @@ export class ModalManager {
         }
       })
     })
-    // Load full-size images for thumbnails in marker details
+    // Track object URLs for this specific modal (essential for cleanup)
+    const modalId = modal.id
+    this.trackObjectUrl(modalId, null) // Initialize the set
+
+    // Load images with fallback strategy - try full-size first, fallback to thumbnail
     modal.querySelectorAll('.photo-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
       const photoId = img.dataset.photoId
       const photo = markerDetails.photos.find(p => p.id === photoId)
-      if (photo && photo.imageData) {
-        try {
-          // Create object URL from the full-size image blob
-          const imageUrl = URL.createObjectURL(photo.imageData)
-          img.src = imageUrl
 
-          // Clean up the object URL when the image loads or errors
-          const cleanup = () => URL.revokeObjectURL(imageUrl)
-          img.addEventListener('load', cleanup, { once: true })
-          img.addEventListener('error', cleanup, { once: true })
-        } catch (error) {
-          console.error('Failed to load full-size image for thumbnail:', error)
-          // Fallback to thumbnail if available
-          if (photo.thumbnailData) {
-            img.src = photo.thumbnailData
+      if (photo) {
+        // First, try to use the full-size image if available
+        if (photo.imageData) {
+          try {
+            const imageUrl = URL.createObjectURL(photo.imageData)
+            this.trackObjectUrl(modalId, imageUrl)
+
+            // Set up the fallback to thumbnail BEFORE setting the src
+            img.addEventListener('error', () => {
+              // On error, try thumbnail as fallback
+              if (photo.thumbnailData) {
+                img.src = photo.thumbnailData
+              }
+            }, { once: true })
+
+            // Now set the source to the full-size image
+            img.src = imageUrl
+
+            // Optional: Set up load success handling
+            img.addEventListener('load', () => {
+              // Image loaded successfully, no action needed
+              // The object URL will be cleaned up when the modal closes
+            }, { once: true })
+          } catch (error) {
+            console.error('Failed to create object URL, falling back to thumbnail:', error)
+            // On creation failure, fallback to thumbnail
+            if (photo.thumbnailData) {
+              img.src = photo.thumbnailData
+            } else {
+              // If no thumbnail, show a placeholder
+              img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
+            }
           }
+        } else if (photo.thumbnailData) {
+          // If no full-size image available, use thumbnail
+          img.src = photo.thumbnailData
+        } else {
+          // If no thumbnail either, show a placeholder
+          img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
         }
       }
     })
@@ -1100,6 +1158,521 @@ export class ModalManager {
   }
 
   /**
+   * Creates and displays a photo gallery modal with a list of photos and single photo viewer functionality.
+   * @param {Array<Object>} photos - Array of photo objects to display in the gallery
+   * @param {Object} options - Configuration options for the gallery
+   * @param {string} options.title - Title for the gallery modal
+   * @param {boolean} options.showOnMapOption - Whether to show "Show on Map" option
+   * @param {string} [options.initialPhotoId] - Optional ID of the photo to start viewing in single photo mode
+   * @param {Function} onShowOnMap - Callback when "Show on Map" is clicked (receives photoId)
+   * @param {Function} onDeletePhoto - Callback when "Delete Photo" is clicked (receives photoId)
+   * @param {Function} onClose - Callback when the modal is closed
+   * @returns {HTMLElement} - The created modal element
+   */
+  createPhotoGalleryModal (photos, options, onShowOnMap, onDeletePhoto, onClose) {
+    const {
+      title = 'Photo Gallery',
+      showOnMapOption = false,
+      initialPhotoId = null
+    } = options
+
+    // Determine initial view: 'list' or 'single'
+    const initialView = initialPhotoId ? 'single' : 'list'
+    const initialPhotoIndex = initialPhotoId
+      ? photos.findIndex(photo => photo.id === initialPhotoId)
+      : 0
+
+    const currentView = initialView
+    const currentPhotoIndex = initialPhotoIndex !== -1 ? initialPhotoIndex : 0
+    const photoObjectUrls = {} // To store object URLs for each photo
+
+    // Pagination setup
+    const itemsPerPage = 20 // Reduced from 50 to 20 for better performance
+    // const totalPages = Math.ceil(photos.length / itemsPerPage)
+    // const hasPagination = totalPages > 1
+
+    // Show the first page of photos
+    const firstPagePhotos = photos.length > 0 ? photos.slice(0, itemsPerPage) : photos
+
+    const modalHtml = `
+      <div class="modal photo-gallery-modal" id="photo-gallery-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content photo-gallery-content">
+          <div class="modal-header">
+            <h3 class="gallery-title">${title}</h3>
+            <div class="modal-header-actions">
+              <button class="modal-close" type="button" aria-label="Close">×</button>
+            </div>
+          </div>
+          <div class="modal-body photo-gallery-body">
+            <!-- List View: Grid of photos -->
+            <div id="gallery-list-view" class="gallery-view ${currentView === 'list' ? 'active' : ''}">
+              <div class="photo-grid" id="photo-grid-container">
+                ${this._generatePhotoGridItems(firstPagePhotos)}
+              </div>
+            </div>
+            
+            <!-- Single Photo View -->
+            <div id="gallery-single-view" class="gallery-view ${currentView === 'single' ? 'active' : ''}">
+              <div class="single-photo-viewer">
+                <div class="photo-display-container">
+                  <img id="current-photo-display" class="current-photo" alt="Current photo in gallery" />
+                  
+                  <!-- Overlay for navigation controls -->
+                  <div class="nav-controls">
+                    <button id="prev-photo-btn" class="nav-btn prev-btn" title="Previous Photo">←</button>
+                    <button id="view-list-btn" class="list-btn" title="View All Photos">☷</button>
+                    <button id="next-photo-btn" class="nav-btn next-btn" title="Next Photo">→</button>
+                  </div>
+                  
+                  <!-- Overlay for photo info -->
+                  <div class="photo-overlay-info">
+                    <h4 id="current-photo-title">Photo Title</h4>
+                    <p>Marker: <span id="marker-description"></span></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Footer for action buttons -->
+          <div class="modal-footer">
+            <div class="modal-actions">
+              ${showOnMapOption ? '<button id="show-on-map-btn" class="btn btn-primary">📍 Show on Map</button>' : ''}
+              ${onDeletePhoto ? '<button id="delete-photo-btn" class="btn btn-danger">🗑️ Delete Photo</button>' : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    const parser = new DOMParser()
+    const modalDoc = parser.parseFromString(modalHtml, 'text/html')
+    const modal = modalDoc.querySelector('.modal')
+    if (!modal) {
+      console.error('Failed to create photo gallery modal element.')
+      if (onClose) onClose()
+      return null
+    }
+
+    document.body.appendChild(modal)
+    this.activeModals.add(modal)
+
+    // Track object URLs for this specific modal (essential for cleanup)
+    const modalId = modal.id
+    this.trackObjectUrl(modalId, null) // Initialize the set
+
+    // Set up modal functionality
+    this.setupPhotoGalleryModal(modal, photos, {
+      ...options,
+      initialView,
+      currentPhotoIndex
+    }, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose)
+
+    requestAnimationFrame(() => {
+      modal.classList.add('show')
+    })
+
+    return modal
+  }
+
+  /**
+   * Helper to generate HTML for photo grid items
+   * @param {Array<Object>} photos - Array of photo objects
+   * @returns {string} HTML string for the photo grid
+   */
+  _generatePhotoGridItems (photos) {
+    return photos.map((photo, index) => `
+      <div class="photo-grid-item" data-photo-id="${photo.id}" data-index="${index}">
+        <img 
+          src="${photo.thumbnailDataUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'}" 
+          alt="${photo.fileName || 'Photo'}" 
+          class="photo-grid-thumbnail" 
+          data-photo-id="${photo.id}"
+          data-use-full-image="true"
+        />
+        <div class="photo-grid-info">
+          <div class="photo-filename">${photo.fileName || 'Untitled'}</div>
+          ${photo.markerDescription ? `<div class="photo-marker">${photo.markerDescription}</div>` : ''}
+        </div>
+      </div>
+    `).join('')
+  }
+
+  /**
+   * Set up photo gallery modal functionality
+   * @param {HTMLElement} modal - Modal element
+   * @param {Array<Object>} photos - Array of photo objects
+   * @param {Object} options - Configuration options for the gallery
+   * @param {Object} photoObjectUrls - Object to store photo object URLs
+   * @param {Function} onShowOnMap - Callback when "Show on Map" is clicked (receives photoId)
+   * @param {Function} onDeletePhoto - Callback when "Delete Photo" is clicked (receives photoId)
+   * @param {Function} onClose - Callback when the modal is closed
+   */
+  setupPhotoGalleryModal (modal, photos, options, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose) {
+    const { initialView, currentPhotoIndex: initialPhotoIndex } = options
+    let currentView = initialView
+    let currentPhotoIndex = initialPhotoIndex
+
+    // Get modal elements
+    const closeBtn = modal.querySelector('.modal-close')
+    const backdrop = modal.querySelector('.modal-backdrop')
+
+    // View containers
+    const listView = modal.querySelector('#gallery-list-view')
+    const singleView = modal.querySelector('#gallery-single-view')
+
+    // Navigation elements
+    const prevPhotoBtn = modal.querySelector('#prev-photo-btn')
+    const nextPhotoBtn = modal.querySelector('#next-photo-btn')
+    const viewListBtn = modal.querySelector('#view-list-btn')
+
+    // Single photo elements
+    const currentPhotoDisplay = modal.querySelector('#current-photo-display')
+    const currentPhotoTitle = modal.querySelector('#current-photo-title')
+    const markerDescription = modal.querySelector('#marker-description')
+    const showOnMapBtn = modal.querySelector('#show-on-map-btn')
+    const deletePhotoBtn = modal.querySelector('#delete-photo-btn')
+
+    // Set up close functionality
+    const closeModal = () => {
+      // Clean up all object URLs when closing the modal
+      Object.values(photoObjectUrls).forEach(url => {
+        if (url) {
+          URL.revokeObjectURL(url)
+        }
+      })
+
+      this.closeModal(modal)
+      if (onClose) onClose()
+    }
+
+    // Setup for Pagination functionality
+    const itemsPerPage = 20 // Reduced from 50 to 20 for better performance
+    const totalPages = Math.ceil(photos.length / itemsPerPage)
+    const hasPagination = totalPages > 1
+    let currentPage = 1
+
+    // Set up list view photo click handlers for gallery
+    const setupGalleryPhotoClickHandlers = () => {
+      // Get the photos that are actually displayed in the current view
+      // const startIndex = (currentPage - 1) * itemsPerPage
+      // const endIndex = Math.min(startIndex + itemsPerPage, photos.length)
+      // const currentPhotos = photos.slice(startIndex, endIndex)
+
+      modal.querySelectorAll('.photo-grid-item').forEach((item, index) => {
+        // The index here corresponds to the current page photos, not the full set
+        item.addEventListener('click', () => {
+          // Find the actual index in the full photos array to ensure correct navigation
+          const photoId = item.dataset.photoId
+          const actualIndex = photos.findIndex(photo => photo.id === photoId)
+          if (actualIndex !== -1) {
+            showSingleView(actualIndex)
+          }
+        })
+      })
+
+      // Load images with fallback strategy - try full-size first, fallback to thumbnail for grid view
+      modal.querySelectorAll('.photo-grid-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
+        const photoId = img.dataset.photoId
+        const photo = photos.find(p => p.id === photoId) // Use the full photos array to find the photo
+
+        if (photo) {
+          // First, try to use the full-size image if available
+          if (photo.imageData) {
+            try {
+              const imageUrl = URL.createObjectURL(photo.imageData)
+              this.trackObjectUrl(modal.id, imageUrl)
+
+              // Set up the fallback to thumbnail BEFORE setting the src
+              img.addEventListener('error', () => {
+                // On error, try thumbnail as fallback
+                if (photo.thumbnailDataUrl) {
+                  img.src = photo.thumbnailDataUrl
+                }
+              }, { once: true })
+
+              // Now set the source to the full-size image
+              img.src = imageUrl
+
+              // Optional: Set up load success handling
+              img.addEventListener('load', () => {
+                // Image loaded successfully, no action needed
+                // The object URL will be cleaned up when the modal closes
+              }, { once: true })
+            } catch (error) {
+              console.error('Failed to create object URL for grid view, falling back to thumbnail:', error)
+              // On creation failure, fallback to thumbnail
+              if (photo.thumbnailDataUrl) {
+                img.src = photo.thumbnailDataUrl
+              } else {
+                // If no thumbnail, show a placeholder
+                img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
+              }
+            }
+          } else if (photo.thumbnailDataUrl) {
+            // If no full-size image available, use thumbnail
+            img.src = photo.thumbnailDataUrl
+          } else {
+            // If no thumbnail either, show a placeholder
+            img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
+          }
+        }
+      })
+    }
+
+    const updateGalleryDisplay = () => {
+      const startIndex = (currentPage - 1) * itemsPerPage
+      const endIndex = Math.min(startIndex + itemsPerPage, photos.length)
+      const currentPhotos = photos.slice(startIndex, endIndex)
+
+      // Update the photo grid
+      const photoGridContainer = modal.querySelector('#photo-grid-container')
+      if (photoGridContainer) {
+        photoGridContainer.innerHTML = this._generatePhotoGridItems(currentPhotos)
+
+        // Re-attach event listeners for the new photo grid items
+        setupGalleryPhotoClickHandlers()
+      }
+
+      // Update pagination controls in footer
+      const paginationControls = modal.querySelector('.pagination-controls-footer')
+      if (paginationControls) {
+        const prevBtn = paginationControls.querySelector('.pagination-prev')
+        const nextBtn = paginationControls.querySelector('.pagination-next')
+        const infoText = paginationControls.querySelector('.pagination-info')
+
+        if (prevBtn) {
+          prevBtn.disabled = currentPage <= 1
+        }
+        if (nextBtn) {
+          nextBtn.disabled = currentPage >= totalPages
+        }
+        if (infoText) {
+          infoText.textContent = `Page ${currentPage} of ${totalPages} (${startIndex + 1}-${endIndex} of ${photos.length} photos)`
+        }
+      }
+    }
+
+    // Add pagination controls to the modal footer only for gallery view
+    const modalFooter = modal.querySelector('.modal-footer')
+    if (modalFooter && hasPagination) {
+      // Create pagination controls container
+      const paginationContainer = document.createElement('div')
+      paginationContainer.className = 'pagination-controls-footer'
+      paginationContainer.innerHTML = `
+        <button class="btn pagination-prev" title="Previous Page">← Prev</button>
+        <span class="pagination-info">Page 1 of ${totalPages}</span>
+        <button class="btn pagination-next" title="Next Page">Next →</button>
+      `
+
+      // Insert before the existing action buttons
+      modalFooter.insertBefore(paginationContainer, modalFooter.firstChild)
+
+      const prevBtn = paginationContainer.querySelector('.pagination-prev')
+      const nextBtn = paginationContainer.querySelector('.pagination-next')
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          if (currentPage > 1) {
+            currentPage--
+            updateGalleryDisplay()
+          }
+        })
+      }
+
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          if (currentPage < totalPages) {
+            currentPage++
+            updateGalleryDisplay()
+          }
+        })
+      }
+
+      // Initially show pagination controls only in gallery view
+      const updatePaginationVisibility = () => {
+        if (paginationContainer) {
+          if (currentView === 'list') {
+            paginationContainer.style.display = 'flex'
+          } else {
+            paginationContainer.style.display = 'none'
+          }
+        }
+      }
+
+      // Set initial visibility
+      updatePaginationVisibility()
+    }
+
+    // Initialize the first page
+    updateGalleryDisplay()
+
+    closeBtn?.addEventListener('click', closeModal)
+    backdrop?.addEventListener('click', closeModal)
+
+    // Function to show the list view
+    const showListView = () => {
+      currentView = 'list'
+      listView.classList.add('active')
+      singleView.classList.remove('active')
+
+      // Update action buttons visibility (hide in list view)
+      const modalActions = modal.querySelector('.modal-actions')
+      if (modalActions) {
+        modalActions.style.display = 'none'
+      }
+
+      // Update pagination visibility
+      const paginationContainer = modal.querySelector('.pagination-controls-footer')
+      if (paginationContainer) {
+        paginationContainer.style.display = hasPagination ? 'flex' : 'none'
+      }
+    }
+
+    // Function to show the single photo view
+    const showSingleView = (photoIndex) => {
+      if (photoIndex < 0 || photoIndex >= photos.length) return
+
+      currentPhotoIndex = photoIndex
+      const photo = photos[currentPhotoIndex]
+
+      // Create or get object URL for the photo
+      if (!photoObjectUrls[photo.id] && photo.imageData) {
+        photoObjectUrls[photo.id] = URL.createObjectURL(photo.imageData)
+        this.trackObjectUrl(modal.id, photoObjectUrls[photo.id])
+      }
+
+      // Update the image display
+      if (photoObjectUrls[photo.id]) {
+        currentPhotoDisplay.src = photoObjectUrls[photo.id]
+      } else if (photo.thumbnailDataUrl) {
+        currentPhotoDisplay.src = photo.thumbnailDataUrl
+      } else {
+        currentPhotoDisplay.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" font-family="Arial" font-size="10" fill="%23999" text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
+      }
+
+      // Update title and marker info (now in overlay)
+      currentPhotoTitle.textContent = photo.fileName || 'Untitled Photo'
+      markerDescription.textContent = photo.markerDescription || 'No marker description'
+
+      // Show single photo view
+      currentView = 'single'
+      singleView.classList.add('active')
+      listView.classList.remove('active')
+
+      // Update action buttons visibility (show in single photo view)
+      const modalActions = modal.querySelector('.modal-actions')
+      if (modalActions) {
+        modalActions.style.display = 'flex'
+      }
+
+      // Hide pagination controls in single photo view
+      const paginationContainer = modal.querySelector('.pagination-controls-footer')
+      if (paginationContainer) {
+        paginationContainer.style.display = 'none'
+      }
+    }
+
+    // Set up navigation buttons
+    prevPhotoBtn?.addEventListener('click', () => {
+      if (currentPhotoIndex > 0) {
+        showSingleView(currentPhotoIndex - 1)
+      }
+    })
+
+    nextPhotoBtn?.addEventListener('click', () => {
+      if (currentPhotoIndex < photos.length - 1) {
+        showSingleView(currentPhotoIndex + 1)
+      }
+    })
+
+    // View list button
+    viewListBtn?.addEventListener('click', showListView)
+
+    // Show on map button
+    showOnMapBtn?.addEventListener('click', () => {
+      if (onShowOnMap && currentPhotoIndex >= 0 && currentPhotoIndex < photos.length) {
+        onShowOnMap(photos[currentPhotoIndex].id)
+      }
+    })
+
+    // Delete photo button
+    deletePhotoBtn?.addEventListener('click', () => {
+      if (onDeletePhoto && currentPhotoIndex >= 0 && currentPhotoIndex < photos.length) {
+        const photoId = photos[currentPhotoIndex].id
+        if (confirm('Are you sure you want to delete this photo? This action cannot be undone.')) {
+          onDeletePhoto(photoId)
+        }
+      }
+    })
+
+    // Set up swipe and keyboard navigation
+    let touchStartX = 0
+    let touchEndX = 0
+
+    currentPhotoDisplay.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX
+    }, { passive: true })
+
+    currentPhotoDisplay.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX
+      handleSwipe()
+    }, { passive: true })
+
+    const handleSwipe = () => {
+      const swipeThreshold = 50
+      if (touchStartX - touchEndX > swipeThreshold) {
+        // Swipe left - next photo
+        nextPhotoBtn?.click()
+      } else if (touchEndX - touchStartX > swipeThreshold) {
+        // Swipe right - previous photo
+        prevPhotoBtn?.click()
+      }
+    }
+
+    // Keyboard navigation
+    const handleKeyDown = (e) => {
+      if (currentView === 'single') {
+        if (e.key === 'ArrowLeft') {
+          prevPhotoBtn?.click()
+        } else if (e.key === 'ArrowRight') {
+          nextPhotoBtn?.click()
+        } else if (e.key === 'Escape') {
+          showListView()
+        } else if (e.key === 'l' || e.key === 'L') {
+          showListView()
+        }
+      }
+    }
+
+    // Add keyboard event listener to the modal
+    modal.addEventListener('keydown', handleKeyDown)
+
+    // Initialize the gallery based on the initial view
+    if (currentView === 'list') {
+      singleView.classList.remove('active')
+      listView.classList.add('active')
+      setupGalleryPhotoClickHandlers()
+
+      // Hide action buttons in footer when starting with list view
+      const modalActions = modal.querySelector('.modal-actions')
+      if (modalActions) {
+        modalActions.style.display = 'none'
+      }
+
+      // Show pagination controls in footer when starting with list view
+      const paginationContainer = modal.querySelector('.pagination-controls-footer')
+      if (paginationContainer) {
+        paginationContainer.style.display = hasPagination ? 'flex' : 'none'
+      }
+    } else {
+      listView.classList.remove('active')
+      showSingleView(currentPhotoIndex)
+    }
+  }
+
+  /**
      * Creates and displays the App Settings modal with tabbed sections.
      * @param {Object} callbacks - An object containing callbacks for various settings actions.
      * @param {Array<Object>} maps - Array of map metadata objects for Maps Management.
@@ -1176,7 +1749,16 @@ export class ModalManager {
     <!-- General Settings Tab -->
     <div id="general-settings" class="tab-pane">
     <h4>General Settings</h4>
-    <p>Nothing yet.</p>
+    <div class="form-group">
+    <label class="checkbox-label toggle-switch-label">
+    <input type="checkbox" id="toggle-notifications" />
+    <span class="toggle-switch-slider"></span>
+    Enable Notifications
+    </label>
+    <small class="text-secondary mt-xs">
+    Toggle toast notifications for app events.
+    </small>
+    </div>
     </div>
     <!-- App Behavior Settings Tab -->
     <div id="app-behavior-settings" class="tab-pane">
@@ -1462,6 +2044,16 @@ export class ModalManager {
         }
       })
     }
+    // --- GENERAL SETTINGS LISTENERS (NEW) ---
+    const toggleNotifications = modal.querySelector('#toggle-notifications')
+    if (toggleNotifications && callbacks.getNotificationsEnabled) {
+      toggleNotifications.checked = callbacks.getNotificationsEnabled()
+      toggleNotifications.addEventListener('change', () => {
+        if (callbacks.setNotificationsEnabled) {
+          callbacks.setNotificationsEnabled(toggleNotifications.checked)
+        }
+      })
+    }
     return modal
   }
 
@@ -1577,16 +2169,31 @@ export class ModalManager {
   }
 
   /**
+   * Format file size for display
+   * @param {number} bytes - Size in bytes
+   * @returns {string} - Formatted size string
+   */
+  formatFileSize (bytes) {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  /**
    * Creates and displays a modal for the user to decide how to process an imported map
-   * that matches existing maps by image content.
-   * @param {Array<Object>} existingMaps - An array of map objects that match the imported data's image hash.
+   * that matches existing maps by image content or secondary criteria.
+   * @param {Array<Object>} existingMaps - An array of map objects that match the imported data's image hash (primary matches).
+   * @param {Array<Object>} secondaryMatches - An array of map objects that match based on secondary criteria (fuzzy matching).
    * @returns {Promise<{action: string, selectedMapId?: string}|null>} A promise that resolves with the user's
    *          chosen action ('merge', 'replace', 'new') and the ID of the selected existing map (if applicable),
    *          or null if the user cancels.
    */
-  createImportDecisionModal (existingMaps) {
-    if (!existingMaps || existingMaps.length === 0) {
-      console.error('ModalManager: createImportDecisionModal called without existingMaps.')
+  createImportDecisionModal (existingMaps, secondaryMatches = []) {
+    // If no primary or secondary matches, return early (should be handled by caller)
+    if ((!existingMaps || existingMaps.length === 0) && (!secondaryMatches || secondaryMatches.length === 0)) {
+      console.error('ModalManager: createImportDecisionModal called without any matches.')
       return Promise.resolve(null)
     }
 
@@ -1596,16 +2203,98 @@ export class ModalManager {
       resolvePromise = resolve
     })
 
-    const mapsHtml = existingMaps.map(map => `
-      <div class="form-group map-selection-item">
-        <label class="radio-label">
-          <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" />
-          <span class="checkmark"></span>
-          <strong>${map.name}</strong> 
-          <span class="text-secondary text-xs">(${map.id.substring(map.id.length - 8)})</span>
-        </label>
-      </div>
-    `).join('')
+    // Create HTML for primary matches (imageHash matches) using map cards with radio selection
+    let primaryMatchesHtml = ''
+    if (existingMaps && existingMaps.length > 0) {
+      // Create HTML content for primary matches using the same layout as map cards in UIRenderer
+      const primaryCardsHtml = existingMaps.map(map => {
+        const initials = map.name ? map.name.substring(0, 2).toUpperCase() : '??'
+        const markerCountText = map.markerCount !== undefined ? (map.markerCount === 1 ? '1 Marker' : `${map.markerCount} Markers`) : 'Loading markers...'
+
+        // Create thumbnail HTML (similar to UIRenderer.createCardElement)
+        const thumbnailHtml = `
+          <div class="map-thumbnail-container">
+            ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map Thumbnail" class="map-thumbnail">` : `<span class="map-initials">${initials}</span>`}
+          </div>
+        `
+
+        return `
+          <div class="form-group map-selection-item">
+            <label class="map-card-label radio-label">
+              <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" data-match-type="primary"/>
+              <div class="map-card-content">
+                ${thumbnailHtml}
+                <div class="map-info">
+                  <span class="map-name">${map.name}</span>
+                  <div class="map-details">${markerCountText}</div>
+                  <div class="map-dimensions">${map.width} × ${map.height} px</div>
+                  <div class="map-size">${this.formatFileSize(map.fileSize)}</div>
+                </div>
+              </div>
+              <span class="checkmark"></span>
+            </label>
+          </div>
+        `
+      }).join('')
+
+      primaryMatchesHtml = `
+        <div class="form-group">
+          <label>Exact matches (by image content):</label>
+          <div class="map-selection-list">${primaryCardsHtml}</div>
+        </div>
+      `
+    }
+
+    // Create HTML for secondary matches (fuzzy matches) using map cards with radio selection
+    let secondaryMatchesHtml = ''
+    if (secondaryMatches && secondaryMatches.length > 0) {
+      const secondaryCardsHtml = secondaryMatches.map(map => {
+        const initials = map.name ? map.name.substring(0, 2).toUpperCase() : '??'
+        const markerCountText = map.markerCount !== undefined ? (map.markerCount === 1 ? '1 Marker' : `${map.markerCount} Markers`) : 'Loading markers...'
+
+        // Create thumbnail HTML (similar to UIRenderer.createCardElement)
+        const thumbnailHtml = `
+          <div class="map-thumbnail-container">
+            ${map.thumbnailDataUrl ? `<img src="${map.thumbnailDataUrl}" alt="Map Thumbnail" class="map-thumbnail">` : `<span class="map-initials">${initials}</span>`}
+          </div>
+        `
+
+        return `
+          <div class="form-group map-selection-item">
+            <label class="map-card-label radio-label">
+              <input type="radio" name="selectedMap" value="${map.id}" data-map-name="${map.name}" data-match-type="secondary"/>
+              <div class="map-card-content">
+                ${thumbnailHtml}
+                <div class="map-info">
+                  <span class="map-name">${map.name}</span>
+                  <div class="map-details">${markerCountText}</div>
+                  <div class="map-dimensions">${map.width} × ${map.height} px</div>
+                  <div class="map-size">${this.formatFileSize(map.fileSize)}</div>
+                </div>
+              </div>
+              <span class="checkmark"></span>
+            </label>
+          </div>
+        `
+      }).join('')
+
+      secondaryMatchesHtml = `
+        <div class="form-group">
+          <label>Potential matches (by secondary criteria):</label>
+          <div class="map-selection-list">${secondaryCardsHtml}</div>
+        </div>
+      `
+    }
+
+    // Determine the message based on type of matches
+    const hasPrimaryMatches = existingMaps && existingMaps.length > 0
+    const hasSecondaryMatches = secondaryMatches && secondaryMatches.length > 0
+    let message = 'An imported map matches existing map(s) on this device. Please choose how to proceed:'
+    if (!hasPrimaryMatches && hasSecondaryMatches) {
+      message = "An imported map doesn't match exactly but has potential matches based on secondary criteria. Please choose how to proceed:"
+    } else if (hasPrimaryMatches && !hasSecondaryMatches) {
+      message = 'An imported map matches existing map(s) on this device based on its image content. Please choose how to proceed:'
+    }
 
     const modalHtml = `
       <div class="modal" id="${modalId}">
@@ -1616,12 +2305,10 @@ export class ModalManager {
             <button class="modal-close" type="button" aria-label="Close">×</button>
           </div>
           <div class="modal-body">
-            <p>An imported map matches existing map(s) on this device based on its image content. Please choose how to proceed:</p>
+            <p>${message}</p>
             
-            <div class="form-group">
-                <label>Select an existing map to act upon:</label>
-                <div class="map-selection-list">${mapsHtml}</div>
-            </div>
+            ${primaryMatchesHtml}
+            ${secondaryMatchesHtml}
 
             <div class="button-group decision-buttons">
                 <button class="btn btn-primary" id="btn-action-merge" type="button" disabled>Merge into selected map</button>

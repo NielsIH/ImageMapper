@@ -177,8 +177,8 @@
 
   /* --- Modal Actions Footer --- */
   .modal-actions {
-    flex-direction: column-reverse;
-    /* Stack buttons vertically, reverse order */
+    flex-direction: column;
+    /* Stack buttons vertically, maintain HTML order */
   }
 
   .modal-actions .btn {
