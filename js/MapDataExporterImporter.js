@@ -1,6 +1,7 @@
 // js/MapDataExporterImporter.js
 
 /* global Blob, URL, crypto */ // Declare global objects used in this file
+import { Utils } from './utils.js'
 
 /**
  * Utility class for managing the export and import of SnapSpot data.
@@ -63,7 +64,7 @@ export class MapDataExporterImporter {
         try {
           const arrayBuffer = await exportMap.imageData.arrayBuffer()
           const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-          const calculatedImageHash = this._arrayBufferToHex(hashBuffer)
+          const calculatedImageHash = Utils._arrayBufferToHex(hashBuffer)
 
           // Update the export map with the calculated hash
           exportMap.imageHash = calculatedImageHash
@@ -192,7 +193,7 @@ export class MapDataExporterImporter {
         try {
           const arrayBuffer = await exportMap.imageData.arrayBuffer()
           const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-          const calculatedImageHash = this._arrayBufferToHex(hashBuffer)
+          const calculatedImageHash = Utils._arrayBufferToHex(hashBuffer)
 
           // Update the export map with the calculated hash
           exportMap.imageHash = calculatedImageHash
@@ -456,7 +457,7 @@ export class MapDataExporterImporter {
       try {
         const arrayBuffer = await importedMap.imageData.arrayBuffer()
         const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-        importedMap.imageHash = this._arrayBufferToHex(hashBuffer)
+        importedMap.imageHash = Utils._arrayBufferToHex(hashBuffer)
         console.log(`Generated hash for legacy map: ${importedMap.imageHash}`)
       } catch (error) {
         console.error('Failed to generate imageHash for legacy map:', error)
@@ -650,19 +651,7 @@ export class MapDataExporterImporter {
     return groupedMarkers
   }
 
-  /**
-   * Helper to convert an ArrayBuffer to a hexadecimal string.
-   * This is duplicated from FileManager to avoid circular dependency,
-   * as this class might need to handle raw image data for conversion in the future
-   * (e.g., if re-serializing a map image for export, though currently only hash is exported).
-   * @param {ArrayBuffer} buffer - The ArrayBuffer to convert.
-   * @returns {string} - The hexadecimal string representation.
-   */
-  static _arrayBufferToHex (buffer) {
-    return Array.prototype.map.call(new Uint8Array(buffer), (x) =>
-      ('00' + x.toString(16)).slice(-2)
-    ).join('')
-  }
+
 
   /**
    * Get secondary map matches based on fuzzy matching criteria when imageHash doesn't match.

@@ -20,6 +20,7 @@ import { HtmlReportGenerator } from './HtmlReportGenerator.js'
 import { MapDataExporterImporter } from './MapDataExporterImporter.js'
 import { SearchManager } from './searchManager.js' // NEW import
 import { ModalManager } from './ui/modals.js' // Note the path for ModalManager
+import { Utils } from './utils.js'
 // --- End Module Imports ---
 
 class SnapSpotApp {
@@ -2054,18 +2055,7 @@ class SnapSpotApp {
     }
   }
 
-  /**
-   * Format file size for display
-   */
-  formatFileSize (bytes) {
-    if (bytes === 0) return '0 Bytes'
 
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
 
   /**
    * Show error message to user

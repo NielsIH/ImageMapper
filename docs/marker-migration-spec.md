@@ -54,7 +54,7 @@ const MIGRATION_STORE = 'temp_migrations';
    - Source map dimensions
    - Zoomed-in images for each reference point (200x200px area)
    - Migration metadata flag
-8. System exports the data to a migration-specific JSON file with .migration extension
+8. System exports the data to a migration-specific JSON file
 
 ### Phase 2: Prepare Destination Map
 

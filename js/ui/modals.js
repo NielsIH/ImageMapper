@@ -11,6 +11,7 @@
 
 import { UIRenderer } from './uiRenderer.js'
 import { FileManager } from '../fileManager.js'
+import { Utils } from '../utils.js'
 
 export class ModalManager {
   constructor () {
@@ -2169,19 +2170,6 @@ export class ModalManager {
   }
 
   /**
-   * Format file size for display
-   * @param {number} bytes - Size in bytes
-   * @returns {string} - Formatted size string
-   */
-  formatFileSize (bytes) {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  /**
    * Creates and displays a modal for the user to decide how to process an imported map
    * that matches existing maps by image content or secondary criteria.
    * @param {Array<Object>} existingMaps - An array of map objects that match the imported data's image hash (primary matches).
@@ -2228,7 +2216,7 @@ export class ModalManager {
                   <span class="map-name">${map.name}</span>
                   <div class="map-details">${markerCountText}</div>
                   <div class="map-dimensions">${map.width} × ${map.height} px</div>
-                  <div class="map-size">${this.formatFileSize(map.fileSize)}</div>
+                  <div class="map-size">${Utils.formatFileSize(map.fileSize)}</div>
                 </div>
               </div>
               <span class="checkmark"></span>
@@ -2269,7 +2257,7 @@ export class ModalManager {
                   <span class="map-name">${map.name}</span>
                   <div class="map-details">${markerCountText}</div>
                   <div class="map-dimensions">${map.width} × ${map.height} px</div>
-                  <div class="map-size">${this.formatFileSize(map.fileSize)}</div>
+                  <div class="map-size">${Utils.formatFileSize(map.fileSize)}</div>
                 </div>
               </div>
               <span class="checkmark"></span>
