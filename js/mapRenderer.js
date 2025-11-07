@@ -1011,7 +1011,7 @@ export class MapRenderer {
 
     // Show instruction overlay
     this.showMigrationInstructionOverlay()
-    
+
     // Ensure markers are editable during migration mode
     this.setMarkersEditable(true)
 
@@ -1045,8 +1045,6 @@ export class MapRenderer {
 
     this.render()
   }
-
-
 
   /**
    * Place a migration reference marker at the specified screen coordinates
@@ -1136,20 +1134,20 @@ export class MapRenderer {
         z-index: 1000;
         border-radius: 5px;
       `
-      
+
       // Create the content container
       const contentContainer = document.createElement('div')
       contentContainer.id = 'migration-content'
       contentContainer.style.marginBottom = '10px'
       contentContainer.textContent = 'Place 3 reference markers on easily recognizable features of the map'
       overlay.appendChild(contentContainer)
-      
+
       // Create the progress container
       const progressContainer = document.createElement('div')
       progressContainer.id = 'migration-progress'
       progressContainer.textContent = `${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3 reference markers placed`
       overlay.appendChild(progressContainer)
-      
+
       // Create buttons container with Cancel button always visible
       const buttonsContainer = document.createElement('div')
       buttonsContainer.style.cssText = `
@@ -1158,7 +1156,7 @@ export class MapRenderer {
         gap: 10px;
         margin-top: 10px;
       `
-      
+
       // Create Cancel button
       const cancelButton = document.createElement('button')
       cancelButton.id = 'migration-cancel-btn'
@@ -1178,10 +1176,10 @@ export class MapRenderer {
           this.migrationOnCancelCallback()
         }
       }
-      
+
       buttonsContainer.appendChild(cancelButton)
       overlay.appendChild(buttonsContainer)
-      
+
       this.canvas.parentElement.appendChild(overlay)
     }
   }
@@ -1194,7 +1192,7 @@ export class MapRenderer {
     if (progressContainer) {
       progressContainer.textContent = `${this.migrationReferenceMarkers ? this.migrationReferenceMarkers.length : 0}/3 reference markers placed`
     }
-    
+
     const contentContainer = document.getElementById('migration-content')
     if (contentContainer) {
       if (this.migrationReferenceMarkers && this.migrationReferenceMarkers.length >= 3) {
@@ -1221,7 +1219,7 @@ export class MapRenderer {
   showMigrationActionButtons () {
     // Remove the existing instruction overlay
     this.hideMigrationInstructionOverlay()
-    
+
     // Create a new overlay with action buttons
     let overlay = document.getElementById('migration-action-overlay')
     if (!overlay) {
@@ -1240,13 +1238,13 @@ export class MapRenderer {
         z-index: 1000;
         border-radius: 5px;
       `
-      
+
       // Create the content container
       const contentContainer = document.createElement('div')
       contentContainer.style.marginBottom = '10px'
       contentContainer.textContent = '3 reference markers placed. Reposition if needed or continue with export.'
       overlay.appendChild(contentContainer)
-      
+
       // Create buttons container
       const buttonsContainer = document.createElement('div')
       buttonsContainer.style.cssText = `
@@ -1254,7 +1252,7 @@ export class MapRenderer {
         justify-content: center;
         gap: 10px;
       `
-      
+
       // Create Cancel button
       const cancelButton = document.createElement('button')
       cancelButton.textContent = 'Cancel'
@@ -1272,7 +1270,7 @@ export class MapRenderer {
           this.migrationOnCancelCallback()
         }
       }
-      
+
       // Create Export button
       const exportButton = document.createElement('button')
       exportButton.textContent = 'Export'
@@ -1290,11 +1288,11 @@ export class MapRenderer {
           this.migrationOnCompleteCallback(this.migrationReferenceMarkers)
         }
       }
-      
+
       buttonsContainer.appendChild(cancelButton)
       buttonsContainer.appendChild(exportButton)
       overlay.appendChild(buttonsContainer)
-      
+
       this.canvas.parentElement.appendChild(overlay)
     }
   }
