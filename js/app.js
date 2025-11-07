@@ -107,6 +107,7 @@ class SnapSpotApp {
 
     this.showCrosshair = true
     this.markersLocked = true
+    this.isInMigrationModeForDestinationPlacement = false // New state for Phase 2
     // Initialize app when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.init())
@@ -1088,17 +1089,17 @@ class SnapSpotApp {
       return
     }
 
-    // Check if we're in migration mode for reference marker placement
-    if (this.isInMigrationModeForExport) {
-      // In migration mode, place a reference marker instead of a regular marker
+    // Check if we're in migration mode for reference marker placement (either export or destination)
+    if (this.isInMigrationModeForExport || this.isInMigrationModeForDestinationPlacement) {
       this.showLoading('Placing reference marker...')
       
       try {
         const centerX = this.mapRenderer.canvas.width / 2
         const centerY = this.mapRenderer.canvas.height / 2
         
-        // Call the mapRenderer method to place a reference marker at the center
-        await this.mapRenderer.placeMigrationReferenceMarkerAtScreenCoords(centerX, centerY)
+        // Pass a flag to mapRenderer to indicate whether to capture zoomed image
+        const captureZoomedImage = this.isInMigrationModeForExport
+        await this.mapRenderer.placeMigrationReferenceMarkerAtScreenCoords(centerX, centerY, captureZoomedImage)
         
         this.showNotification('Reference marker placed successfully!', 'success')
         this.updateAppStatus('Reference marker added')
@@ -1515,7 +1516,7 @@ class SnapSpotApp {
           // It was a short drag, treat as a click to open details
           console.log('Marker clicked (via short drag):', markerToSave.id)
           // During migration mode, don't show details for reference markers
-          if (!this.isInMigrationModeForExport) {
+          if (!this.isInMigrationModeForExport && !this.isInMigrationModeForDestinationPlacement) {
             this.showMarkerDetails(markerToSave.id)
           }
         } else {
@@ -1537,7 +1538,7 @@ class SnapSpotApp {
         if (clickedMarker) {
           console.log('Marker clicked (via short map pan interaction):', clickedMarker.id)
           // During migration mode, don't show details for reference markers
-          if (!this.isInMigrationModeForExport) {
+          if (!this.isInMigrationModeForExport && !this.isInMigrationModeForDestinationPlacement) {
             this.showMarkerDetails(clickedMarker.id)
           }
         } else {
@@ -1757,7 +1758,7 @@ class SnapSpotApp {
           // It was a short drag, treat as a tap to open details
           console.log('Marker tapped (via short touch drag):', markerToSave.id)
           // During migration mode, don't show details for reference markers
-          if (!this.isInMigrationModeForExport) {
+          if (!this.isInMigrationModeForExport && !this.isInMigrationModeForDestinationPlacement) {
             this.showMarkerDetails(markerToSave.id)
           }
         } else {
@@ -1779,7 +1780,7 @@ class SnapSpotApp {
         if (clickedMarker) {
           console.log('Marker tapped (via short map pan interaction):', clickedMarker.id)
           // During migration mode, don't show details for reference markers
-          if (!this.isInMigrationModeForExport) {
+          if (!this.isInMigrationModeForExport && !this.isInMigrationModeForDestinationPlacement) {
             this.showMarkerDetails(clickedMarker.id)
           }
         } else {
@@ -1831,6 +1832,43 @@ class SnapSpotApp {
     const dx = touch1.x - touch2.x
     const dy = touch1.y - touch2.y
     return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  /**
+   * Enters the migration reference placement mode for the destination map.
+   * @param {Array<Object>} originalMarkers - The original markers of the destination map.
+   * @param {Function} onComplete - Callback when 3 reference markers are placed.
+   * @param {Function} onCancel - Callback when migration placement is cancelled.
+   * @param {Function} onUpdateMarkers - Callback to update markers in app state.
+   */
+  async enterDestinationMigrationPlacementMode (originalMarkers, onComplete, onCancel, onUpdateMarkers) {
+    if (!this.currentMap) {
+      console.error('App: Cannot enter destination migration mode, no current map.')
+      this.showErrorMessage('Error', 'No map loaded to enter migration mode.')
+      return
+    }
+    this.isInMigrationModeForDestinationPlacement = true
+    this.mapRenderer.enterMigrationReferenceMode(
+      this.currentMap,
+      originalMarkers,
+      onComplete,
+      onCancel,
+      onUpdateMarkers,
+      'destination' // Indicate this is for destination placement
+    )
+    this.updateAppStatus('Placing reference markers on destination map...')
+    // Disable other UI elements as per spec (e.g., settings, search, map management)
+    // This will be handled in a separate UI management function or directly here.
+  }
+
+  /**
+   * Exits the migration reference placement mode for the destination map.
+   */
+  exitDestinationMigrationPlacementMode () {
+    this.isInMigrationModeForDestinationPlacement = false
+    this.mapRenderer.exitMigrationReferenceMode()
+    this.updateAppStatus('Exited destination migration mode.')
+    // Re-enable UI elements
   }
 
   // ========================================

@@ -33,6 +33,7 @@ export class MapRenderer {
       extraLarge: { radius: 24, fontSizeFactor: 1.4 }
     }
     this.markerCurrentDisplaySizeKey = 'normal' // Default size
+    this.isInDestinationMigrationMode = false // New state for Phase 2
 
     if (this.canvas.offsetParent !== null) {
       this.setupCanvas()
@@ -256,7 +257,7 @@ export class MapRenderer {
         // Draw crosshair-style reference markers during migration mode
         for (let i = 0; i < this.migrationReferenceMarkers.length; i++) {
           const marker = this.migrationReferenceMarkers[i]
-          this._drawCrosshairReferenceMarker(marker, i + 1)
+          this._drawCrosshairReferenceMarker(marker, i + 1, this.isInDestinationMigrationMode) // Pass isInDestinationMigrationMode
         }
       } else {
         // Draw regular markers if not in migration mode
@@ -993,8 +994,8 @@ export class MapRenderer {
    * @param {Array<object>} originalMarkers - All original markers to be hidden during reference placement
    * @param {Function} onComplete - Callback function to call when 3 reference markers are placed
    */
-  enterMigrationReferenceMode (map, originalMarkers, onComplete, onCancel, onUpdateMarkers) {
-    console.log('MapRenderer: Entering migration reference mode')
+  enterMigrationReferenceMode (map, originalMarkers, onComplete, onCancel, onUpdateMarkers, mode = 'source') {
+    console.log(`MapRenderer: Entering migration reference mode for ${mode} map`)
 
     // Store original markers to restore later
     this.originalMarkersForMigration = [...originalMarkers]
@@ -1008,6 +1009,7 @@ export class MapRenderer {
     // Track reference markers as they are placed
     this.migrationReferenceMarkers = []
     this.isInMigrationMode = true
+    this.isInDestinationMigrationMode = (mode === 'destination')
 
     // Show instruction overlay
     this.showMigrationInstructionOverlay()
@@ -1052,7 +1054,7 @@ export class MapRenderer {
    * @param {number} screenX - The X coordinate in screen space (canvas coordinates)
    * @param {number} screenY - The Y coordinate in screen space (canvas coordinates)
    */
-  async placeMigrationReferenceMarkerAtScreenCoords (screenX, screenY) {
+  async placeMigrationReferenceMarkerAtScreenCoords (screenX, screenY, captureZoomedImage = true) {
     if (!this.currentMap || !this.isInMigrationMode) {
       console.warn('MapRenderer: Cannot place migration reference marker - not in migration mode or no map loaded')
       return
@@ -1074,8 +1076,11 @@ export class MapRenderer {
     const mapX = mapCoords.x
     const mapY = mapCoords.y
 
-    // Capture a zoomed-in image of the reference point location
-    const zoomedImageData = this._captureZoomedImageAtCoords(mapX, mapY)
+    let zoomedImageData = null
+    if (captureZoomedImage) {
+      // Capture a zoomed-in image of the reference point location ONLY if captureZoomedImage is true
+      zoomedImageData = this._captureZoomedImageAtCoords(mapX, mapY)
+    }
 
     // Create a reference marker
     const referenceMarker = {
@@ -1086,7 +1091,7 @@ export class MapRenderer {
       createdDate: new Date(),
       description: `Reference Point ${this.migrationReferenceMarkers.length + 1}`,
       photoIds: [], // No photos associated with reference markers
-      zoomedImageData // Include the captured zoomed image
+      ...(zoomedImageData && { zoomedImageData }) // Conditionally include zoomedImageData
     }
 
     // Add the reference marker to the collection
@@ -1311,8 +1316,9 @@ export class MapRenderer {
    * Draw a crosshair-style reference marker for migration
    * @param {object} marker - The marker object to draw
    * @param {number} number - The reference number to display (1, 2, or 3)
+   * @param {boolean} isDestinationMode - True if drawing for destination map, false for source.
    */
-  _drawCrosshairReferenceMarker (marker, number) {
+  _drawCrosshairReferenceMarker (marker, number, isDestinationMode = false) {
     if (!this.currentMap) return
 
     // Use the existing mapToScreen method that correctly handles rotation
@@ -1332,8 +1338,12 @@ export class MapRenderer {
     const size = this.markerSizeSettings[this.markerCurrentDisplaySizeKey].radius
     const crosshairSize = size * 1.5 // Make crosshairs slightly larger than regular markers
 
+    // Use a distinctive color for reference markers, different for destination
+    const strokeStyle = isDestinationMode ? '#10B981' : '#FF5722' // Green for destination, Orange for source
+    const fillStyle = isDestinationMode ? '#059669' : '#FF5722' // Darker green for destination
+
     // Draw the crosshair
-    this.ctx.strokeStyle = '#FF5722' // Use a distinctive color for reference markers
+    this.ctx.strokeStyle = strokeStyle
     this.ctx.lineWidth = 2
     this.ctx.beginPath()
 
@@ -1351,7 +1361,7 @@ export class MapRenderer {
     this.ctx.stroke()
 
     // Draw the number above the marker
-    this.ctx.fillStyle = '#FF5722'
+    this.ctx.fillStyle = fillStyle
     this.ctx.font = `${Math.max(16, size * 0.8)}px Arial`
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'bottom'
