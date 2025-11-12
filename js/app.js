@@ -2462,6 +2462,7 @@ class SnapSpotApp {
             this.modalManager.updateMarkerDetailsDescription(markerIdToSave, newDescription)
             this.showNotification('Description updated.', 'success')
             console.log(`Marker ${markerIdToSave} description saved.`)
+            this.refreshMarkersDisplay() // Re-render map to reflect potential description changes affecting coloring
           } catch (error) {
             console.error('Failed to save description:', error)
             this.showErrorMessage('Save Error', `Failed to save description: ${error.message}`)
