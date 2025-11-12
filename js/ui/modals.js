@@ -1673,6 +1673,62 @@ export class ModalManager {
   }
 
   /**
+   * Helper to generate the HTML for a single custom marker coloring rule row.
+   * @param {number} index - The index of the rule (0-4).
+   * @param {Object} rule - The rule object to pre-fill the fields, or null for an empty rule.
+   * @param {Array<Object>} colors - Array of predefined color objects.
+   * @param {Array<Object>} operators - Array of predefined operator objects.
+   * @returns {string} HTML string for a rule row.
+   * @private
+   */
+  _generateRuleRowHtml (index, rule, colors, operators) {
+    const selectedOperator = rule ? rule.operator : 'none'
+    const selectedColor = rule ? rule.color : colors[0].hex // Default to first color
+    const ruleValue = rule ? rule.value || '' : ''
+    const isValueInputDisabled = selectedOperator !== 'contains'
+
+    const operatorOptions = [
+      '<option value="none">None</option>',
+      ...operators.map(op => `<option value="${op.value}" ${selectedOperator === op.value ? 'selected' : ''}>${op.label}</option>`)
+    ].join('')
+
+    const colorOptions = colors.map(color => `
+      <option value="${color.hex}" ${selectedColor === color.hex ? 'selected' : ''}>
+        ${color.name}
+      </option>
+    `).join('')
+
+    return `
+      <div class="custom-marker-rule-row" data-rule-index="${index}">
+        <div class="form-group rule-operator">
+          <label for="rule-operator-${index}" class="sr-only">Condition for Rule ${index + 1}</label>
+          <select id="rule-operator-${index}" class="form-control">
+            ${operatorOptions}
+          </select>
+        </div>
+        <div class="form-group rule-value">
+          <label for="rule-value-${index}" class="sr-only">Value for Rule ${index + 1}</label>
+          <input
+            type="text"
+            id="rule-value-${index}"
+            class="form-control"
+            placeholder="Enter text to match"
+            value="${ruleValue}"
+            ${isValueInputDisabled ? 'disabled' : ''}
+          />
+        </div>
+        <div class="form-group rule-color">
+          <label for="rule-color-${index}" class="sr-only">Color for Rule ${index + 1}</label>
+          <select id="rule-color-${index}" class="form-control color-select">
+            ${colorOptions}
+          </select>
+          <span class="color-swatch" style="background-color: ${selectedColor};"></span>
+        </div>
+      </div>
+    `
+  }
+
+  /**
      * Creates and displays the App Settings modal with tabbed sections.
      * @param {Object} callbacks - An object containing callbacks for various settings actions.
      * @param {Array<Object>} maps - Array of map metadata objects for Maps Management.
@@ -1811,7 +1867,15 @@ export class ModalManager {
     Limit the number of most recent markers shown on the map. Set to 0 for unlimited display.
   </small>
 </div>
+
+    <div class="custom-marker-coloring-section mt-lg">
+      <h4>Custom Marker Coloring Rules</h4>
+      <p class="text-secondary mb-md">Define rules to automatically color markers based on their description. Rules are applied from top to bottom, with the last matching rule taking precedence.</p>
+      <div id="custom-marker-rules-container">
+        <!-- Rule rows will be injected here by JavaScript -->
+      </div>
     </div>
+    </div> <!-- Correctly closes map-display-settings tab pane -->
     <!-- Image Processing Settings Tab -->
     <div id="image-processing-settings" class="tab-pane">
     <h4>Image Processing Settings</h4>
@@ -2000,15 +2064,80 @@ export class ModalManager {
     if (fileInputImportSettings) {
       fileInputImportSettings.addEventListener('change', async (event) => {
         const file = event.target.files[0]
-        if (file) {
-          if (callbacks.onImportData) {
-            await callbacks.onImportData(file)
-            // Optionally close the settings modal after import, or let the callback handle it
-            // this.closeModal(modal)
-          }
+        if (file && callbacks.onImportData) {
+          await callbacks.onImportData(file)
+          // Clear the input so the same file can be selected again
+          event.target.value = ''
         }
-        // Clear the file input value to allow importing the same file again if needed
-        event.target.value = ''
+      })
+    }
+
+    // --- CUSTOM MARKER COLORING LISTENERS ---
+    const customMarkerRulesContainer = modal.querySelector('#custom-marker-rules-container')
+    if (customMarkerRulesContainer) {
+      const predefinedColors = callbacks.getCustomMarkerColors() || []
+      const predefinedOperators = callbacks.getCustomMarkerOperators() || []
+      let currentCustomRules = callbacks.getCurrentCustomMarkerRules() || []
+
+      // Ensure currentCustomRules has a maximum of 5 entries, padding with nulls if less
+      const MAX_RULES = 5
+      while (currentCustomRules.length < MAX_RULES) {
+        currentCustomRules.push(null)
+      }
+      currentCustomRules = currentCustomRules.slice(0, MAX_RULES) // Trim if somehow more than 5
+
+      // Render initial rule rows
+      customMarkerRulesContainer.innerHTML = currentCustomRules.map((rule, index) =>
+        this._generateRuleRowHtml(index, rule, predefinedColors, predefinedOperators)
+      ).join('')
+
+      // Add event listeners to all rule rows
+      modal.querySelectorAll('.custom-marker-rule-row').forEach(rowElement => {
+        const index = parseInt(rowElement.dataset.ruleIndex)
+        const operatorSelect = rowElement.querySelector(`#rule-operator-${index}`)
+        const valueInput = rowElement.querySelector(`#rule-value-${index}`)
+        const colorSelect = rowElement.querySelector(`#rule-color-${index}`)
+        const colorSwatch = rowElement.querySelector('.color-swatch')
+
+        const updateRuleAndPersist = () => {
+          const newRules = []
+          modal.querySelectorAll('.custom-marker-rule-row').forEach((rElement, idx) => {
+            const opSelect = rElement.querySelector(`#rule-operator-${idx}`)
+            const valInput = rElement.querySelector(`#rule-value-${idx}`)
+            const colSelect = rElement.querySelector(`#rule-color-${idx}`)
+
+            if (opSelect.value !== 'none') {
+              const ruleId = `rule_${idx + 1}` // Simple ID based on index
+              newRules.push({
+                id: ruleId,
+                field: 'description', // Fixed for now
+                operator: opSelect.value,
+                value: opSelect.value === 'contains' ? valInput.value.trim() : null,
+                color: colSelect.value
+              })
+            }
+          })
+          callbacks.setAndPersistCustomMarkerRules(newRules)
+        }
+
+        // Operator change listener
+        operatorSelect?.addEventListener('change', () => {
+          const selectedOperator = operatorSelect.value
+          valueInput.disabled = selectedOperator !== 'contains'
+          if (selectedOperator !== 'contains') {
+            valueInput.value = '' // Clear value if not 'contains'
+          }
+          updateRuleAndPersist()
+        })
+
+        // Value input listener
+        valueInput?.addEventListener('input', updateRuleAndPersist)
+
+        // Color change listener
+        colorSelect?.addEventListener('change', () => {
+          colorSwatch.style.backgroundColor = colorSelect.value
+          updateRuleAndPersist()
+        })
       })
     }
     // --- MAP DISPLAY LISTENERS (NEW) ---

@@ -13,7 +13,7 @@
 export class MapStorage {
   constructor () {
     this.dbName = 'SnapSpotDB'
-    this.version = 3 // Increment the database version for schema changes!
+    this.version = 4 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps' // Renamed for clarity
     this.markerStoreName = 'markers' // New store name

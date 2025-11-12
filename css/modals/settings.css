@@ -93,3 +93,51 @@
 [data-theme="dark"] .settings-tab-selector {
   background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFF%22%20d%3D%22M287%2C185.4L156.4%2C54.7c-9.5-9.5-24.8-9.5-34.3%2C0L5.3%2C185.4c-9.5%2C9.5-9.5%2C24.8%2C0%2C34.3l11%2C11c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0L145.7%2C125c9.5-9.5%2C24.8-9.5%2C34.3%2C0l94.3%2C94.3c9.5%2C9.5%2C24.8%2C9.5%2C34.3%2C0l11-11C296.6%2C210.2%2C296.6%2C194.9%2C287%2C185.4z%22%2F%3E%3C%2Fsvg%3E');
 }
+
+/* Custom Marker Coloring Section */
+.custom-marker-coloring-section {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.custom-marker-rule-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 0.8fr; /* Operator | Value | Color */
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  border: 1px solid var(--border-color-light);
+  border-radius: 4px;
+  background-color: var(--bg-primary);
+}
+
+.custom-marker-rule-row .form-group {
+  margin-bottom: 0; /* Override default form-group margin */
+}
+
+.custom-marker-rule-row .color-select {
+  padding-right: 30px; /* Make space for the swatch */
+}
+
+.custom-marker-rule-row .color-swatch {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  vertical-align: middle;
+  margin-left: -25px; /* Position over the select */
+  pointer-events: none; /* Allow clicks to pass through to select */
+}
+
+/* Responsive adjustments for rule rows */
+@media (max-width: 768px) {
+  .custom-marker-rule-row {
+    grid-template-columns: 1fr; /* Stack elements vertically */
+  }
+  .custom-marker-rule-row .color-swatch {
+    margin-left: var(--spacing-sm); /* Adjust position for stacked layout */
+  }
+}
