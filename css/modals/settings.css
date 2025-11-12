@@ -101,6 +101,10 @@
   border-top: 1px solid var(--border-color);
 }
 
+.custom-marker-coloring-section h4 { /* Ensure this specific h4 is always visible */
+  display: block !important; /* Override the display: none from responsive.css */
+}
+
 .custom-marker-rule-row {
   display: grid;
   grid-template-columns: 1fr 1.5fr 0.8fr; /* Operator | Value | Color */
