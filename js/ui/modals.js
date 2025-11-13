@@ -932,7 +932,6 @@ export class ModalManager {
       })
     })
 
-    // NEW: Add event listeners for clickable photo thumbnails
     modal.querySelectorAll('.photo-thumbnail.clickable-thumbnail').forEach((thumbnail) => {
       thumbnail.addEventListener('click', (e) => {
         e.stopPropagation()
@@ -1762,7 +1761,6 @@ export class ModalManager {
             onExportJsonMap: callbacks.onExportJsonMap,
             // Keep onSettingsModalRefresh if needed for refresh on map delete
             onSettingsModalRefresh: callbacks.onSettingsModalRefresh, // This will be needed when a map is deleted from inside a card
-            // NEW: Pass the onViewImageInViewer callback
             onViewImageInViewer: (id, type) => callbacks.onViewImageInViewer(id, type)
           },
           map.id === activeMapId

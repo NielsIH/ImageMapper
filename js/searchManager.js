@@ -125,7 +125,7 @@ export class SearchManager {
 
     // Fetch both map and photo results
     const mapResults = await this.appCallbacks.searchMaps(query)
-    const photoResults = await this.appCallbacks.searchPhotos(query) // NEW: Fetch photo results
+    const photoResults = await this.appCallbacks.searchPhotos(query)
 
     this._displayResults(mapResults, photoResults) // Modified to pass both
   }
@@ -184,12 +184,12 @@ export class SearchManager {
       photosSection.classList.add('search-results-section')
       photosSection.innerHTML = '<h4>Photos Found</h4>'
       const photosListUl = document.createElement('ul')
-      photosListUl.classList.add('photos-list') // New class for photos
+      photosListUl.classList.add('photos-list')
 
       photoResults.forEach(photo => {
         const photoCardCallbacks = {
-          onViewPhotoInViewer: async (photoData) => { // photoData includes mapId, markerId, photoId, etc.
-            await this.appCallbacks.onViewImageInViewer(photoData, 'photo') // Pass photoData and type
+          onViewPhotoInViewer: async (photoData) => {
+            await this.appCallbacks.onViewImageInViewer(photoData, 'photo')
           },
           onShowPhotoOnMap: async (photoData) => { // photoData includes mapId, markerId, photoId
             // This callback will handle switching map and centering marker

@@ -129,7 +129,7 @@ _PHOTO_MAP_SCRIPT_JS_
         const fullMapModal = document.getElementById('full-map-modal');
         const closeFullMapModalBtn = document.getElementById('close-full-map-modal');
         const fullMapCaption = document.getElementById('full-map-caption');
-        const fullMapTitle = document.getElementById('full-map-title'); // NEW: Get the title element
+        const fullMapTitle = document.getElementById('full-map-title');
         const photoContextMaps = document.querySelectorAll('.photo-context-map');
 
         const mapBaseImg = new Image();

@@ -221,12 +221,11 @@ export class MapDataExporterImporter {
     }
 
     // --- DEBUGGING START ---
-    console.log('--- DBG: Raw importObject (map) ---', JSON.parse(JSON.stringify(importObject.map)))
-    console.log('--- DBG: Raw importObject (markers) ---', JSON.parse(JSON.stringify(importObject.markers)))
-    console.log('--- DBG: Raw importObject (photos) ---', JSON.parse(JSON.stringify(importObject.photos)))
+    // console.log('--- DBG: Raw importObject (map) ---', JSON.parse(JSON.stringify(importObject.map)))
+    // console.log('--- DBG: Raw importObject (markers) ---', JSON.parse(JSON.stringify(importObject.markers)))
+    // console.log('--- DBG: Raw importObject (photos) ---', JSON.parse(JSON.stringify(importObject.photos)))
     // --- DEBUGGING END ---
 
-    // NEW LOGIC: Decision point based on imageHash
     const importedImageHash = importObject.map ? importObject.map.imageHash : null
     let existingMaps = []
     let importType = 'new' // Default to 'new'
@@ -322,7 +321,6 @@ export class MapDataExporterImporter {
       importedMap.imageHash = importObject.map.imageHash
     }
 
-    // NEW LOGIC: Generate imageHash if it's missing (e.g., from legacy import)
     if (!importedMap.imageHash && importedMap.imageData instanceof Blob) {
       console.log('MapDataExporterImporter: Generating imageHash for legacy imported map.')
       try {
@@ -443,7 +441,6 @@ export class MapDataExporterImporter {
         }
       } else {
         console.log(`MapDataExporterImporter: Adding new marker at (${importedMarker.x}, ${importedMarker.y}).`)
-        // New marker: generate new IDs for the marker and its photos
         const newMarkerId = mapStorage.generateId('marker')
         const newPhotoIdsForMarker = []
 

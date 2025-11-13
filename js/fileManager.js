@@ -326,7 +326,6 @@ export class FileManager {
       // Create thumbnail (no retry logic)
       const thumbnail = await this.createThumbnail(file)
 
-      // NEW: Calculate the image hash
       const imageHash = await this.calculateFileHash(file)
       console.log(`Calculated image hash for ${file.name}: ${imageHash}`)
 
@@ -344,7 +343,7 @@ export class FileManager {
         originalFile: file, // Keep reference to original file for direct storage if needed
         thumbnail,
         isActive: mapDetails.isActive || false,
-        imageHash: imageHash, // NEW: Add image hash to mapData
+        imageHash,
         settings: {
           defaultZoom: this.calculateDefaultZoom(metadata.width, metadata.height),
           allowMarkers: true,

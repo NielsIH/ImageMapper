@@ -15,10 +15,10 @@ export class MapStorage {
     this.dbName = 'SnapSpotDB'
     this.version = 4 // Increment the database version for schema changes!
     this.db = null
-    this.mapStoreName = 'maps' // Renamed for clarity
-    this.markerStoreName = 'markers' // New store name
-    this.photoStoreName = 'photos' // New store name
-    this.keyPath = 'id' // Common keyPath for all stores
+    this.mapStoreName = 'maps'
+    this.markerStoreName = 'markers'
+    this.photoStoreName = 'photos'
+    this.keyPath = 'id'
   }
 
   /**
@@ -67,7 +67,7 @@ export class MapStorage {
           mapStore.createIndex('createdDate', 'createdDate', { unique: false })
           mapStore.createIndex('lastModified', 'lastModified', { unique: false })
           mapStore.createIndex('isActive', 'isActive', { unique: false })
-          mapStore.createIndex('imageHash', 'imageHash', { unique: false }) // NEW: Index for image hash
+          mapStore.createIndex('imageHash', 'imageHash', { unique: false })
           console.log('MapStorage: Maps object store created/upgraded with indexes')
         } else {
           mapStore = transaction.objectStore(this.mapStoreName)
@@ -78,7 +78,6 @@ export class MapStorage {
           }
         }
 
-        // --- NEW: Create markers object store ---
         if (!db.objectStoreNames.contains(this.markerStoreName)) {
           const markerStore = db.createObjectStore(this.markerStoreName, {
             keyPath: this.keyPath
@@ -88,7 +87,6 @@ export class MapStorage {
           console.log('MapStorage: Markers object store created/upgraded with indexes')
         }
 
-        // --- NEW: Create photos object store ---
         if (!db.objectStoreNames.contains(this.photoStoreName)) {
           const photoStore = db.createObjectStore(this.photoStoreName, {
             keyPath: this.keyPath
@@ -233,7 +231,6 @@ export class MapStorage {
     })
   }
 
-  // NEW: Get maps by imageHash
   /**
    * Get maps by imageHash
    * @param {string} imageHash - The SHA256 hash of the map image content.
@@ -480,12 +477,6 @@ export class MapStorage {
     )
   }
 
-  // ========================================
-
-  // NEW: Marker Storage Methods
-
-  // ========================================
-
   /**
    * Add a new marker to storage
    * @param {Object} markerData - Marker data object (x, y, mapId, etc.)
@@ -716,11 +707,6 @@ export class MapStorage {
       }
     })
   }
-  // ========================================
-
-  // NEW: Photo Storage Methods
-
-  // ========================================
 
   /**
    * Add a new photo to storage

@@ -18,8 +18,8 @@ import { MapRenderer } from './mapRenderer.js'
 import { ImageProcessor } from './imageProcessor.js'
 import { HtmlReportGenerator } from './HtmlReportGenerator.js'
 import { MapDataExporterImporter } from './MapDataExporterImporter.js'
-import { SearchManager } from './searchManager.js' // NEW import
-import { ModalManager } from './ui/modals.js' // Note the path for ModalManager
+import { SearchManager } from './searchManager.js'
+import { ModalManager } from './ui/modals.js'
 // --- End Module Imports ---
 
 class SnapSpotApp {
@@ -107,7 +107,6 @@ class SnapSpotApp {
     this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
     this.notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true' || true
 
-    // New properties for map interaction (Phase 1C)
     this.isDragging = false // Flag to indicate if map is being dragged
     this.lastX = 0 // Last X coordinate of mouse/touch for panning
     this.lastY = 0 // Last Y coordinate of mouse/touch for panning
@@ -164,10 +163,9 @@ class SnapSpotApp {
       this.restoreCrosshairState()
       this.restoreMarkerLockState()
       this.restoreMarkerSizeState()
-      this.restoreNotificationsState() // NEW: Restore notifications state
+      this.restoreNotificationsState()
       this.customMarkerRules = this.getCustomMarkerColorRules() // Load custom marker rules
       this.mapRenderer.setCustomColorRules(this.customMarkerRules) // Pass rules to mapRenderer
-      // this.mapCurrentRotation is set here, but NOT applied to mapRenderer yet.
       this.restoreMapRotationState()
 
       // Now, and ONLY now, decide whether to display a map or the welcome screen.

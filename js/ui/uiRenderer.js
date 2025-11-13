@@ -70,7 +70,7 @@ export class UIRenderer {
         break
       }
 
-      case 'photo': { // NEW: Photo card case
+      case 'photo': {
         const initials = itemData.fileName ? itemData.fileName.substring(0, 2).toUpperCase() : '??'
         thumbnailHtml = `
               <div class="photo-thumbnail-container">
@@ -152,7 +152,6 @@ export class UIRenderer {
       })
     }
 
-    // NEW: Event listeners for Photo cards
     if (itemType === 'photo') {
       li.querySelector('.view-photo-btn')?.addEventListener('click', (e) => {
         e.stopPropagation()

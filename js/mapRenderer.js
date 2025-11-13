@@ -33,7 +33,7 @@ export class MapRenderer {
       extraLarge: { radius: 24, fontSizeFactor: 1.4 }
     }
     this.markerCurrentDisplaySizeKey = 'normal' // Default size
-    this.customColorRules = [] // NEW: Property to store custom coloring rules
+    this.customColorRules = []
 
     if (this.canvas.offsetParent !== null) {
       this.setupCanvas()
@@ -95,7 +95,6 @@ export class MapRenderer {
     const width = Math.max(container.clientWidth || rect.width, 100)
     const height = Math.max(container.clientHeight || rect.height, 100)
 
-    // NEW LOG:
     console.log(`MapRenderer: resizeCanvas - Calculated dimensions: ${width}x${height} from parent (clientWidth: ${container.clientWidth}, rect.width: ${rect.width}).`)
 
     if (this.canvas.width === width && this.canvas.height === height) {
@@ -109,7 +108,6 @@ export class MapRenderer {
     this.canvas.style.width = width + 'px'
     this.canvas.style.height = height + 'px'
 
-    // NEW LOG:
     console.log(`MapRenderer: resizeCanvas - Canvas set to: ${this.canvas.width}x${this.canvas.height}.`)
   }
 
@@ -228,7 +226,6 @@ export class MapRenderer {
     const effectiveContentWidth = this.imageData.width
     const effectiveContentHeight = this.imageData.height
 
-    // NEW LOG:\n
     console.log(`MapRenderer: fitToScreen - Canvas: ${canvasWidth}x${canvasHeight}, Image: ${effectiveContentWidth}x${effectiveContentHeight}.`)
 
     if (canvasWidth <= 0 || canvasHeight <= 0 || effectiveContentWidth <= 0 || effectiveContentHeight <= 0) {
@@ -792,7 +789,6 @@ export class MapRenderer {
     // We want the point (rotatedMapX, rotatedMapY)
     // when scaled by `newScale`, to appear at the center of the canvas.
     // screen_center = rotated_point_scaled + new_offset
-    // new_offset = screen_center - rotated_point_scaled
     this.offsetX = (this.canvas.width / 2) - (rotatedMapX * newScale)
     this.offsetY = (this.canvas.height / 2) - (rotatedMapY * newScale)
     this.scale = newScale
@@ -986,7 +982,6 @@ export class MapRenderer {
 
     this.ctx.save()
 
-    // NEW: Draw highlight circle if this marker is highlighted
     if (this._highlightedMarkerId === marker.id) {
       const highlightRadius = radius * 1.5 // Larger radius for highlight
       this.ctx.beginPath()
