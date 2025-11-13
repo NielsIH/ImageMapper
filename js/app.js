@@ -80,6 +80,28 @@ class SnapSpotApp {
     this.mapCurrentRotation = 0
     // Define the cycle for rotation in degrees
     this.rotationCycle = [0, 90, 180, 270]
+
+    // Custom Marker Coloring Settings
+    this.customMarkerColors = [
+      { name: 'Cyan', hex: '#06B6D4' },
+      { name: 'Lime Green', hex: '#84CC16' },
+      { name: 'Pink', hex: '#EC4899' },
+      { name: 'Indigo', hex: '#6366F1' },
+      { name: 'Emerald Green', hex: '#10B981' },
+      { name: 'Rose', hex: '#F43F5E' },
+      { name: 'Violet', hex: '#8B5CF6' }
+    ]
+
+    this.customMarkerOperators = [
+      { value: 'isEmpty', label: 'Description is empty' },
+      { value: 'isNotEmpty', label: 'Description is not empty' },
+      { value: 'contains', label: 'Description contains...' }
+    ]
+    this.customMarkerRules = [] // Will be loaded from localStorage
+
+    // Custom Marker Coloring Rules Management
+    this.customMarkerRulesKey = 'customMarkerColorRules'
+
     // : App Behavior Settings
     this.autoCloseMarkerDetails = localStorage.getItem('autoCloseMarkerDetails') === 'true' || false
     this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
@@ -143,6 +165,8 @@ class SnapSpotApp {
       this.restoreMarkerLockState()
       this.restoreMarkerSizeState()
       this.restoreNotificationsState() // NEW: Restore notifications state
+      this.customMarkerRules = this.getCustomMarkerColorRules() // Load custom marker rules
+      this.mapRenderer.setCustomColorRules(this.customMarkerRules) // Pass rules to mapRenderer
       // this.mapCurrentRotation is set here, but NOT applied to mapRenderer yet.
       this.restoreMapRotationState()
 
@@ -586,7 +610,12 @@ class SnapSpotApp {
         getNotificationsEnabled: () => this.getNotificationsEnabled(),
         setNotificationsEnabled: (value) => {
           this.setNotificationsEnabled(value)
-        }
+        },
+        // Custom Marker Coloring Callbacks
+        getCustomMarkerColors: () => this.getCustomMarkerColors(),
+        getCustomMarkerOperators: () => this.getCustomMarkerOperators(),
+        getCurrentCustomMarkerRules: () => this.getCurrentCustomMarkerRules(),
+        setAndPersistCustomMarkerRules: (rules) => this.setAndPersistCustomMarkerRules(rules)
       }
       // Create and display the settings modal
       this.modalManager.createSettingsModal(
@@ -895,6 +924,7 @@ class SnapSpotApp {
         }
       }))
 
+      this.mapRenderer.setCustomColorRules(this.customMarkerRules) // Ensure mapRenderer has the latest rules
       this.mapRenderer.setMarkers(this.markers)
       this.mapRenderer.render()
 
@@ -1270,6 +1300,71 @@ class SnapSpotApp {
       toggleMarkerSizeBtn.title = `Current Marker Size: ${this.markerDisplaySizeKey}`
       toggleMarkerSizeBtn.innerHTML = `📏 <span class="btn-text">${label}</span>`
     }
+  }
+
+  /**
+   * Retrieves custom marker coloring rules from localStorage.
+   * @returns {Array<Object>} An array of custom marker coloring rule objects.
+   */
+  getCustomMarkerColorRules () {
+    try {
+      const rulesJson = localStorage.getItem(this.customMarkerRulesKey)
+      return rulesJson ? JSON.parse(rulesJson) : []
+    } catch (error) {
+      console.error('App: Error parsing custom marker rules from localStorage', error)
+      return []
+    }
+  }
+
+  /**
+   * Saves custom marker coloring rules to localStorage.
+   * @param {Array<Object>} rules - An array of custom marker coloring rule objects to save.
+   */
+  setCustomMarkerColorRules (rules) {
+    try {
+      localStorage.setItem(this.customMarkerRulesKey, JSON.stringify(rules))
+      this.customMarkerRules = rules // Update internal state
+      console.log('App: Custom marker rules saved to localStorage.', rules)
+      // Re-render map to apply new rules if a map is active
+      if (this.currentMap) {
+        this.refreshMarkersDisplay()
+      }
+    } catch (error) {
+      console.error('App: Error saving custom marker rules to localStorage', error)
+      this.showErrorMessage('Save Error', 'Failed to save custom marker coloring rules.')
+    }
+  }
+
+  /**
+   * Returns the predefined custom marker colors.
+   * @returns {Array<Object>} An array of color objects.
+   */
+  getCustomMarkerColors () {
+    return this.customMarkerColors
+  }
+
+  /**
+   * Returns the predefined custom marker operators.
+   * @returns {Array<Object>} An array of operator objects.
+   */
+  getCustomMarkerOperators () {
+    return this.customMarkerOperators
+  }
+
+  /**
+   * Returns the current custom marker rules.
+   * @returns {Array<Object>} An array of custom marker rule objects.
+   */
+  getCurrentCustomMarkerRules () {
+    return this.customMarkerRules
+  }
+
+  /**
+   * Sets the custom marker rules and persists them.
+   * @param {Array<Object>} rules - The new array of custom marker rule objects.
+   */
+  setAndPersistCustomMarkerRules (rules) {
+    this.setCustomMarkerColorRules(rules)
   }
 
   /**
@@ -2367,6 +2462,7 @@ class SnapSpotApp {
             this.modalManager.updateMarkerDetailsDescription(markerIdToSave, newDescription)
             this.showNotification('Description updated.', 'success')
             console.log(`Marker ${markerIdToSave} description saved.`)
+            this.refreshMarkersDisplay() // Re-render map to reflect potential description changes affecting coloring
           } catch (error) {
             console.error('Failed to save description:', error)
             this.showErrorMessage('Save Error', `Failed to save description: ${error.message}`)

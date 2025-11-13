@@ -33,11 +33,21 @@ export class MapRenderer {
       extraLarge: { radius: 24, fontSizeFactor: 1.4 }
     }
     this.markerCurrentDisplaySizeKey = 'normal' // Default size
+    this.customColorRules = [] // NEW: Property to store custom coloring rules
 
     if (this.canvas.offsetParent !== null) {
       this.setupCanvas()
     }
     this.setupResizeHandler()
+  }
+
+  /**
+   * Set the custom marker coloring rules.
+   * @param {Array<Object>} rules - An array of custom marker coloring rule objects.
+   */
+  setCustomColorRules (rules) {
+    this.customColorRules = rules || []
+    this.render() // Re-render to apply new rules
   }
 
   /**
@@ -842,9 +852,8 @@ export class MapRenderer {
         screenCoords.x > -20 && screenCoords.x < this.canvas.width + 20 &&
         screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
       ) {
-        // Pass the editable state AND hasPhotos status to drawMarker
-        // Use marker.hasPhotos (already boolean thanks to app.js's preparation)
-        this.drawMarker(screenCoords.x, screenCoords.y, index + 1, this.markersAreEditable, marker.hasPhotos)
+        // Pass the full marker object to drawMarker
+        this.drawMarker(screenCoords.x, screenCoords.y, index + 1, marker)
       }
     })
   }
@@ -882,15 +891,26 @@ export class MapRenderer {
   }
 
   /**
+   * Checks if a given description matches the default "Marker at X, Y" pattern.
+   * @param {string} description - The marker description to check.
+   * @returns {boolean} True if it's a default description, false otherwise.
+   * @private
+   */
+  _isDefaultMarkerDescription (description) {
+    // Regex to match "Marker at X, Y" where X and Y are numbers
+    const defaultPattern = /^Marker at \d+, \d+$/
+    return defaultPattern.test(description.trim())
+  }
+
+  /**
    * Draw a single marker on the canvas.
-   * MODIFIED: Added highlight logic.
+   * MODIFIED: Added highlight logic and custom coloring logic.
    * @param {number} x - Screen X coordinate of the marker center.
    * @param {number} y - Screen Y coordinate of the marker center.
    * @param {number} number - Optional number to display on the marker.
-   * @param {boolean} isEditable - If true, draw the marker in an 'unlocked' style.
-   * @param {boolean} hasPhotos - If true, draw the marker with a 'has photos' style.
+   * @param {Object} marker - The full marker object, including description, isEditable, and hasPhotos.
    */
-  drawMarker (x, y, number, isEditable, hasPhotos) {
+  drawMarker (x, y, number, marker) {
     const currentSize = this.markerSizeSettings[this.markerCurrentDisplaySizeKey]
     const radius = currentSize.radius
     const fontSize = radius * currentSize.fontSizeFactor
@@ -900,32 +920,74 @@ export class MapRenderer {
     let textColor
 
     // Determine base colors
-    if (isEditable) { // Unlocked/Editable State
-      if (hasPhotos) {
-        borderColor = '#dc2626' // Red-600
-        fillColor = '#ef4444' // Red-500
-        textColor = '#ffffff' // White
-      } else {
-        borderColor = '#f59e0b' // Amber-500
-        fillColor = '#fbbf24' // Amber-400
-        textColor = '#1f2937' // Dark Gray text for contrast
+    // Default coloring based on isEditable and hasPhotos
+    const isEditable = this.markersAreEditable // Use the global editable state
+    const hasPhotos = marker.hasPhotos // Use the hasPhotos property from the marker object
+
+    // --- Apply Custom Coloring Rules ---
+    let customColorApplied = false
+    // Iterate through rules in reverse order for precedence (last rule wins)
+    for (let i = this.customColorRules.length - 1; i >= 0; i--) {
+      const rule = this.customColorRules[i]
+      if (!rule) { // Skip if rule is null (due to padding in UI)
+        continue
       }
-    } else { // Locked State
-      if (hasPhotos) {
-        borderColor = '#4b5563' // Gray-600
-        fillColor = '#6b7280' // Gray-500
-        textColor = '#ffffff' // White
-      } else {
-        borderColor = '#9ca3af' // Gray-400
-        fillColor = '#d1d5db' // Gray-300
-        textColor = '#374151' // Darker Gray text for contrast
+      const markerDescription = marker.description || '' // Ensure description is a string
+
+      // Treat default descriptions as empty for isEmpty/isNotEmpty checks
+      const processedDescription = this._isDefaultMarkerDescription(markerDescription) ? '' : markerDescription
+
+      let ruleMatches = false
+      switch (rule.operator) {
+        case 'isEmpty':
+          ruleMatches = processedDescription.trim() === ''
+          break
+        case 'isNotEmpty':
+          ruleMatches = processedDescription.trim() !== ''
+          break
+        case 'contains':
+          ruleMatches = markerDescription.toLowerCase().includes(rule.value.toLowerCase())
+          break
+      }
+
+      if (ruleMatches) {
+        borderColor = rule.color
+        fillColor = rule.color
+        textColor = '#ffffff' // Custom colored markers always have white text for visibility
+        customColorApplied = true
+        break // Stop at the first matching rule (due to reverse iteration, this is the last rule in UI order)
+      }
+    }
+
+    if (!customColorApplied) {
+      // If no custom rule matched, apply default coloring logic
+      if (isEditable) { // Unlocked/Editable State
+        if (hasPhotos) {
+          borderColor = '#dc2626' // Red-600
+          fillColor = '#ef4444' // Red-500
+          textColor = '#ffffff' // White
+        } else {
+          borderColor = '#f59e0b' // Amber-500
+          fillColor = '#fbbf24' // Amber-400
+          textColor = '#1f2937' // Dark Gray text for contrast
+        }
+      } else { // Locked State
+        if (hasPhotos) {
+          borderColor = '#4b5563' // Gray-600
+          fillColor = '#6b7280' // Gray-500
+          textColor = '#ffffff' // White
+        } else {
+          borderColor = '#9ca3af' // Gray-400
+          fillColor = '#d1d5db' // Gray-300
+          textColor = '#374151' // Darker Gray text for contrast
+        }
       }
     }
 
     this.ctx.save()
 
     // NEW: Draw highlight circle if this marker is highlighted
-    if (this._highlightedMarkerId && this.markers.find(m => m.id === this._highlightedMarkerId)?.id === this.markers[number - 1]?.id) { // Crude check, better to pass marker object
+    if (this._highlightedMarkerId === marker.id) {
       const highlightRadius = radius * 1.5 // Larger radius for highlight
       this.ctx.beginPath()
       this.ctx.arc(x, y, highlightRadius, 0, Math.PI * 2, false)
