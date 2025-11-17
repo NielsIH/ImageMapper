@@ -166,6 +166,8 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Map thumbnail/image click in search results and settings list opens image viewer.
 - ✅ Photo search by filename and display in search results with thumbnails.
 - ✅ "Show on Map" action for photo search results, switching to map, panning to and highlighting the associated marker.
+- ✅ Image Galery to browse and display all photos added to markers on the active map with "Show on Map" function.
+- ✅ Custom coloring for markers based on the content of their "description" field.
 
 ### Phase 4: Enhanced Responsive UI & UX (Action Buttons) ✅
 - ✅ Dynamically positioned action button bar:
