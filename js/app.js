@@ -1422,17 +1422,6 @@ class SnapSpotApp {
   handleMapMouseDown (event) {
     MapInteractions.handleMapMouseDown(this, event)
   }
-      this.lastY = event.clientY
-      console.log('Interaction start: Map pan detected.')
-    }
-
-    // Prevent text selection during drag
-    const mapContainer = document.getElementById('map-container')
-    if (mapContainer) {
-      mapContainer.style.cursor = 'grabbing'
-      mapContainer.style.userSelect = 'none'
-    }
-  }
 
   /**
    * Handle mouse move event on the map container for panning OR marker dragging.
