@@ -56,17 +56,35 @@ We will move functionality in distinct phases, with each phase focusing on one m
 **Expected reduction:** ~300-400 lines from app.js + ~200-300 lines from modals.js
 **Test:** All search operations work exactly as before
 
+## Phase 8: Move Settings Orchestration ✅
+**Files to modify:** app.js
+**Functionality to move:** Settings orchestration (`showSettings`), data prep (`_getPreparedMapsForDisplay`), settings callbacks (`get/setPhotoQuality`, `get/setAutoCloseMarkerDetails`, etc.)
+- Extract to `js/app-settings.js`: `showSettings(app, initialTab)`, shared thumbnail prep util.
+- Inline thumbs logic or move to `imageProcessor.js`.
+- Update `app.js`: Delegate `showSettings` call.
+**Expected reduction:** ~400-500 lines from app.js
+**Test:** Settings modal opens, all tabs/callbacks (maps mgmt, prefs, import/export) work identically; no regressions in exports/imports.
+
+## Phase 9: Move Image Gallery Modal
+**Files to modify:** modals.js
+**Functionality to move:** Complete photo gallery modal (`createPhotoGalleryModal`, `setupPhotoGalleryModal`, photo grid/lightbox/delete/share).
+**New file:** js/ui/photo-gallery-modal.js → `createPhotoGalleryModal(modalManager, photos, callbacks)`
+**Expected reduction:** ~400-600 lines from modals.js
+**Test:** Gallery opens from markers/search/settings, photo view/delete/show-on-map works identically.
+
 ## Modules to Create:
 - js/app-map-interactions.js - Map interactions
 - js/app-marker-photo-manager.js - Marker and photo management
 - js/app-search.js - Search functionality
+- js/app-settings.js - Settings orchestration ✅
+- js/ui/photo-gallery-modal.js - Photo gallery modal
 - js/ui/upload-modal.js - Upload modal
 - js/ui/settings-modal.js - Settings modal
 - js/ui/marker-details-modal.js - Marker details modal
 
-## Total Expected Reduction:
-- app.js: From ~2,941 lines → ~1,500-1,800 lines (~40-50% reduction)
-- modals.js: From ~2,434 lines → ~700-1,000 lines (~65-70% reduction)
+## Total Expected Reduction (Phases 1-9):
+- app.js: From ~2,941 lines → ~1,000-1,300 lines (~55-65% reduction)
+- modals.js: From ~2,434 lines → ~300-600 lines (~75-85% reduction)
 
 ## Testing Approach
 After each phase:
