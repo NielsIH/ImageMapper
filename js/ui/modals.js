@@ -579,7 +579,7 @@ export class ModalManager {
       })
 
       // Load images with fallback strategy - try full-size first, fallback to thumbnail for grid view
-      modal.querySelectorAll('.photo-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
+      modal.querySelectorAll('.photo-grid-thumbnail[data-use-full-image="true"]').forEach(async (img) => {
         const photoId = img.dataset.photoId
         const photo = photos.find(p => p.id === photoId) // Use the full photos array to find the photo
 
@@ -591,7 +591,7 @@ export class ModalManager {
               this.trackObjectUrl(modal.id, imageUrl)
 
               // Set up the fallback to thumbnail BEFORE setting the src
-              img.addEventListener('error', () => {
+              img.addEventListener('error', (e) => {
                 // On error, try thumbnail as fallback
                 if (photo.thumbnailDataUrl) {
                   img.src = photo.thumbnailDataUrl
@@ -607,7 +607,6 @@ export class ModalManager {
                 // The object URL will be cleaned up when the modal closes
               }, { once: true })
             } catch (error) {
-              console.error('Failed to create object URL for grid view, falling back to thumbnail:', error)
               // On creation failure, fallback to thumbnail
               if (photo.thumbnailDataUrl) {
                 img.src = photo.thumbnailDataUrl
