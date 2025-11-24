@@ -180,4 +180,42 @@ export class ImageProcessor {
       return null
     }
   }
+
+  /**
+   * Prepares an array of raw map objects for UI display.
+   * Generates thumbnails using cache and settings.
+   * @param {Array&lt;Object&gt;} rawMaps - Raw maps from storage.
+   * @param {Map} thumbnailCache - App thumbnail cache.
+   * @param {Object} imageCompressionSettings - App image compression settings.
+   * @returns {Promise&lt;Array&lt;Object&gt;&gt;} Prepared maps with thumbnailDataUrl.
+   */
+  async prepareMapsForDisplay (rawMaps, thumbnailCache, imageCompressionSettings) {
+    return Promise.all(rawMaps.map(async (map) => {
+      let thumbnailDataUrl = thumbnailCache.get(map.id)
+      // If no thumbnail in cache and map data is a Blob (from storage)
+      if (!thumbnailDataUrl && map.imageData instanceof Blob) {
+        try {
+          // Use settings for thumbnails
+          const mapThumbnailSettings = imageCompressionSettings.thumbnail
+          thumbnailDataUrl = await this.generateThumbnailDataUrl(
+            map.imageData,
+            mapThumbnailSettings.maxSize,
+            'image/jpeg',
+            mapThumbnailSettings.quality || 0.7
+          )
+          if (thumbnailDataUrl) {
+            thumbnailCache.set(map.id, thumbnailDataUrl)
+          }
+        } catch (thumbError) {
+          console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
+          thumbnailDataUrl = null
+        }
+      } else if (!map.imageData || !(map.imageData instanceof Blob)) {
+        // If map.imageData is null/undefined or not a Blob, explicitly set thumbnail to null
+        thumbnailDataUrl = null
+      }
+      // Return map object with the generated/cached thumbnailDataUrl
+      return { ...map, thumbnailDataUrl }
+    }))
+  }
 }
