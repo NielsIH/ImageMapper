@@ -70,7 +70,23 @@ We will move functionality in distinct phases, with each phase focusing on one m
 **Functionality to move:** Complete photo gallery modal (`createPhotoGalleryModal`, `setupPhotoGalleryModal`, photo grid/lightbox/delete/share).
 **New file:** js/ui/photo-gallery-modal.js → `createPhotoGalleryModal(modalManager, photos, callbacks)`
 **Expected reduction:** ~400-600 lines from modals.js
-**Test:** Gallery opens from markers/search/settings, photo view/delete/show-on-map works identically.
+**Test:** Gallery opens from markers/search/settings, photo view/delete/show-on-map works identically. ✅
+
+## Phase 10: Export/Import Extraction (~350L → MapDataExporterImporter.js)
+**Files to modify:** app.js, MapDataExporterImporter.js
+**Functionality to move:** `handleMapUpload` (image process/save), `exportHtmlReport/JsonMap`, `handleImportFile` + helpers (`_saveImportedData`, `_deleteMapAndImportNew`, `_showImportDecisionModal`) → static methods (e.g., `MapDataExporterImporter.handleMapUpload(app, mapData, file)`, `exportHtmlReport(app, mapId)`).
+**Update app.js:** Delegate calls (e.g., `await MapDataExporterImporter.handleMapUpload(this, mapData, file)`).
+**Expected reduction:** ~350 lines from app.js
+**Test:** Upload/export/import works identically; no regressions.
+**Impact:** 20% reduction. Leverages existing module.
+
+## Phase 11: Storage/Display Extraction (~250L → app-storage-manager.js)
+**Files to modify:** app.js
+**Functionality to move:** `initializeStorage/loadMaps/displayMap/switchToMap/checkWelcomeScreen/getCurrentMapInfo` → funcs (e.g., `StorageManager.initialize(app)`, `displayMap(app, mapData)`).
+**Update app.js:** Delegate calls.
+**Expected reduction:** ~250 lines from app.js
+**Test:** Map loading/switching/welcome screen works identically; no regressions.
+**Impact:** 15% reduction.
 
 ## Modules to Create:
 - js/app-map-interactions.js - Map interactions
@@ -81,6 +97,7 @@ We will move functionality in distinct phases, with each phase focusing on one m
 - js/ui/upload-modal.js - Upload modal
 - js/ui/settings-modal.js - Settings modal
 - js/ui/marker-details-modal.js - Marker details modal
+- js/app-storage-manager.js - Storage/display
 
 ## Total Expected Reduction (Phases 1-9):
 - app.js: From ~2,941 lines → ~1,000-1,300 lines (~55-65% reduction)

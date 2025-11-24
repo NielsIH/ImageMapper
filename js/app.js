@@ -317,7 +317,7 @@ class SnapSpotApp {
   }
 
   /**
-   * Set up map interaction listeners (for future phases)
+   * Set up map interaction listeners
    */
   setupMapInteractionListeners () {
     const mapContainer = document.getElementById('map-container')
@@ -961,82 +961,8 @@ class SnapSpotApp {
   /**
    * Handle touch move event forPanning OR marker dragging OR pinch-zoom.
    */
-  async handleMapTouchMove (event) {
-    if (!this.currentMap) return
-
-    event.preventDefault()
-
-    // Update active touches' current positions
-    for (let i = 0; i < event.changedTouches.length; i++) {
-      const touch = event.changedTouches[i]
-      if (this.activeTouches.has(touch.identifier)) {
-        const storedTouch = this.activeTouches.get(touch.identifier)
-        storedTouch.x = touch.clientX
-        storedTouch.y = touch.clientY
-      }
-    }
-
-    // --- Dynamic interaction type adjustment for multi-touch (e.g., pan to pinch-zoom) ---
-    if (this.activeTouches.size === 2 && this.interactionType !== 'pinch_zoom') {
-      // If a second touch just came in while we were panning or dragging a marker
-      this.interactionType = 'pinch_zoom'
-      const touches = Array.from(this.activeTouches.values())
-      this.initialPinchDistance = this.getDistance(touches[0], touches[1])
-      this.lastScale = this.mapRenderer.scale
-      this.isDragging = false // Stop map panning
-      this.isDraggingMarker = false // Stop marker dragging
-      console.log('Interaction type changed to: Pinch zoom.')
-      return // Skip further processing until next move event
-    }
-
-    if (this.interactionType === 'pinch_zoom' && this.activeTouches.size === 2) {
-      const touches = Array.from(this.activeTouches.values())
-      const currentDistance = this.getDistance(touches[0], touches[1])
-
-      if (this.initialPinchDistance === 0) { // Safety check; should be set in touchStart or above
-        this.initialPinchDistance = currentDistance
-        this.lastScale = this.mapRenderer.scale
-        return
-      }
-
-      const scaleFactor = currentDistance / this.initialPinchDistance
-      const newScale = this.lastScale * scaleFactor
-
-      const centerX = (touches[0].x + touches[1].x) / 2
-      const centerY = (touches[0].y + touches[1].y) / 2
-
-      this.mapRenderer.zoom(null, centerX, centerY, newScale)
-      console.log('Touch move - pinch-zoom')
-    } else if (this.interactionType === 'marker_drag' && this.draggedMarkerId && this.activeTouches.size === 1) {
-      const touch = Array.from(this.activeTouches.values())[0]
-
-      const deltaX = touch.x - this.initialDownX
-      const deltaY = touch.y - this.initialDownY
-
-      //  Use screenVectorToMapVector for touch events as well
-      const { mapDeltaX, mapDeltaY } = this.mapRenderer.screenVectorToMapVector(deltaX, deltaY)
-
-      const currentMarkerMapX = this.dragStartMapX + mapDeltaX
-      const currentMarkerMapY = this.dragStartMapY + mapDeltaY
-
-      const markerIndex = this.markers.findIndex(m => m.id === this.draggedMarkerId)
-      if (markerIndex !== -1) {
-        this.markers[markerIndex].x = currentMarkerMapX
-        this.markers[markerIndex].y = currentMarkerMapY
-        this.mapRenderer.setMarkers(this.markers)
-        this.mapRenderer.render()
-      }
-      console.log('Touch move - marker dragging')
-    } else if (this.interactionType === 'map_pan' && this.activeTouches.size === 1) {
-      const touch = Array.from(this.activeTouches.values())[0]
-
-      const deltaX = touch.x - this.lastX
-      const deltaY = touch.y - this.lastY
-      this.mapRenderer.pan(deltaX, deltaY)
-      this.lastX = touch.x
-      this.lastY = touch.y
-      console.log('Touch move - map panning')
-    }
+  handleMapTouchMove (event) {
+    MapInteractions.handleMapTouchMove(this, event)
   }
 
   /**
@@ -1215,45 +1141,6 @@ class SnapSpotApp {
   }
 
   /**
-   * Test storage system with mock data (temporary for Phase 1B)
-   */
-  async testStorageSystem () {
-    this.showLoading('Testing storage system...')
-
-    try {
-      // Create a test map
-      const testMap = {
-        name: 'Test Map ' + new Date().toLocaleTimeString(),
-        description: 'A test map to verify storage functionality',
-        fileName: 'test-map.jpg',
-        filePath: '/mock/path/test-map.jpg',
-        width: 1920,
-        height: 1080,
-        fileSize: 245760, // 240KB
-        fileType: 'image/jpeg',
-        isActive: this.mapsList.length === 0 // Make first map active
-      }
-
-      const savedMap = await this.storage.addMap(testMap)
-      console.log('Test map saved:', savedMap)
-
-      // Reload maps list
-      await this.loadMaps()
-
-      // Update UI
-      this.checkWelcomeScreen()
-
-      this.showNotification(`Test map "${savedMap.name}" added successfully!`, 'success')
-      this.updateAppStatus('Storage test completed')
-    } catch (error) {
-      console.error('Storage test failed:', error)
-      throw error
-    } finally {
-      this.hideLoading()
-    }
-  }
-
-  /**
    * Format file size for display
    */
   formatFileSize (bytes) {
@@ -1398,20 +1285,6 @@ class SnapSpotApp {
       throw new Error(`Failed to save map: ${error.message}`)
     } finally {
       this.hideLoading() // Ensure loading indicator is hidden after processing
-    }
-  }
-
-  /**
-   * Add a test mode button for development
-   */
-  async addTestMap () {
-    console.log('Adding test map (development mode)')
-
-    try {
-      await this.testStorageSystem()
-    } catch (error) {
-      console.error('Error adding test map:', error)
-      this.showErrorMessage('Failed to add test map', error.message)
     }
   }
 
