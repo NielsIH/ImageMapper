@@ -3,6 +3,8 @@
  * Handles all map interaction functionality (mouse, touch, zoom, pan, rotation)
  */
 
+import * as MarkerPhotoManager from './app-marker-photo-manager.js'
+
 // Export all map interaction functions
 export function setupMapInteractionListeners (app) {
   // Implementation will be moved from app.js
@@ -87,7 +89,7 @@ export async function handleMapMouseUp (app, event) {
     if (markerToSave) {
       if (distanceMoved < CLICK_THRESHOLD) {
         console.log('Marker clicked (via short drag):', markerToSave.id)
-        app.showMarkerDetails(markerToSave.id)
+        MarkerPhotoManager.showMarkerDetails(app, markerToSave.id)
       } else {
         try {
           await app.storage.updateMarker(markerToSave.id, {
@@ -108,7 +110,7 @@ export async function handleMapMouseUp (app, event) {
       const clickedMarker = getMarkerAtPoint(app, mouseUpX, mouseUpY)
       if (clickedMarker) {
         console.log('Marker clicked (via short map pan interaction):', clickedMarker.id)
-        app.showMarkerDetails(clickedMarker.id)
+        MarkerPhotoManager.showMarkerDetails(app, clickedMarker.id)
       } else {
         console.log('Map or empty space clicked (via short map pan interaction).')
       }
@@ -294,7 +296,7 @@ export async function handleMapTouchEnd (app, event) {
     if (markerToSave) {
       if (distanceMoved < CLICK_THRESHOLD) {
         console.log('Marker tapped (via short touch drag):', markerToSave.id)
-        app.showMarkerDetails(markerToSave.id)
+        MarkerPhotoManager.showMarkerDetails(app, markerToSave.id)
       } else {
         try {
           await app.storage.updateMarker(markerToSave.id, {
@@ -315,7 +317,7 @@ export async function handleMapTouchEnd (app, event) {
       const clickedMarker = getMarkerAtPoint(app, touchEndX, touchEndY)
       if (clickedMarker) {
         console.log('Marker tapped (via short map pan interaction):', clickedMarker.id)
-        app.showMarkerDetails(clickedMarker.id)
+        MarkerPhotoManager.showMarkerDetails(app, clickedMarker.id)
       } else {
         console.log('Map or empty space tapped (via short map pan interaction).')
       }

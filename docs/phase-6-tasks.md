@@ -7,7 +7,7 @@ Move combined marker and photo management functionality (~700-900 lines from `js
 
 ### 1. Analyze Current Marker/Photo Management Code
 - [x] Identify all marker/photo methods in app.js: `placeMarker`, `getMarkerAtPoint`, marker dragging (`handleMapMouseDown` etc. if not moved), photo upload/add/delete/view/gallery ops
-- [ ] List dependencies: `this.mapRenderer`, `this.storage`, `this.modalManager`, `this.imageProcessor`, state (`this.markers`, `this.currentMap`, `this.selectedMarker`)
+- [x] List dependencies: `this.mapRenderer`, `this.storage`, `this.modalManager`, `this.imageProcessor`, state (`this.markers`, `this.currentMap`, `this.selectedMarker`)
 - [ ] Document shared state/vars: `draggingMarker`, `photoUploadInProgress`, thumbnail caches, marker lists
 
 ### 2. Create/Prepare New Module

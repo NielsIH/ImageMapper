@@ -20,7 +20,19 @@ import { HtmlReportGenerator } from './HtmlReportGenerator.js'
 import { MapDataExporterImporter } from './MapDataExporterImporter.js'
 import { SearchManager } from './searchManager.js'
 import { ModalManager } from './ui/modals.js'
-import * as MapInteractions from './app-map-interactions.js';
+import * as MapInteractions from './app-map-interactions.js'
+import {
+  placeMarker,
+  getMarkerAtPoint,
+  showMarkerDetails,
+  deleteMarker,
+  addPhotosToMarker,
+  deletePhotoFromMarker,
+  showMapPhotoGallery,
+  deletePhotoFromImageViewer,
+  handleViewImageInViewer
+} from './app-marker-photo-manager.js';
+
 // --- End Module Imports ---
 
 class SnapSpotApp {
@@ -37,7 +49,7 @@ class SnapSpotApp {
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
       onSearchFileSelect: () => this.handleSearchFileSelection(),
-      onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type),
+      onViewImageInViewer: (id, type) => handleViewImageInViewer(this, id, type),
       onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData)
     })
 
@@ -254,7 +266,7 @@ class SnapSpotApp {
     // Place marker button
     const placeMarkerBtn = document.getElementById('btn-place-marker')
     if (placeMarkerBtn) {
-      placeMarkerBtn.addEventListener('click', () => this.placeMarker())
+      placeMarkerBtn.addEventListener('click', () => placeMarker(this))
     }
 
     // Toggle Marker Lock button
@@ -276,7 +288,7 @@ class SnapSpotApp {
     // Gallery button
     const galleryBtn = document.getElementById('btn-gallery')
     if (galleryBtn) {
-      galleryBtn.addEventListener('click', () => this.showMapPhotoGallery())
+      galleryBtn.addEventListener('click', () => showMapPhotoGallery(this))
     }
   }
 
@@ -572,7 +584,7 @@ class SnapSpotApp {
           this.showSettings(tabToReopen)
         },
         //  Pass the consolidated image viewer callback
-        onViewImageInViewer: (id, type) => this.handleViewImageInViewer(id, type), // <-- NEW LINE
+        onViewImageInViewer: (id, type) => handleViewImageInViewer(this, id, type), // <-- NEW LINE
 
         //  Data Management Callbacks
         onImportData: async (file) => {
@@ -1073,57 +1085,11 @@ class SnapSpotApp {
   }
 
   zoomIn () {
-    MapInteractions.zoomIn(this);
+    MapInteractions.zoomIn(this)
   }
 
   zoomOut () {
-    MapInteractions.zoomOut(this);
-  }
-
-  /**
-   * Place a new marker at the center of the current map view.
-   */
-  async placeMarker () {
-    if (!this.currentMap || !this.mapRenderer.imageData) {
-      console.warn('Cannot place marker: No map loaded or image data unavailable.')
-      this.showNotification('Please load a map first before placing a marker.', 'warning')
-      return
-    }
-
-    this.showLoading('Placing marker...')
-
-    try {
-      const centerX = this.mapRenderer.canvas.width / 2
-      const centerY = this.mapRenderer.canvas.height / 2
-
-      // Convert canvas center coordinates to map (image) coordinates
-      const mapCoords = this.mapRenderer.screenToMap(centerX, centerY)
-
-      if (!mapCoords) {
-        throw new Error('Failed to convert screen coordinates to map coordinates.')
-      }
-
-      const newMarker = {
-        mapId: this.currentMap.id,
-        x: mapCoords.x,
-        y: mapCoords.y,
-        description: `Marker at ${mapCoords.x.toFixed(0)}, ${mapCoords.y.toFixed(0)}` // Default description
-      }
-
-      const savedMarker = await this.storage.addMarker(newMarker)
-      this.markers.push(savedMarker) // Add to local array
-      this.mapRenderer.setMarkers(this.markers) // Update mapRenderer
-      this.mapRenderer.render() // Re-render to show the new marker
-
-      this.showNotification('Marker placed successfully!', 'success')
-      this.updateAppStatus('Marker added')
-      console.log('Placed new marker:', savedMarker)
-    } catch (error) {
-      console.error('Failed to place marker:', error)
-      this.showErrorMessage('Error Placing Marker', error.message)
-    } finally {
-      this.hideLoading()
-    }
+    MapInteractions.zoomOut(this)
   }
 
   /**
@@ -1411,10 +1377,6 @@ class SnapSpotApp {
   // ========================================
   // Map Interaction Handlers Phase 1C - Updated for Marker Dragging
   // ========================================
-
-  getMarkerAtPoint (clientX, clientY) {
-    return MapInteractions.getMarkerAtPoint(this, clientX, clientY)
-  }
 
   /**
    * Handle mouse down event on the map container for panning OR marker dragging.
@@ -2092,7 +2054,7 @@ class SnapSpotApp {
           }
           await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to fully close
 
-          const photosWereAdded = await this.setupAddPhotosForMarker(marker.id)
+          const photosWereAdded = await addPhotosToMarker(this, marker.id)
           console.log('App: onAddPhotos photosWereAdded:', photosWereAdded)
 
           if (photosWereAdded && this.getAutoCloseMarkerDetails()) {
@@ -2133,13 +2095,13 @@ class SnapSpotApp {
         async (markerIdToDelete) => {
           console.log(`Delete marker ${markerIdToDelete} clicked`)
           this.modalManager.closeTopModal()
-          await this.deleteMarker(markerIdToDelete)
+          await deleteMarker(this, markerIdToDelete)
         },
         // onDeletePhoto callback
         async (markerIdFromModal, photoIdFromModal) => { // <--- These arguments are provided by the modal
           this.modalManager.closeTopModal()
-          await this.deletePhotoFromMarker(markerIdFromModal, photoIdFromModal)
-          await this.showMarkerDetails(markerIdFromModal) // Correctly calling itself by original name
+          await deletePhotoFromMarker(this, markerIdFromModal, photoIdFromModal)
+          await showMarkerDetails(this, markerIdFromModal) // Correctly calling itself by original name
         },
         // onViewPhoto callback - This now opens the photo gallery in single photo mode
         async (photoIdFromModal) => { // <--- This argument is provided by the modal
@@ -2211,13 +2173,13 @@ class SnapSpotApp {
               // Close and reopen the gallery to refresh the display
               this.modalManager.closeTopModal()
               await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to close
-              await this.showMarkerDetails(marker.id) // Show parent marker details again
+              await showMarkerDetails(this, marker.id) // Show parent marker details again
             },
             // onClose callback
             async () => {
               console.log('Marker photo gallery closed.')
               // Reopen marker details after gallery closes
-              await this.showMarkerDetails(marker.id)
+              await showMarkerDetails(this, marker.id)
             }
           )
         },
@@ -2240,154 +2202,16 @@ class SnapSpotApp {
    * Deletes a marker (and its associated photos) from storage and UI.
    * @param {string} markerId - The ID of the marker to delete.
    */
-  async deleteMarker (markerId) {
-    this.showLoading('Deleting marker...')
-    try {
-      // 1. Delete from IndexedDB (this also handles associated photos via storage.js)
-      await this.storage.deleteMarker(markerId)
-      console.log(`Marker ${markerId} and its photos deleted from storage.`)
 
-      // 2. Remove from local markers array and update mapRenderer
-      this.markers = this.markers.filter(m => m.id !== markerId)
-      this.mapRenderer.setMarkers(this.markers)
-      this.mapRenderer.render() // Re-render map to remove the marker visually
-
-      this.showNotification('Marker deleted successfully.', 'success')
-      this.updateAppStatus('Marker deleted.')
-
-      // If the currently viewed map has no markers left, update status or provide a hint
-      if (this.currentMap && this.markers.length === 0) {
-        this.updateAppStatus('No markers on this map.')
-      }
-    } catch (error) {
-      console.error('Failed to delete marker:', error)
-      this.showErrorMessage('Delete Marker Error', `Failed to delete marker: ${error.message}`)
-    } finally {
-      this.hideLoading()
-    }
-  }
 
   /**
    * Sets up the process for adding photos to a specific marker.
    * MODIFIED: To ensure marker's `hasPhotos` status is updated and re-rendered.
    * @param {string} markerId - The ID of the marker to add photos to.
    */
-  async setupAddPhotosForMarker (markerId) {
-    this.showLoading('Adding photos...')
-    let photosAdded = false
-    try {
-      const selectedFiles = await this.fileManager.selectFiles(true, true)
-      if (!selectedFiles || selectedFiles.length === 0) {
-        this.showNotification('Photo selection cancelled.', 'info')
-        return false // Indicate no photos were added
-      }
 
-      const photoIdsToAdd = []
-      // Fetch all photos currently on the active map once before the loop
-      // MODIFIED: Use this.currentMap.id to get photos for the active map
-      const allPhotosOnMap = await this.storage.getPhotosForMap(this.currentMap.id)
 
-      for (const file of selectedFiles) {
-        this.updateAppStatus(`Processing photo: ${file.name}...`)
-        const isDuplicateAllowedSetting = this.getAllowDuplicatePhotos()
 
-        if (!isDuplicateAllowedSetting) { // Only do check IF setting says NO duplicates
-          const isDuplicateFound = allPhotosOnMap.some(p => p.fileName === file.name)
-          // If a duplicate is found ANYWHERE on the map, skip this file
-          if (isDuplicateFound) {
-            this.showNotification(`Skipping duplicate photo: ${file.name} (already exists on this map)`, 'warning')
-            continue // Skip this file
-          }
-        }
-        const processOptions = {
-          maxWidth: this.imageCompressionSettings.photo.maxWidth,
-          maxHeight: this.imageCompressionSettings.photo.maxHeight,
-          quality: this.imageCompressionSettings.photo.quality,
-          outputFormat: 'image/jpeg'
-        }
-        const processedImageBlob = await this.imageProcessor.processImage(file, processOptions)
-        const thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(processedImageBlob, this.imageCompressionSettings.thumbnail.maxSize, 'image/jpeg', this.imageCompressionSettings.thumbnail.quality)
-        const photoData = {
-          markerId,
-          imageData: processedImageBlob,
-          thumbnailData: thumbnailDataUrl,
-          fileName: file.name,
-          fileType: 'image/jpeg',
-          fileSize: processedImageBlob.size
-        }
-        const savedPhoto = await this.storage.addPhoto(photoData)
-        photoIdsToAdd.push(savedPhoto.id)
-      }
-      // Update the marker with the new photo IDs
-      if (photoIdsToAdd.length > 0) {
-        const marker = await this.storage.getMarker(markerId)
-        if (marker) {
-          // Ensure photoIds array is initialized and add new unique IDs
-          const updatedPhotoIds = [...new Set([...(marker.photoIds || []), ...photoIdsToAdd])]
-          await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
-          this.showNotification(`${photoIdsToAdd.length} photo(s) added to marker.`, 'success')
-          //  Update local markers array and re-render map for visual change
-          const localMarker = this.markers.find(m => m.id === markerId)
-          if (localMarker) {
-            localMarker.photoIds = updatedPhotoIds // Update local photoIds
-            localMarker.hasPhotos = (updatedPhotoIds.length > 0) // Update local hasPhotos status (will be true)
-          }
-          this.mapRenderer.setMarkers(this.markers) // Pass updated local array
-          this.mapRenderer.render() // Re-render to reflect new color if needed
-          photosAdded = true // <--- Set flag to true if photos were successfully added
-        }
-      }
-    } catch (error) {
-      console.error('Failed to add photos to marker:', error)
-      this.showErrorMessage('Photo Error', `Failed to add photos: ${error.message}`)
-    } finally {
-      this.hideLoading()
-    }
-    return photosAdded // <--- Return the flag
-  }
-
-  /**
-   * Deletes a photo from a marker and from storage.
-   * MODIFIED: To ensure marker's `hasPhotos` status is updated and re-rendered.
-   * @param {string} markerId - The ID of the marker the photo is associated with.
-   * @param {string} photoId - The ID of the photo to delete.
-   */
-  async deletePhotoFromMarker (markerId, photoId) {
-    console.log('app.js: deletePhotoFromMarker received markerId:', markerId, 'photoIdToDelete:', photoId) // <--- ADD THIS LOG
-    this.showLoading('Removing photo...')
-    try {
-      // 1. Get the marker and remove the photoId from its photoIds array
-      const marker = await this.storage.getMarker(markerId)
-      if (marker) {
-        const updatedPhotoIds = marker.photoIds.filter(id => id !== photoId)
-        await this.storage.updateMarker(markerId, { photoIds: updatedPhotoIds, lastModified: new Date() })
-        console.log(`Removed photoId ${photoId} from marker ${markerId}`)
-
-        //  Update local markers array and re-render map for visual change
-        const localMarker = this.markers.find(m => m.id === markerId)
-        if (localMarker) {
-          localMarker.photoIds = updatedPhotoIds // Update local photoIds
-          localMarker.hasPhotos = (updatedPhotoIds.length > 0) // Update local hasPhotos status
-        }
-        this.mapRenderer.setMarkers(this.markers) // Pass updated local array
-        this.mapRenderer.render() // Re-render to reflect new color if needed
-      } else {
-        console.warn(`Marker ${markerId} not found when trying to delete photo ${photoId} reference.`)
-      }
-
-      // 2. Delete the photo itself from the photos store
-      await this.storage.deletePhoto(photoId)
-      console.log(`Photo ${photoId} deleted from storage.`)
-
-      this.showNotification('Photo removed successfully.', 'success')
-      // Implicitly, the refresh of the marker details modal will show the update
-    } catch (error) {
-      console.error('Failed to delete photo from marker:', error)
-      this.showErrorMessage('Delete Photo Error', `Failed to remove photo: ${error.message}`)
-    } finally {
-      this.hideLoading()
-    }
-  }
 
   /**
    * Displays a photo gallery for all photos on the current map.
@@ -2489,7 +2313,7 @@ class SnapSpotApp {
           // Close and reopen the gallery to refresh the display
           this.modalManager.closeTopModal()
           await new Promise(resolve => setTimeout(resolve, 350)) // Wait for modal to close
-          await this.showMapPhotoGallery()
+          await showMapPhotoGallery(this)
         },
         // onClose callback
         () => {
@@ -2850,7 +2674,7 @@ class SnapSpotApp {
       this.modalManager.closeTopModal() // This also handles object URL cleanup
 
       // 2. Call the existing method to handle the actual deletion from storage and UI updates
-      await this.deletePhotoFromMarker(markerId, photoId)
+      await deletePhotoFromMarker(this, markerId, photoId)
 
       // 3. CRITICAL FIX: Explicitly close any existing marker details modal *before* displaying updated one
       const existingMarkerDetailsModal = document.getElementById('marker-details-modal')
@@ -2862,89 +2686,13 @@ class SnapSpotApp {
 
       // 4. After deletion and successful UI update, re-open the marker details modal with the latest data
       //    This ensures the photo list in the marker details modal is also updated.
-      await this.showMarkerDetails(markerId) // This will create and display a new, updated modal.
+      await showMarkerDetails(this, markerId) // This will create and display a new, updated modal.
 
       this.showNotification('Image deleted successfully.', 'success')
       this.updateAppStatus('Image deleted.')
     } catch (error) {
       console.error('App: Failed to delete photo from image viewer:', error)
       this.showErrorMessage('Delete Photo Error', `Failed to delete image: ${error.message}`)
-    } finally {
-      this.hideLoading()
-    }
-  }
-
-  // MODIFIED: Consolidated method to handle viewing any image (map or photo) in the viewer modal
-  async handleViewImageInViewer (id, type) {
-    console.log(`app.js: handleViewImageInViewer received ID: ${id}, type: ${type}`)
-    this.showLoading('Loading image...')
-    try {
-      let item
-      let imageBlob
-      let title
-      let onDeleteCallback = null
-      let photoIdForViewer = null
-
-      if (type === 'map') {
-        item = await this.storage.getMap(id)
-        if (!item || !item.imageData) {
-          console.error('Map data or image data not found for ID:', id)
-          this.showErrorMessage('Image Load Error', 'Map image data not found.')
-          return
-        }
-        imageBlob = item.imageData
-        title = item.name || item.fileName || 'Map Image'
-        // No delete option for maps from image viewer
-      } else if (type === 'photo') {
-        item = await this.storage.getPhoto(id)
-        if (!item || !item.imageData) { // Check for photo.markerId
-          console.error('Photo data or image data not found for ID:', id)
-          this.showErrorMessage('Image Load Error', 'Photo image data not found.')
-          return
-        }
-        imageBlob = item.imageData
-        title = item.fileName || 'Photo Image'
-        photoIdForViewer = item.id // Pass photo ID for viewer deletion context
-
-        // CORRECTED: Retrieve markerId directly from the fetched photo object
-        const markerIdFromPhoto = item.markerId
-        if (markerIdFromPhoto) {
-          onDeleteCallback = async (idToDelete) => {
-            await this.deletePhotoFromImageViewer(idToDelete, markerIdFromPhoto)
-          }
-        } else {
-          console.warn(`Photo ID ${id} has no associated markerId. Cannot provide delete functionality.`)
-        }
-      } else {
-        console.error('Unknown type for handleViewImageInViewer:', type)
-        this.showErrorMessage('Image Load Error', 'Invalid image type specified.')
-        return
-      }
-
-      // Create object URL and pass to modalManager
-      const imageUrl = URL.createObjectURL(imageBlob)
-      // Track this object URL for cleanup if needed in the future
-      this.modalManager.trackObjectUrl('image-viewer-modal', imageUrl)
-      this.modalManager.currentObjectUrl = imageUrl
-
-      this.modalManager.createImageViewerModal(
-        this.modalManager.currentObjectUrl,
-        title,
-        photoIdForViewer,
-        onDeleteCallback,
-        () => {
-          // Clean up the object URL when the image viewer closes
-          if (this.modalManager.currentObjectUrl) {
-            URL.revokeObjectURL(this.modalManager.currentObjectUrl)
-            this.modalManager.currentObjectUrl = null
-          }
-          this.updateAppStatus('Image viewer closed.')
-        }
-      )
-      this.updateAppStatus(`Viewing image: ${title}`)
-    } catch (error) {
-      console.error('Error displaying image in viewer:', error)
-      this.showErrorMessage('Image Load Error', `Failed to load image: ${error.message}`)
     } finally {
       this.hideLoading()
     }
