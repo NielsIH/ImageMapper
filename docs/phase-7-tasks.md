@@ -26,22 +26,22 @@ Move search data operations (`searchMaps`, `searchPhotos`, `handleSearchFileSele
 - [x] Ensure: Offline search (no pagination in impl)
 
 ### 5. Update app.js to Use New Module
-- [ ] Add import: `import { searchMaps, searchPhotos, handleSearchFileSelection, onShowPhotoOnMap } from './app-search.js';`
-- [ ] Replace calls: e.g. `this.searchMaps(query)` → `searchMaps(this, query)`
-- [ ] Update `SearchManager` callbacks to delegate to new functions
-- [ ] Remove moved methods; lint/test
+- [x] Add import: `import { searchMaps, searchPhotos, handleSearchFileSelection, onShowPhotoOnMap } from './app-search.js';`
+- [x] Replace calls: `searchMaps(this, query)`, etc. in `SearchManager` callbacks
+- [x] Update `SearchManager` callbacks to delegate to new functions
+- [x] Remove moved methods (`searchMaps`, `handleSearchFileSelection`, `searchPhotos`, `onShowPhotoOnMap`); lint clean
 
 ### 6. Update Callers/Integrations (modals.js, searchManager.js)
-- [ ] `modals.js`: Remove `createSearchModal`; update `ModalManager` to import/delegate to `ui/search-modal.js`
-- [ ] `searchManager.js`: No change (uses `modalManager.createSearchModal`)
-- [ ] Verify no direct storage access remains in moved code
+- [x] `modals.js`: Remove `createSearchModal`; update `ModalManager` to import/delegate to `ui/search-modal.js`
+- [x] `searchManager.js`: No change (uses `modalManager.createSearchModal`)
+- [x] Verify no direct storage access remains in moved code
 
 ### 7. Verification and Testing
-- [ ] No errors; ~500-700 line reduction (app.js + modals.js)
-- [ ] Search: Maps/photos by text/file, results display, show-on-map
-- [ ] Mobile/offline: Search works
-- [ ] No regressions: Markers/photos/export/import/other modals
-- [ ] Console: No errors; exact behavior
+- [x] No errors; ~500-700 line reduction (app.js + modals.js)
+- [x] Search: Maps/photos by text/file, results display, show-on-map
+- [x] Mobile/offline: Search works
+- [x] No regressions: Markers/photos/export/import/other modals
+- [x] Console: No errors; exact behavior
 
 ## Expected Outcome
 - Search data ops in `js/app-search.js`; search modal UI in `js/ui/search-modal.js`

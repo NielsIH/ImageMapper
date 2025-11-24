@@ -11,8 +11,15 @@ export async function searchMaps (app, query) {
   // 1. Get all maps from storage (now includes markerCount from storage.getAllMaps())
   const allMapsWithCounts = await app.storage.getAllMaps()
 
-  // 2. Prepare all maps with thumbnails, inline from _getPreparedMapsForDisplay
-  const allMapsPrepared = await Promise.all(allMapsWithCounts.map(async (map) => {
+  // 2. Filter raw maps first (cheap string ops)
+  const filteredMapsRaw = allMapsWithCounts.filter(map =>
+    map.name.toLowerCase().includes(lowerCaseQuery) ||
+    (map.description && map.description.toLowerCase().includes(lowerCaseQuery)) ||
+    (map.fileName && map.fileName.toLowerCase().includes(lowerCaseQuery))
+  )
+
+  // 3. Prepare thumbs only for matches
+  const filteredMaps = await Promise.all(filteredMapsRaw.map(async (map) => {
     let thumbnailDataUrl = app.thumbnailCache.get(map.id)
     // If no thumbnail in cache and map data is a Blob (from storage)
     if (!thumbnailDataUrl && map.imageData instanceof Blob) {
@@ -35,13 +42,6 @@ export async function searchMaps (app, query) {
     return { ...map, thumbnailDataUrl }
   }))
 
-  // 3. Filter this prepared list based on the search query
-  const filteredMaps = allMapsPrepared.filter(map =>
-    map.name.toLowerCase().includes(lowerCaseQuery) ||
-    (map.description && map.description.toLowerCase().includes(lowerCaseQuery)) ||
-    (map.fileName && map.fileName.toLowerCase().includes(lowerCaseQuery))
-  )
-
   console.log(`App: Found ${filteredMaps.length} maps matching query "${query}".`)
   return filteredMaps
 }
@@ -53,8 +53,13 @@ export async function searchPhotos (app, query) {
   const searchTerm = query.toLowerCase()
   const allEnrichedPhotos = await app.storage.getAllPhotosWithContext()
 
-  // Generate thumbnails for each photo before returning them
-  const preparedPhotos = await Promise.all(allEnrichedPhotos.map(async (photo) => {
+  // Filter raw photos first (cheap string ops)
+  const matchingPhotosRaw = allEnrichedPhotos.filter(photo =>
+    photo.fileName.toLowerCase().includes(searchTerm)
+  )
+
+  // Generate thumbnails only for matches
+  const preparedPhotos = await Promise.all(matchingPhotosRaw.map(async (photo) => {
     let thumbnailDataUrl = app.thumbnailCache.get(photo.id)
     if (!thumbnailDataUrl && photo.imageData instanceof Blob) {
       try {
@@ -71,9 +76,7 @@ export async function searchPhotos (app, query) {
     return { ...photo, thumbnailDataUrl }
   }))
 
-  return preparedPhotos.filter(photo =>
-    photo.fileName.toLowerCase().includes(searchTerm)
-  )
+  return preparedPhotos
 }
 
 export async function handleSearchFileSelection (app) {

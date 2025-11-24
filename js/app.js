@@ -26,6 +26,7 @@ import {
   showMapPhotoGallery,
   handleViewImageInViewer
 } from './app-marker-photo-manager.js'
+import { searchMaps, searchPhotos, handleSearchFileSelection, onShowPhotoOnMap } from './app-search.js'
 
 // --- End Module Imports ---
 
@@ -37,14 +38,14 @@ class SnapSpotApp {
     this.fileManager = new FileManager()
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
-      searchMaps: (query) => this.searchMaps(query),
-      searchPhotos: (query) => this.searchPhotos(query),
+      searchMaps: (query) => searchMaps(this, query),
+      searchPhotos: (query) => searchPhotos(this, query),
       deleteMap: (mapId) => this.deleteMap(mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
-      onSearchFileSelect: () => this.handleSearchFileSelection(),
+      onSearchFileSelect: () => handleSearchFileSelection(this),
       onViewImageInViewer: (id, type) => handleViewImageInViewer(this, id, type),
-      onShowPhotoOnMap: (photoData) => this.onShowPhotoOnMap(photoData)
+      onShowPhotoOnMap: (photoData) => onShowPhotoOnMap(this, photoData)
     })
 
     this.mapRenderer = new MapRenderer('map-canvas')
@@ -672,148 +673,6 @@ class SnapSpotApp {
       // Return map object with the generated/cached thumbnailDataUrl
       return { ...map, thumbnailDataUrl }
     }))
-  }
-
-  /**
-     * Searches for maps based on a query.
-     * Fetches all maps, prepares them for display (including thumbnails),
-     * and then filters this prepared list based on the search query.
-     * @param {string} query The search term.
-     * @returns {Promise<Array<Object>>} An array of filtered map data, including thumbnailDataUrl.
-     */
-  async searchMaps (query) {
-    console.log('App: Performing map search for query:', query)
-    const lowerCaseQuery = query.toLowerCase()
-
-    // 1. Get all maps from storage (now includes markerCount from storage.getAllMaps())
-    const allMapsWithCounts = await this.storage.getAllMaps()
-
-    // 2. Prepare all maps with thumbnails, using the reusable method
-    const allMapsPrepared = await this._getPreparedMapsForDisplay(allMapsWithCounts)
-
-    // 3. Filter this prepared list based on the search query
-    const filteredMaps = allMapsPrepared.filter(map =>
-      map.name.toLowerCase().includes(lowerCaseQuery) ||
-      (map.description && map.description.toLowerCase().includes(lowerCaseQuery)) || // Existing
-      (map.fileName && map.fileName.toLowerCase().includes(lowerCaseQuery)) //  Also search by fileName
-    )
-
-    console.log(`App: Found ${filteredMaps.length} maps matching query "${query}".`)
-    return filteredMaps
-  }
-
-  // to handle file selection specifically for search
-  async handleSearchFileSelection () {
-    try {
-      // Replicate the successful pattern: close modal, then delay
-      if (this.modalManager.getTopModalId() === 'search-modal') {
-        this.modalManager.closeTopModal()
-      }
-      await new Promise(resolve => setTimeout(resolve, 350)) // Ensure modal is truly gone
-
-      // Now, call fileManager.selectFiles. The file picker will appear.
-      const selectedFiles = await this.fileManager.selectFiles(false, true) // (allowMultiple = false, acceptImagesOnly = true)
-      this.showLoading('Processing file for search...')
-
-      if (selectedFiles === null || selectedFiles.length === 0) {
-        this.showNotification('File selection cancelled.', 'info')
-        return
-      }
-
-      const selectedFile = selectedFiles[0]
-
-      // Re-open the search modal if it was closed, to show results within it
-      // This will also trigger the performSearch logic if initialQuery is set
-      this.searchManager.openSearchModal(selectedFile.name)
-    } catch (error) {
-      console.error('Error selecting file for search:', error)
-      this.showErrorMessage('File Selection Error', `Failed to select file for search: ${error.message}`)
-      // Re-open the search modal if an error occurred after closing it
-      this.searchManager.openSearchModal()
-    } finally {
-      this.hideLoading() // Always hide loading in the end
-    }
-  }
-
-  /**
-   * Searches for photos by filename (case-insensitive).
-   * @param {string} query - The search query.
-   * @returns {Promise<Array>} - An array of enriched photo objects matching the query.
-   */
-  async searchPhotos (query) {
-    if (!query) {
-      return []
-    }
-    const searchTerm = query.toLowerCase()
-    const allEnrichedPhotos = await this.storage.getAllPhotosWithContext()
-
-    // Generate thumbnails for each photo before returning them
-    const preparedPhotos = await Promise.all(allEnrichedPhotos.map(async (photo) => {
-      let thumbnailDataUrl = this.thumbnailCache.get(photo.id)
-      if (!thumbnailDataUrl && photo.imageData instanceof Blob) {
-        try {
-          const photoThumbnailSettings = this.imageCompressionSettings.thumbnail
-          thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(photo.imageData, photoThumbnailSettings.maxSize)
-          if (thumbnailDataUrl) {
-            this.thumbnailCache.set(photo.id, thumbnailDataUrl)
-          }
-        } catch (thumbError) {
-          console.warn(`App: Failed to generate thumbnail for photo ${photo.id}:`, thumbError)
-          thumbnailDataUrl = null
-        }
-      }
-      return { ...photo, thumbnailDataUrl }
-    }))
-
-    return preparedPhotos.filter(photo =>
-      photo.fileName.toLowerCase().includes(searchTerm)
-    )
-  }
-
-  /**
-   * Handles displaying a photo on its respective map, focusing on the associated marker.
-   * @param {Object} photoData - The enriched photo object containing mapId, markerId, etc.
-   */
-  async onShowPhotoOnMap (photoData) {
-    if (!photoData || !photoData.mapId || !photoData.markerId) {
-      console.error('App: Invalid photoData for onShowPhotoOnMap', photoData)
-      return
-    }
-
-    this.showLoading(`Showing photo ${photoData.fileName} on map ${photoData.mapName}...`)
-
-    try {
-      // 1. Switch to the map where the photo's marker is located
-      // This will also trigger mapRenderer to load and render the correct map.
-      await this.switchToMap(photoData.mapId)
-
-      // 2. Fetch the marker to get its coordinates
-      const marker = await this.storage.getMarker(photoData.markerId)
-      if (marker) {
-        // Close search modal if it's open, as we're navigating to the map
-        this.modalManager.closeTopModal() // This closes the search modal
-
-        // 3. Pan and zoom the map to center on the marker
-        // The `panAndZoomToCoordinates` method will be added to MapRenderer.
-        const targetZoomFactor = 1.5 // Example: zoom to 1.5 times the current scale, or an absolute scale
-        this.mapRenderer.panAndZoomToCoordinates(marker.x, marker.y, targetZoomFactor)
-
-        // 4. Highlight the marker to draw attention to it
-        // The `highlightMarker` method will be added to MapRenderer.
-        this.mapRenderer.highlightMarker(marker.id)
-
-        this.showNotification(`Focused on marker for photo "${photoData.fileName}"`, 'info')
-        console.log(`App: Focused on marker ${marker.id} on map ${photoData.mapId} for photo ${photoData.id}`)
-      } else {
-        console.warn(`App: Marker ${photoData.markerId} not found for photo ${photoData.id}. Cannot focus on marker.`)
-        this.showNotification(`Could not find marker for photo "${photoData.fileName}" on map.`, 'warning')
-      }
-    } catch (error) {
-      console.error(`App: Error showing photo ${photoData.id} on map:`, error)
-      this.showErrorMessage('Error Showing Photo on Map', `Failed to show photo on map: ${error.message}`)
-    } finally {
-      this.hideLoading()
-    }
   }
 
   /**
