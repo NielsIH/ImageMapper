@@ -22,29 +22,29 @@ Move complete marker details modal implementation (~500-700 lines from `js/ui/mo
 - [x] Verify object URL tracking for thumbnails, edit mode UI toggle
 
 ### 4. Update modals.js to Use New Module
-- [ ] Add `import { createMarkerDetailsModal, updateMarkerDetailsDescription } from './marker-details-modal.js';`
-- [ ] Replace: `ModalManager.createMarkerDetailsModal(...)` → delegate to imported func
-- [ ] Replace: `ModalManager.updateMarkerDetailsDescription(...)` → delegate
-- [ ] Verify signatures/callbacks match
+- [x] Add `import { createMarkerDetailsModal, updateMarkerDetailsDescription } from './marker-details-modal.js';`
+- [x] Replace: `ModalManager.createMarkerDetailsModal(...)` → delegate to imported func
+- [x] Replace: `ModalManager.updateMarkerDetailsDescription(...)` → delegate
+- [x] Verify signatures/callbacks match
 
 ### 4b. Remove Deprecated Code from modals.js
-- [ ] Delete `createMarkerDetailsModal`, `updateMarkerDetailsDescription`, moved logic
-- [ ] Verify no references remain; lint/test modals.js
+- [x] Delete `createMarkerDetailsModal`, `updateMarkerDetailsDescription`, moved logic
+- [x] Verify no references remain; lint/test modals.js
 
 ### 5. Update Callers
-- [ ] `app.js showMarkerDetails()`: unchanged (calls `this.modalManager.createMarkerDetailsModal`)
-- [ ] Verify callback integrations (e.g., `onSaveDescription`, `onViewPhoto`)
+- [x] `app.js showMarkerDetails()`: unchanged (calls `this.modalManager.createMarkerDetailsModal`)
+- [x] Verify callback integrations (e.g., `onSaveDescription`, `onViewPhoto`)
 
 ### 6. Verification and Testing
-- [ ] No errors; ~500-700 line reduction modals.js
-- [ ] Marker details modal works: description edit/save, photo thumbnails/delete/view/add, edit mode toggle
-- [ ] Photo viewer/gallery integration from thumbnails
-- [ ] Mobile: touch interactions, thumbnail loading
-- [ ] No regressions: other modals (settings, upload, etc.)
-- [ ] Offline: modal load/display works
-- [ ] Console: no errors; exact behavior
+- [x] No errors; ~500-700 line reduction modals.js
+- [x] Marker details modal works: description edit/save, photo thumbnails/delete/view/add, edit mode toggle
+- [x] Photo viewer/gallery integration from thumbnails
+- [x] Mobile: touch interactions, thumbnail loading
+- [x] No regressions: other modals (settings, upload, etc.)
+- [x] Offline: modal load/display works
+- [x] Console: no errors; exact behavior
 
 ## Expected Outcome
-- Marker details functionality in `js/ui/marker-details-modal.js`
-- modals.js reduced ~500-700 lines
-- All marker details features preserved
+- [x] Marker details functionality in `js/ui/marker-details-modal.js`
+- [x] modals.js reduced ~500-700 lines
+- [x] All marker details features preserved
