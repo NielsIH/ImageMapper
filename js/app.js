@@ -2199,21 +2199,6 @@ class SnapSpotApp {
   }
 
   /**
-   * Deletes a marker (and its associated photos) from storage and UI.
-   * @param {string} markerId - The ID of the marker to delete.
-   */
-
-
-  /**
-   * Sets up the process for adding photos to a specific marker.
-   * MODIFIED: To ensure marker's `hasPhotos` status is updated and re-rendered.
-   * @param {string} markerId - The ID of the marker to add photos to.
-   */
-
-
-
-
-  /**
    * Displays a photo gallery for all photos on the current map.
    */
   async showMapPhotoGallery () {
