@@ -23,26 +23,26 @@ Move complete settings modal implementation (~600-800 lines from `js/ui/modals.j
 - [x] Verify event handling, localStorage persistence, mobile tab selector
 
 ### 4. Update modals.js to Use New Module
-- [ ] Add `import { createSettingsModal } from './settings-modal.js';`
-- [ ] Replace: `ModalManager.createSettingsModal(...)` → delegate to imported func
-- [ ] Verify signatures/callbacks match; remove any moved helpers (`_generateRuleRowHtml`)
+- [x] Add `import { createSettingsModal } from './settings-modal.js';`
+- [x] Replace: `ModalManager.createSettingsModal(...)` → delegate to imported func
+- [x] Verify signatures/callbacks match; remove any moved helpers (`_generateRuleRowHtml`)
 
 ### 4b. Remove Deprecated Code from modals.js
-- [ ] Delete `createSettingsModal`, moved helpers/logic
-- [ ] Verify no references remain; lint/test modals.js
+- [x] Delete `createSettingsModal`, moved helpers/logic
+- [x] Verify no references remain; lint/test modals.js
 
 ### 5. Update Callers
-- [ ] `app.js showSettings()`: unchanged (calls `this.modalManager.createSettingsModal`)
-- [ ] Verify callback integrations (e.g., `onMapSelected`, `setPhotoQuality`)
+- [x] `app.js showSettings()`: unchanged (calls `this.modalManager.createSettingsModal`)
+- [x] Verify callback integrations (e.g., `onMapSelected`, `setPhotoQuality`)
 
 ### 6. Verification and Testing
-- [ ] No errors; ~600-800 line reduction modals.js + ~100-150 app.js
-- [ ] All tabs work: General (notifications), Behavior (auto-close, duplicates), Display (crosshair, max markers, custom rules), Processing (quality slider), Data Mgmt (import), Maps Mgmt (list/delete/export/add), Danger Zone (clear all)
-- [ ] Mobile: tab dropdown, touch interactions
-- [ ] Custom rules: rendering, persistence, application
-- [ ] No regressions: other modals (marker-details, gallery, etc.)
-- [ ] Offline: settings load/save works
-- [ ] Console: no errors; exact behavior
+- [x] No errors; ~600-800 line reduction modals.js + ~100-150 app.js
+- [x] All tabs work: General (notifications), Behavior (auto-close, duplicates), Display (crosshair, max markers, custom rules), Processing (quality slider), Data Mgmt (import), Maps Mgmt (list/delete/export/add), Danger Zone (clear all)
+- [x] Mobile: tab dropdown, touch interactions
+- [x] Custom rules: rendering, persistence, application
+- [x] No regressions: other modals (marker-details, gallery, etc.)
+- [x] Offline: settings load/save works
+- [x] Console: no errors; exact behavior
 
 ## Expected Outcome
 - Settings functionality in `js/ui/settings-modal.js`
