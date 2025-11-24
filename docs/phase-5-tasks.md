@@ -6,20 +6,20 @@ Move complete marker details modal implementation (~500-700 lines from `js/ui/mo
 ## Tasks
 
 ### 1. Analyze Current Marker Details Modal Code
-- [ ] Identify all marker details methods in modals.js: `createMarkerDetailsModal`, `updateMarkerDetailsDescription`
-- [ ] List dependencies: app callbacks (`onAddPhotos`, `onEditMarker`, `onSaveDescription`, `onDeleteMarker`, `onDeletePhoto`, `onViewPhoto`), DOM elements
-- [ ] Document shared state/vars: photo thumbnails, edit mode toggles, description display/edit
+- [x] Identify all marker details methods in modals.js: `createMarkerDetailsModal`, `updateMarkerDetailsDescription`
+- [x] List dependencies: app callbacks (`onAddPhotos`, `onEditMarker`, `onSaveDescription`, `onDeleteMarker`, `onDeletePhoto`, `onViewPhoto`), DOM elements
+- [x] Document shared state/vars: photo thumbnails, edit mode toggles, description display/edit
 
 ### 2. Move Functions to New Module
-- [ ] Move `createMarkerDetailsModal` (HTML template + photo thumbnails ~lines 500-1000)
-- [ ] Move `updateMarkerDetailsDescription` (description update helper)
-- [ ] Move inline logic: edit mode toggle, photo delete/view listeners, button handlers
+- [x] Move `createMarkerDetailsModal` (HTML template + photo thumbnails ~lines 500-1000)
+- [x] Move `updateMarkerDetailsDescription` (description update helper)
+- [x] Move inline logic: edit mode toggle, photo delete/view listeners, button handlers
 
 ### 3. Update New Module Implementation
-- [ ] Modify: `createMarkerDetailsModal(markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose)`; use passed `modalManager`
-- [ ] Ensure access: callbacks for all actions, photo thumbnail loading with fallback (full→thumb)
-- [ ] Preserve: description edit, photo list/delete/view, add photos button, mobile support
-- [ ] Verify object URL tracking for thumbnails, edit mode UI toggle
+- [x] Modify: `createMarkerDetailsModal(markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose)`; use passed `modalManager`
+- [x] Ensure access: callbacks for all actions, photo thumbnail loading with fallback (full→thumb)
+- [x] Preserve: description edit, photo list/delete/view, add photos button, mobile support
+- [x] Verify object URL tracking for thumbnails, edit mode UI toggle
 
 ### 4. Update modals.js to Use New Module
 - [ ] Add `import { createMarkerDetailsModal, updateMarkerDetailsDescription } from './marker-details-modal.js';`
