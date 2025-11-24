@@ -4,6 +4,8 @@
  */
 
 import * as MapInteractions from './app-map-interactions.js'
+import { createPhotoGalleryModal } from './ui/photo-gallery-modal.js'
+import { onShowPhotoOnMap } from './app-search.js'
 
 // Export all marker and photo management functions
 export async function placeMarker (app) {
@@ -172,14 +174,15 @@ export async function showMarkerDetails (app, markerId) {
         app.modalManager.closeTopModal()
 
         // Show the photo gallery modal starting with the specific photo in single view
-        app.modalManager.createPhotoGalleryModal(
+        createPhotoGalleryModal(
+          app.modalManager,
           enrichedPhotos,
           {
             title: `Marker Gallery: ${marker.description || 'Untitled Marker'}`,
             showOnMapOption: false,
             initialPhotoId: photoIdFromModal
           },
-          null, // onShowOnMap is not available for marker details
+          null, // onShowOnMap
           // onDeletePhoto callback for the gallery
           async (photoIdToDelete) => {
             // Delete the photo from storage
@@ -411,7 +414,8 @@ export async function showMapPhotoGallery (app) {
     }))
 
     // Show the gallery modal
-    app.modalManager.createPhotoGalleryModal(
+    createPhotoGalleryModal(
+      app.modalManager,
       enrichedPhotos,
       {
         title: `Map Gallery: ${app.currentMap.name}`,
@@ -422,9 +426,7 @@ export async function showMapPhotoGallery (app) {
         // Close gallery modal
         app.modalManager.closeTopModal()
 
-        // Switch to the map where the photo's marker is located (current map in this case)
-        // and focus on the marker
-        await app.onShowPhotoOnMap(photoData)
+        await onShowPhotoOnMap(app, photoData)
       },
       // onDeletePhoto callback
       async (photoId) => {

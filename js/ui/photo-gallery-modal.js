@@ -429,7 +429,7 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
   // Show on map button
   showOnMapBtn?.addEventListener('click', () => {
     if (onShowOnMap && currentPhotoIndex >= 0 && currentPhotoIndex < photos.length) {
-      onShowOnMap(photos[currentPhotoIndex].id)
+      onShowOnMap(photos[currentPhotoIndex])
     }
   })
 
