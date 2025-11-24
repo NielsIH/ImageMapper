@@ -27,6 +27,7 @@ import {
   handleViewImageInViewer
 } from './app-marker-photo-manager.js'
 import { searchMaps, searchPhotos, handleSearchFileSelection, onShowPhotoOnMap } from './app-search.js'
+import { showSettings, getCustomMarkerColorRules } from './app-settings.js'
 
 // --- End Module Imports ---
 
@@ -172,7 +173,7 @@ class SnapSpotApp {
       this.restoreMarkerLockState()
       this.restoreMarkerSizeState()
       this.restoreNotificationsState()
-      this.customMarkerRules = this.getCustomMarkerColorRules() // Load custom marker rules
+      this.customMarkerRules = getCustomMarkerColorRules(this) // Load custom marker rules
       this.mapRenderer.setCustomColorRules(this.customMarkerRules) // Pass rules to mapRenderer
       this.restoreMapRotationState()
 
@@ -237,7 +238,7 @@ class SnapSpotApp {
     // Settings button
     const settingsBtn = document.getElementById('btn-settings')
     if (settingsBtn) {
-      settingsBtn.addEventListener('click', () => this.showSettings())
+      settingsBtn.addEventListener('click', () => showSettings(this))
     }
 
     // Add first map button
@@ -514,250 +515,6 @@ class SnapSpotApp {
     const overlay = document.getElementById('loading-overlay')
     if (overlay) {
       overlay.classList.add('hidden')
-    }
-  }
-
-  /**
-  * Displays the App Settings modal.
-  * @param {string} [initialTab='general-settings'] - The ID of the tab to initially open.
-  */
-  async showSettings (initialTab = 'general-settings') {
-    this.showLoading('Loading settings...', false)
-    try {
-      // Load maps from storage (now returns maps with markerCount)
-      this.mapsList = await this.storage.getAllMaps() // No change needed here for app.loadMaps
-      // Prepare maps with thumbnails and marker counts for display
-      const mapsWithDetails = await this._getPreparedMapsForDisplay(this.mapsList)
-      // Separate active map for sorting
-      let activeMap = null
-      const currentActiveMapId = this.currentMap ? this.currentMap.id : null
-      if (currentActiveMapId) {
-        const activeMapIndex = mapsWithDetails.findIndex(map => map.id === currentActiveMapId)
-        if (activeMapIndex !== -1) {
-          activeMap = mapsWithDetails.splice(activeMapIndex, 1)[0]
-        }
-      }
-      // Sort remaining maps by name alphabetically
-      mapsWithDetails.sort((a, b) => a.name.localeCompare(b.name))
-      // Prepend active map if it exists
-      if (activeMap) {
-        mapsWithDetails.unshift(activeMap)
-      }
-
-      const settingsCallbacks = {
-        onClearAllAppData: () => this.clearAllAppData(), // Already implemented for danger zone
-        // Maps Management Callbacks:
-        onMapSelected: async (mapId) => {
-          await this.switchToMap(mapId)
-          this.updateAppStatus(`Switched to map: ${this.currentMap.name}`)
-          if (this.modalManager.getTopModalId() === 'settings-modal') {
-            this.modalManager.closeTopModal()
-          }
-        },
-        onMapDelete: async (mapId) => {
-          await this.deleteMap(mapId)
-          // showSettings will be called again by onSettingsModalRefresh after deletion
-        },
-        onAddNewMap: () => {
-          this.showUploadModal() // Calls the existing method to show the map upload modal
-        },
-        onExportHtmlMap: async (mapId) => {
-          await this.exportHtmlReport(mapId) // Calls your existing method
-        },
-        onExportJsonMap: async (mapId) => {
-          await this.exportJsonMap(mapId) // Calls your existing method
-        },
-        onSettingsModalRefresh: (tabToReopen) => {
-          // This callback is triggered after an action (like map deletion)
-          // that requires re-rendering the maps list within the settings modal.
-          // We close the current settings modal and immediately re-open it
-          // to the specified tab to show the updated list.
-          if (this.modalManager.getTopModalId() === 'settings-modal') {
-            this.modalManager.closeTopModal() // Close current instance
-          }
-          // Re-open settings modal, ensuring the Maps Management tab is active
-          this.showSettings(tabToReopen)
-        },
-        //  Pass the consolidated image viewer callback
-        onViewImageInViewer: (id, type) => handleViewImageInViewer(this, id, type), // <-- NEW LINE
-
-        //  Data Management Callbacks
-        onImportData: async (file) => {
-          await this.handleImportFile(file)
-          this.updateAppStatus('Data import complete.', 'success') // Set status as success
-          // Trigger a refresh of the settings modal to show the updated map list
-          settingsCallbacks.onSettingsModalRefresh('maps-management-settings')
-        },
-        //  Map Display Callbacks
-        isCrosshairEnabled: () => this.isCrosshairEnabled(),
-        onToggleCrosshair: (enabled) => {
-          this.toggleCrosshair(enabled)
-        },
-        //  Image Processing Callbacks
-        getPhotoQuality: () => this.getPhotoQuality(),
-        setPhotoQuality: (qualityPercentage) => {
-          this.setPhotoQuality(qualityPercentage)
-        },
-        //  App Behavior Callbacks
-        getAutoCloseMarkerDetails: () => this.getAutoCloseMarkerDetails(),
-        setAutoCloseMarkerDetails: (value) => {
-          this.setAutoCloseMarkerDetails(value)
-        },
-        getAllowDuplicatePhotos: () => this.getAllowDuplicatePhotos(),
-        setAllowDuplicatePhotos: (value) => {
-          this.setAllowDuplicatePhotos(value)
-        },
-        // Max Markers Display Callbacks
-        getMaxMarkersToShow: () => this.getMaxMarkersToShow(),
-        setMaxMarkersToShow: (maxMarkers) => {
-          this.setMaxMarkersToShow(maxMarkers)
-        },
-        // General Settings Callbacks
-        getNotificationsEnabled: () => this.getNotificationsEnabled(),
-        setNotificationsEnabled: (value) => {
-          this.setNotificationsEnabled(value)
-        },
-        // Custom Marker Coloring Callbacks
-        getCustomMarkerColors: () => this.getCustomMarkerColors(),
-        getCustomMarkerOperators: () => this.getCustomMarkerOperators(),
-        getCurrentCustomMarkerRules: () => this.getCurrentCustomMarkerRules(),
-        setAndPersistCustomMarkerRules: (rules) => this.setAndPersistCustomMarkerRules(rules)
-      }
-      // Create and display the settings modal
-      this.modalManager.createSettingsModal(
-        settingsCallbacks,
-        mapsWithDetails, // Pass prepared maps data including markerCount
-        currentActiveMapId, // Pass active map ID
-        () => { // onClose callback for the settings modal itself
-          this.updateAppStatus('Settings closed')
-        },
-        initialTab // Pass the initial tab to open
-      )
-      this.updateAppStatus('Settings displayed')
-    } catch (error) {
-      console.error('App: Error showing settings modal:', error)
-      this.showErrorMessage('Failed to open settings', error.message)
-    } finally {
-      this.hideLoading() // Hide loading indicator regardless of success/failure
-    }
-  }
-
-  /**
-     * Prepares an array of map objects for display in the UI.
-     * This includes generating/retrieving thumbnail Data URLs and ensuring marker counts are present.
-     * This method centralizes data preparation logic used by both settings modal and search results.
-     * @param {Array<Object>} rawMaps - An array of raw map objects (from Storage.getAllMaps(), which now includes markerCount).
-     * @returns {Promise<Array<Object>>} An array of map objects prepared for UI display.
-     * @private
-     */
-  async _getPreparedMapsForDisplay (rawMaps) {
-    return Promise.all(rawMaps.map(async (map) => {
-      let thumbnailDataUrl = this.thumbnailCache.get(map.id)
-      // If no thumbnail in cache and map data is a Blob (from storage)
-      if (!thumbnailDataUrl && map.imageData instanceof Blob) {
-        try {
-          // Use a smaller size for thumbnails displayed in lists
-          const mapThumbnailSettings = this.imageCompressionSettings.thumbnail
-          thumbnailDataUrl = await this.imageProcessor.generateThumbnailDataUrl(map.imageData, mapThumbnailSettings.maxSize)
-          if (thumbnailDataUrl) {
-            this.thumbnailCache.set(map.id, thumbnailDataUrl)
-          }
-        } catch (thumbError) {
-          console.warn(`App: Failed to generate thumbnail for map ${map.id}:`, thumbError)
-          thumbnailDataUrl = null
-        }
-      } else if (!map.imageData || !(map.imageData instanceof Blob)) {
-        // If map.imageData is null/undefined or not a Blob, explicitly set thumbnail to null
-        thumbnailDataUrl = null
-      }
-      // Return map object with the generated/cached thumbnailDataUrl
-      return { ...map, thumbnailDataUrl }
-    }))
-  }
-
-  /**
-   * Returns the current photo quality setting (for images attached to markers).
-   * @returns {number} Photo quality as a decimal (0.1-1.0).
-   */
-  getPhotoQuality () {
-    return this.imageCompressionSettings.photo.quality
-  }
-
-  /**
-   * Sets a new photo quality and persists it.
-   * @param {number} quality - The new photo quality as a percentage (10-100).
-   */
-  setPhotoQuality (qualityPercentage) {
-    // Convert percentage (10-100) to decimal (0.1-1.0)
-    const decimalQuality = qualityPercentage / 100
-
-    // Ensure quality is within valid range (0.1 to 1.0)
-    const clampedQuality = Math.max(0.1, Math.min(1.0, decimalQuality))
-
-    this.imageCompressionSettings.photo.quality = clampedQuality
-    localStorage.setItem('defaultPhotoQuality', clampedQuality) // Persist the decimal value
-    this.showNotification(`Image quality for markers set to ${qualityPercentage}%.`, 'info')
-    console.log('Image quality for markers set to:', clampedQuality)
-  }
-
-  /**
-   * Returns whether the marker details modal should auto-close after adding photos.
-   * @returns {boolean}
-   */
-  getAutoCloseMarkerDetails () {
-    return this.autoCloseMarkerDetails
-  }
-
-  /**
-   * Sets whether the marker details modal should auto-close after adding photos and persists it.
-   * @param {boolean} value - true to auto-close, false otherwise.
-   */
-  setAutoCloseMarkerDetails (value) {
-    this.autoCloseMarkerDetails = value
-    localStorage.setItem('autoCloseMarkerDetails', value)
-    this.showNotification(`Auto-close marker details: ${this.autoCloseMarkerDetails ? 'Enabled' : 'Disabled'}.`, 'info')
-    console.log('Auto-close marker details:', this.autoCloseMarkerDetails)
-  }
-
-  /**
-   * Returns whether adding duplicate photos to markers is allowed.
-   * @returns {boolean}
-   */
-  getAllowDuplicatePhotos () {
-    return this.allowDuplicatePhotos
-  }
-
-  /**
-   * Sets whether adding duplicate photos to markers is allowed and persists it.
-   * @param {boolean} value - true to allow, false otherwise.
-   */
-  setAllowDuplicatePhotos (value) {
-    this.allowDuplicatePhotos = value
-    localStorage.setItem('allowDuplicatePhotos', value)
-    this.showNotification(`Allow duplicate photos: ${this.allowDuplicatePhotos ? 'Enabled' : 'Disabled'}.`, 'info')
-    console.log('Allow duplicate photos:', this.allowDuplicatePhotos)
-  }
-
-  /**
- * Get the maximum number of markers to display on the map
- * @returns {number} - Maximum markers (0 = unlimited)
- */
-  getMaxMarkersToShow () {
-    return this.maxMarkersToShow
-  }
-
-  /**
-   * Set the maximum number of markers to display on the map
-   * @param {number} maxMarkers - Maximum markers to show (0 = unlimited)
-   */
-  setMaxMarkersToShow (maxMarkers) {
-    this.maxMarkersToShow = maxMarkers
-    localStorage.setItem('maxMarkersToShow', maxMarkers.toString())
-    console.log(`App: Max markers to show set to: ${maxMarkers === 0 ? 'unlimited' : maxMarkers}`)
-
-    // If we have a current map loaded, refresh the marker display
-    if (this.currentMap) {
-      this.refreshMarkersDisplay()
     }
   }
 
@@ -1095,71 +852,6 @@ class SnapSpotApp {
   }
 
   /**
-   * Retrieves custom marker coloring rules from localStorage.
-   * @returns {Array<Object>} An array of custom marker coloring rule objects.
-   */
-  getCustomMarkerColorRules () {
-    try {
-      const rulesJson = localStorage.getItem(this.customMarkerRulesKey)
-      return rulesJson ? JSON.parse(rulesJson) : []
-    } catch (error) {
-      console.error('App: Error parsing custom marker rules from localStorage', error)
-      return []
-    }
-  }
-
-  /**
-   * Saves custom marker coloring rules to localStorage.
-   * @param {Array<Object>} rules - An array of custom marker coloring rule objects to save.
-   */
-  setCustomMarkerColorRules (rules) {
-    try {
-      localStorage.setItem(this.customMarkerRulesKey, JSON.stringify(rules))
-      this.customMarkerRules = rules // Update internal state
-      console.log('App: Custom marker rules saved to localStorage.', rules)
-      // Re-render map to apply new rules if a map is active
-      if (this.currentMap) {
-        this.refreshMarkersDisplay()
-      }
-    } catch (error) {
-      console.error('App: Error saving custom marker rules to localStorage', error)
-      this.showErrorMessage('Save Error', 'Failed to save custom marker coloring rules.')
-    }
-  }
-
-  /**
-   * Returns the predefined custom marker colors.
-   * @returns {Array<Object>} An array of color objects.
-   */
-  getCustomMarkerColors () {
-    return this.customMarkerColors
-  }
-
-  /**
-   * Returns the predefined custom marker operators.
-   * @returns {Array<Object>} An array of operator objects.
-   */
-  getCustomMarkerOperators () {
-    return this.customMarkerOperators
-  }
-
-  /**
-   * Returns the current custom marker rules.
-   * @returns {Array<Object>} An array of custom marker rule objects.
-   */
-  getCurrentCustomMarkerRules () {
-    return this.customMarkerRules
-  }
-
-  /**
-   * Sets the custom marker rules and persists them.
-   * @param {Array<Object>} rules - The new array of custom marker rule objects.
-   */
-  setAndPersistCustomMarkerRules (rules) {
-    this.setCustomMarkerColorRules(rules)
-  }
-
-  /**
    * Toggles the visibility of the crosshair on the map.
    * If 'forceState' is provided, sets it to that state instead of toggling.
    * @param {boolean} [forceState] - Optional. If provided, sets crosshair visibility to this state.
@@ -1361,25 +1053,6 @@ class SnapSpotApp {
   // ========================================
   // Utility Methods
   // ========================================
-
-  /**
-   * Returns whether notifications are enabled.
-   * @returns {boolean}
-   */
-  getNotificationsEnabled () {
-    return this.notificationsEnabled
-  }
-
-  /**
-   * Sets whether notifications are enabled and persists it.
-   * @param {boolean} value - true to enable notifications, false otherwise.
-   */
-  setNotificationsEnabled (value) {
-    this.notificationsEnabled = value
-    localStorage.setItem('notificationsEnabled', value)
-    this.showNotification(`Notifications: ${this.notificationsEnabled ? 'Enabled' : 'Disabled'}.`, 'info')
-    console.log('Notifications enabled:', this.notificationsEnabled)
-  }
 
   /**
    * Show a proper toast notification to the user.
@@ -2195,8 +1868,8 @@ class SnapSpotApp {
    */
   async _showImportDecisionModal (importResult) {
     // Prepare maps with thumbnails and marker counts for display
-    const preparedExistingMaps = await this._getPreparedMapsForDisplay(importResult.existingMaps || [])
-    const preparedSecondaryMatches = await this._getPreparedMapsForDisplay(importResult.secondaryMatches || [])
+    const preparedExistingMaps = await this.imageProcessor.prepareMapsForDisplay(importResult.existingMaps || [], this.thumbnailCache, this.imageCompressionSettings)
+    const preparedSecondaryMatches = await this.imageProcessor.prepareMapsForDisplay(importResult.secondaryMatches || [], this.thumbnailCache, this.imageCompressionSettings)
 
     // Show the new modal to get user's decision
     const userChoice = await this.modalManager.createImportDecisionModal(preparedExistingMaps, preparedSecondaryMatches)
