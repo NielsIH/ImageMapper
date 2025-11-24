@@ -5,7 +5,7 @@
  * Handles the upload modal implementation for map files
  */
 
-import { FileManager } from '../../fileManager.js'
+import { FileManager } from '../fileManager.js'
 
 // Export all upload modal functions
 export function createUploadModal (modalManager, onUpload, onCancel) {

@@ -23,25 +23,25 @@ Move complete upload modal implementation (~600-800 lines) from `js/ui/modals.js
 - [x] Verify error handling, object URLs
 
 ### 4. Update modals.js to Use New Module
-- [ ] Add `import { createUploadModal, setupUploadModal } from './upload-modal.js';`
-- [ ] Replace: `ModalManager.createUploadModal(...)` → delegate to imported funcs
-- [ ] Verify signatures/callbacks match
+- [x] Add `import { createUploadModal, setupUploadModal } from './upload-modal.js';`
+- [x] Replace: `ModalManager.createUploadModal(...)` → delegate to imported funcs
+- [x] Verify signatures/callbacks match
 
 ### 4b. Remove Deprecated Code from modals.js
-- [ ] Delete `createUploadModal`, `setupUploadModal`, and all moved helpers (`updateFilePreview`, `showDetailsStep`/`showSelectionStep`, `showError`/`showLoading`/`hideLoading`, `addManualStrategyButtons`)
-- [ ] Verify no references remain; lint/test modals.js
+- [x] Delete `createUploadModal`, `setupUploadModal`, and all moved helpers (`updateFilePreview`, `showDetailsStep`/`showSelectionStep`, `showError`/`showLoading`/`hideLoading`, `addManualStrategyButtons`)
+- [x] Verify no references remain; lint/test modals.js
 
 ### 5. Update Callers
 - [x] `app.js showUploadModal()`: unchanged (calls `this.modalManager.createUploadModal`)
 - [x] Verify `FileManager.processFileUpload` integration
 
 ### 6. Verification and Testing
-- [ ] No errors; ~600-800 line reduction modals.js
-- [ ] Upload flow: file select/drop → preview/details → create (active/non-active)
-- [ ] Mobile/debug: picker strategies, validation, errors
-- [ ] No regressions: other modals (`settings`, `marker-details`)
-- [ ] Offline: file handling works
-- [ ] Console: no errors; exact behavior
+- [x] No errors; ~600-800 line reduction modals.js
+- [x] Upload flow: file select/drop → preview/details → create (active/non-active)
+- [x] Mobile/debug: picker strategies, validation, errors
+- [x] No regressions: other modals (`settings`, `marker-details`)
+- [x] Offline: file handling works
+- [x] Console: no errors; exact behavior
 
 ## Expected Outcome
 - Upload functionality in `js/ui/upload-modal.js`
