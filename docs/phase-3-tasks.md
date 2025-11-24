@@ -6,30 +6,34 @@ Move complete upload modal implementation (~600-800 lines) from `js/ui/modals.js
 ## Tasks
 
 ### 1. Analyze Current Upload Modal Code
-- [ ] Identify all upload modal methods in modals.js: `createUploadModal`, `setupUploadModal`, helpers (`updateFilePreview`, `showDetailsStep`, `showSelectionStep`, `showError`, `showLoading`, `hideLoading`, `addManualStrategyButtons`)
-- [ ] List dependencies: `FileManager`, `UIRenderer`, DOM elements, callbacks (`onUpload`, `onCancel`)
-- [ ] Document shared state/vars: `selectedFile`, `processedData`
+- [x] Identify all upload modal methods in modals.js: `createUploadModal`, `setupUploadModal`, helpers (`updateFilePreview`, `showDetailsStep`, `showSelectionStep`, `showError`, `showLoading`, `hideLoading`, `addManualStrategyButtons`)
+- [x] List dependencies: `FileManager`, `UIRenderer`, DOM elements, callbacks (`onUpload`, `onCancel`)
+- [x] Document shared state/vars: `selectedFile`, `processedData`
 
 ### 2. Move Functions to New Module
-- [ ] Move `createUploadModal` (~lines 50-200)
-- [ ] Move `setupUploadModal` (~200-500, file handling/validation)
-- [ ] Move helpers: `updateFilePreview`, `showDetailsStep`/`showSelectionStep`, `showError`/`showLoading`/`hideLoading`, `addManualStrategyButtons`
-- [ ] Document inline HTML/logic for upload steps
+- [x] Move `createUploadModal` (~lines 50-200)
+- [x] Move `setupUploadModal` (~200-500, file handling/validation)
+- [x] Move helpers: `updateFilePreview`, `showDetailsStep`/`showSelectionStep`, `showError`/`showLoading`/`hideLoading`, `addManualStrategyButtons`
+- [x] Document inline HTML/logic for upload steps
 
 ### 3. Update New Module Implementation
-- [ ] Modify: `createUploadModal(modalManager, onUpload, onCancel)` etc.; use passed `modalManager`/`fileManager`
-- [ ] Ensure access: `modalManager.showError(modal, msg)`, `new FileManager()`
-- [ ] Preserve debug/mobile handling, drag-drop, form validation
-- [ ] Verify error handling, object URLs
+- [x] Modify: `createUploadModal(modalManager, onUpload, onCancel)` etc.; use passed `modalManager`/`fileManager`
+- [x] Ensure access: `modalManager.showError(modal, msg)`, `new FileManager()`
+- [x] Preserve debug/mobile handling, drag-drop, form validation
+- [x] Verify error handling, object URLs
 
 ### 4. Update modals.js to Use New Module
 - [ ] Add `import { createUploadModal, setupUploadModal } from './upload-modal.js';`
 - [ ] Replace: `ModalManager.createUploadModal(...)` → delegate to imported funcs
 - [ ] Verify signatures/callbacks match
 
+### 4b. Remove Deprecated Code from modals.js
+- [ ] Delete `createUploadModal`, `setupUploadModal`, and all moved helpers (`updateFilePreview`, `showDetailsStep`/`showSelectionStep`, `showError`/`showLoading`/`hideLoading`, `addManualStrategyButtons`)
+- [ ] Verify no references remain; lint/test modals.js
+
 ### 5. Update Callers
-- [ ] `app.js showUploadModal()`: unchanged (calls `this.modalManager.createUploadModal`)
-- [ ] Verify `FileManager.processFileUpload` integration
+- [x] `app.js showUploadModal()`: unchanged (calls `this.modalManager.createUploadModal`)
+- [x] Verify `FileManager.processFileUpload` integration
 
 ### 6. Verification and Testing
 - [ ] No errors; ~600-800 line reduction modals.js
