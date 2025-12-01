@@ -1,11 +1,11 @@
 # Phase 11: Storage/Display Extraction
 
 ## Objective
-Move storage and display related functionality from `app.js` to a new module `js/app-storage-manager.js` to further reduce the size of `app.js` by approximately 250 lines (~15% reduction).
+Move storage and display related functionality from `app.js` to a new module `js/app-storage-manager.js` to further reduce the size of `app.js` by approximately 290 lines (~15% reduction).
 
 ## Tasks
 
-### - [ ] 1. Create `js/app-storage-manager.js`
+### - [x] 1. Create `js/app-storage-manager.js`
 Create a new module file `js/app-storage-manager.js` that exports a `StorageManager` class or object with the following static methods:
 - `initialize(app)`: Handle storage initialization logic (equivalent to `initializeStorage` in app.js).
 - `loadMaps(app)`: Load all maps from storage (equivalent to `loadMaps` in app.js).
@@ -13,8 +13,9 @@ Create a new module file `js/app-storage-manager.js` that exports a `StorageMana
 - `switchToMap(app, mapId)`: Switch to a different map (equivalent to `switchToMap` in app.js).
 - `checkWelcomeScreen(app)`: Check and show welcome screen if no maps exist (equivalent to `checkWelcomeScreen` in app.js).
 - `getCurrentMapInfo(app)`: Get information about the current map (equivalent to `getCurrentMapInfo` in app.js).
+- `deleteMap(app, mapId)`: Delete a map from storage and update UI (equivalent to `deleteMap` in app.js).
 
-### - [ ] 2. Move Functionality from `app.js`
+### - [x] 2. Move Functionality from `app.js`
 Move the implementation of the following methods from `SnapSpotApp` class in `app.js` to the corresponding methods in `app-storage-manager.js`:
 - `initializeStorage` → `StorageManager.initialize`
 - `loadMaps` → `StorageManager.loadMaps`
@@ -22,6 +23,7 @@ Move the implementation of the following methods from `SnapSpotApp` class in `ap
 - `switchToMap` → `StorageManager.switchToMap`
 - `checkWelcomeScreen` → `StorageManager.checkWelcomeScreen`
 - `getCurrentMapInfo` → `StorageManager.getCurrentMapInfo`
+- `deleteMap` → `StorageManager.deleteMap`
 
 Ensure all dependencies (e.g., `MapStorage`, `MapRenderer`, `ModalManager`) are properly imported in the new module.
 

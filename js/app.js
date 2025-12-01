@@ -6,7 +6,6 @@
 /* global
         alert
         localStorage
-        confirm
         */
 
 // --- Module Imports ---
@@ -25,6 +24,7 @@ import {
 } from './app-marker-photo-manager.js'
 import { searchMaps, searchPhotos, handleSearchFileSelection, onShowPhotoOnMap } from './app-search.js'
 import { showSettings, getCustomMarkerColorRules } from './app-settings.js'
+import { StorageManager } from './app-storage-manager.js'
 
 // --- End Module Imports ---
 
@@ -38,7 +38,7 @@ class SnapSpotApp {
     this.searchManager = new SearchManager(this.modalManager, {
       searchMaps: (query) => searchMaps(this, query),
       searchPhotos: (query) => searchPhotos(this, query),
-      deleteMap: (mapId) => this.deleteMap(mapId),
+      deleteMap: (mapId) => StorageManager.deleteMap(this, mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
       onSearchFileSelect: () => handleSearchFileSelection(this),
@@ -592,53 +592,7 @@ class SnapSpotApp {
    * @param {string} mapId - The ID of the map to delete.
    */
   async deleteMap (mapId) {
-    if (!mapId) {
-      console.error('deleteMap: No mapId provided.')
-      this.showErrorMessage('Error', 'No map selected for deletion.')
-      return
-    }
-    try {
-      this.showLoading('Deleting map...')
-      const wasActiveMap = this.currentMap && this.currentMap.id === mapId
-      // const willBeEmpty = this.mapsList.length <= 1 // Check if this is the last map
-      if (confirm('Are you sure you want to delete this map? This action cannot be undone.')) {
-        await this.storage.deleteMap(mapId) // Delete from IndexedDB
-        this.thumbnailCache.delete(mapId) // Clear from thumbnail cache
-        this.uploadedFiles.delete(mapId) // Clear from uploaded files cache
-        await this.loadMaps() // Reload all maps from storage to get updated list
-        if (this.mapsList.length === 0) {
-          // If no maps left, reset currentMap and show welcome screen
-          this.currentMap = null
-          this.checkWelcomeScreen()
-          this.mapRenderer.dispose() // Clean up renderer resources
-          this.mapRenderer = new MapRenderer('map-canvas') // Re-initialize for empty state
-          this.showNotification('All maps deleted. Ready for new upload.', 'info')
-        } else if (wasActiveMap) {
-          // If the deleted map was active, activate the first available map
-          const firstMap = this.mapsList[0]
-          if (firstMap) {
-            await this.storage.setActiveMap(firstMap.id)
-            await this.displayMap(firstMap)
-            this.showNotification(`Active map changed to: ${firstMap.name}`, 'info')
-          } else {
-            // Fallback if somehow no other map is found (shouldn't happen with mapsList.length > 0)
-            this.currentMap = null
-            this.checkWelcomeScreen()
-            this.mapRenderer.dispose()
-            this.mapRenderer = new MapRenderer('map-canvas')
-          }
-        }
-        this.showNotification('Map deleted successfully.', 'success')
-        // REMOVE THIS LINE: The decision to re-open the map management modal
-        // belongs to the onMapDelete callback, not deleteMap itself.
-        // await this.showMapManagementModal() // Re-open modal to update map list
-      }
-    } catch (error) {
-      console.error('Error deleting map:', error)
-      this.showErrorMessage('Deletion Failed', `Failed to delete map: ${error.message}`)
-    } finally {
-      this.hideLoading()
-    }
+    await StorageManager.deleteMap(this, mapId)
   }
 
   // Call this method from your settings modal or another appropriate place.
@@ -1056,85 +1010,21 @@ class SnapSpotApp {
    * Initialize the storage system
    */
   async initializeStorage () {
-    this.updateAppStatus('Initializing storage...')
-
-    try {
-      await this.storage.init()
-      console.log('Storage system initialized successfully')
-      return true
-    } catch (error) {
-      console.error('Failed to initialize storage:', error)
-      throw new Error(`Storage initialization failed: ${error.message}`)
-    }
+    return await StorageManager.initialize(this)
   }
 
   /**
    * Load maps from storage
    */
   async loadMaps () {
-    this.updateAppStatus('Loading maps...')
-
-    try {
-      this.mapsList = await this.storage.getAllMaps()
-      console.log(`Loaded ${this.mapsList.length} maps`)
-
-      // Check for active map (with safer error handling)
-      try {
-        const activeMap = await this.storage.getActiveMap()
-        if (activeMap) {
-          this.currentMap = activeMap
-          console.log('Active map loaded:', activeMap.name)
-
-          // Try to display the active map
-          // await this.displayMap(activeMap)
-        }
-      } catch (activeMapError) {
-        console.warn('Could not load active map, continuing without:', activeMapError.message)
-        this.currentMap = null
-      }
-
-      return this.mapsList
-    } catch (error) {
-      console.error('Failed to load maps:', error)
-      this.mapsList = []
-      // Don't throw here - let the app continue with empty maps list
-      console.warn('Continuing with empty maps list due to storage error')
-      return []
-    }
+    return await StorageManager.loadMaps(this)
   }
 
   /**
    * Check if welcome screen should be shown
    */
   checkWelcomeScreen () {
-    const welcomeScreen = document.getElementById('welcome-screen')
-    const mapDisplay = document.getElementById('map-display')
-    const addFirstMapBtn = document.getElementById('btn-add-first-map')
-    console.log('--- checkWelcomeScreen() called --- Maps count:', this.mapsList.length, 'CurrentMap:', this.currentMap ? this.currentMap.id : 'none')
-
-    if (this.mapsList.length === 0 || !this.currentMap) { // Only show if genuinely no maps or no active map
-      welcomeScreen?.classList.remove('hidden')
-      mapDisplay?.classList.add('hidden')
-      this.updateAppStatus('No maps - Upload your first map')
-
-      if (addFirstMapBtn) {
-        addFirstMapBtn.innerHTML = '📁 Upload First Map'
-      }
-    } else {
-      // If there are maps AND an active map, the welcome screen should NOT be shown
-      // and displayMap() should have been called (which hides welcome and shows map).
-      // This 'else' branch of checkWelcomeScreen() should ideally not be reachable
-      // if init() logic is correct. But it acts as a safeguard.
-      welcomeScreen?.classList.add('hidden')
-      mapDisplay?.classList.remove('hidden')
-      this.updateAppStatus(`${this.mapsList.length} maps available`)
-
-      if (addFirstMapBtn) {
-        addFirstMapBtn.innerHTML = '📁 Upload New Map'
-      }
-    }
-    // Remove the redundant setTimeout blocks related to canvas setup here.
-    // displayMap() and setMapRotation() handle the rendering.
+    StorageManager.checkWelcomeScreen(this)
   }
 
   /**
@@ -1201,77 +1091,7 @@ class SnapSpotApp {
    * ALSO MODIFIED: To apply map rotation initially.
    */
   async displayMap (mapData) {
-    console.log('--- displayMap() called for:', mapData.name, '---') // Keep this log
-    if (!mapData) {
-      console.warn('No map data provided for display')
-      return
-    }
-
-    try {
-      //  Ensure map display elements are visible BEFORE loading image into renderer
-      const welcomeScreen = document.getElementById('welcome-screen')
-      const mapDisplay = document.getElementById('map-display')
-      if (welcomeScreen && mapDisplay) {
-        welcomeScreen.classList.add('hidden')
-        mapDisplay.classList.remove('hidden')
-      }
-      console.log('Displaying map:', mapData.name)
-      this.updateAppStatus(`Loading map: ${mapData.name}`)
-
-      let imageBlob = this.uploadedFiles.get(mapData.id)
-      if (!imageBlob && mapData.imageData) {
-        imageBlob = mapData.imageData
-        console.log('Displaying map: Loaded image data from storage.')
-        this.uploadedFiles.set(mapData.id, imageBlob)
-      }
-
-      if (imageBlob && imageBlob instanceof Blob) {
-        await this.mapRenderer.loadMap(mapData, imageBlob) // This calls render() ONCE with no markers yet
-        console.log('Map loaded from Blob successfully')
-      } else {
-        await this.mapRenderer.loadPlaceholder(mapData)
-        console.log('Map placeholder loaded')
-      }
-
-      this.currentMap = mapData
-
-      // Apply the rotation AFTER the map image is loaded into mapRenderer.
-      // This call will itself trigger mapRenderer.render().
-      if (this.mapRenderer) {
-        this.mapRenderer.setMapRotation(this.mapCurrentRotation)
-      }
-
-      // Fetch, process, and set markers with max markers limit
-      const fetchedMarkers = await this.storage.getMarkersForMap(this.currentMap.id)
-
-      // Apply max markers limit (take the most recent N markers)
-      let filteredMarkers = fetchedMarkers
-      if (this.maxMarkersToShow > 0 && fetchedMarkers.length > this.maxMarkersToShow) {
-        // Since getMarkersForMap returns markers sorted by createdDate (oldest first),
-        // we take the last N markers to get the most recent ones
-        filteredMarkers = fetchedMarkers.slice(-this.maxMarkersToShow)
-        console.log(`App: Showing ${filteredMarkers.length} of ${fetchedMarkers.length} markers (limited by max markers setting)`)
-      }
-
-      this.markers = await Promise.all(filteredMarkers.map(async marker => {
-        const photoCount = await this.storage.getMarkerPhotoCount(marker.id)
-        return {
-          ...marker,
-          hasPhotos: photoCount > 0
-        }
-      }))
-
-      this.mapRenderer.setMarkers(this.markers)
-      console.log('--- app.js: setMarkers() called with', this.markers.length, 'markers ---')
-
-      // CRITICAL: Call render once more AFTER markers are set, to ensure they are drawn.
-      this.mapRenderer.render()
-
-      this.updateAppStatus(`Map displayed: ${mapData.name}`)
-    } catch (error) {
-      console.error('Failed to display map:', error)
-      this.showErrorMessage('Map Display Error', `Failed to display map "${mapData.name}": ${error.message}`)
-    }
+    await StorageManager.displayMap(this, mapData)
   }
 
   /**
@@ -1279,39 +1099,14 @@ class SnapSpotApp {
    * @param {string} mapId - ID of map to switch to
    */
   async switchToMap (mapId) {
-    try {
-      console.log('Switching to map:', mapId)
-
-      const map = this.mapsList.find(m => m.id === mapId)
-      if (!map) {
-        throw new Error('Map not found')
-      }
-
-      // Set as active map
-      await this.storage.setActiveMap(mapId)
-
-      // Display the map
-      await this.displayMap(map)
-
-      // Update current map reference
-      this.currentMap = map
-
-      console.log('Successfully switched to map:', map.name)
-    } catch (error) {
-      console.error('Failed to switch map:', error)
-      this.showErrorMessage('Map Switch Error', error.message)
-    }
+    await StorageManager.switchToMap(this, mapId)
   }
 
   /**
    * Get current map display info
    */
   getCurrentMapInfo () {
-    return {
-      map: this.currentMap,
-      renderer: this.mapRenderer ? this.mapRenderer.getViewState() : null,
-      hasFile: this.currentMap ? this.uploadedFiles.has(this.currentMap.id) : false
-    }
+    return StorageManager.getCurrentMapInfo(this)
   }
 
   /**
