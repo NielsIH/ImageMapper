@@ -142,7 +142,7 @@ function generatePhotoGridItems (photos) {
  * @param {Array<Object>} photos - Array of photo objects
  * @param {Object} options - Configuration options for the gallery
  * @param {Object} photoObjectUrls - Object to store photo object URLs
- * @param {Function} onShowOnMap - Callback when "Show on Map" is clicked (receives photoId)
+ * @param {Function} onShowOnMap - Callback when "Show on Map" is clicked (receives photoData)
  * @param {Function} onDeletePhoto - Callback when "Delete Photo" is clicked (receives photoId)
  * @param {Function} onClose - Callback when the modal is closed
  */

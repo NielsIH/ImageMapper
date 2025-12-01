@@ -858,7 +858,7 @@ export class MapDataExporterImporter {
                     )
                     finalMap = mergedData.map
                     finalMarkers = mergedData.markers
-                    finalPhotos = mergedData.photos
+                    // finalPhotos = mergedData.photos // Removed unused assignment
                     successMessage = `Data merged into map '${finalMap.name}' successfully.`
                   } else if (action === 'replace') {
                     app.updateAppStatus(`Replacing map "${selectedMapId}" with imported data...`, 'info', true)
@@ -896,7 +896,7 @@ export class MapDataExporterImporter {
                   if (finalMap) {
                     await app.loadMaps() // Reload maps to show changes
                     app.updateAppStatus(successMessage, 'success')
-                    if (finalMap && finalMap.id) {
+                    if (finalMap.id) {
                       await app.switchToMap(finalMap.id)
                       console.log('Processed map loaded and set as active.')
                     }
