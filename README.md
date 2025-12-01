@@ -50,19 +50,28 @@ image-mapper/
 │   └── web-app-manifest-512x512.png
 │
 └── js/
-    ├── app.js                # Main application logic (modified)
-    ├── debug.js              # Debugging utilities
+    ├── app.js                # Main application logic (refactored)
+    ├── app-map-interactions.js # Map interaction handlers (pan, zoom, rotate)
+    ├── app-marker-photo-manager.js # Marker and photo management
+    ├── app-search.js         # Search functionality
+    ├── app-settings.js       # Settings orchestration
+    ├── app-storage-manager.js # Storage and display management
     ├── fileManager.js        # Utility for file selection and processing
     ├── HtmlReportGenerator.js# Generates HTML reports for map data
     ├── imageProcessor.js     # Utility for image manipulation and thumbnail generation
-    ├── MapDataExporterImporter.js # Handles importing/exporting map data (modified)
-    ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers (modified)
-    ├── searchManager.js      # Manages the search modal and its logic (modified)
-    ├── storage.js            # Handles IndexedDB interactions (MapStorage class) (modified)
+    ├── MapDataExporterImporter.js # Handles importing/exporting map data
+    ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers
+    ├── searchManager.js      # Manages the search modal and its logic
+    ├── storage.js            # Handles IndexedDB interactions (MapStorage class)
     │
     └── ui/                   # UI-specific components
-        ├── modals.js         # Manages UI for various modals (ModalManager class) (modified)
-        └── uiRenderer.js     # Renders common UI components like card elements (modified)
+        ├── marker-details-modal.js # Marker details modal
+        ├── modals.js         # Manages UI for various modals (ModalManager class)
+        ├── photo-gallery-modal.js # Photo gallery modal
+        ├── search-modal.js   # Search modal
+        ├── settings-modal.js # Settings modal
+        ├── uiRenderer.js     # Renders common UI components like card elements
+        └── upload-modal.js   # Upload modal
 ```
 
 ## Getting Started
