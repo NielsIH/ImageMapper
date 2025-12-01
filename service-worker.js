@@ -1,6 +1,6 @@
 /* global caches self */
 
-const CACHE_NAME = 'image-mapper-v2025-11-12-07' // Updated version
+const CACHE_NAME = 'image-mapper-v2025-12-01-09'
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,17 @@ const STATIC_ASSETS = [
   './css/map-display.css',
   './css/notifications.css',
   './css/responsive.css',
+  './css/modals/base.css',
+  './css/modals/components.css',
+  './css/modals/export-decision.css',
+  './css/modals/image-viewer.css',
+  './css/modals/import-decision.css',
+  './css/modals/marker-details.css',
+  './css/modals/photo-gallery.css',
+  './css/modals/responsive.css',
+  './css/modals/search.css',
+  './css/modals/settings.css',
+  './css/modals/upload.css',
   './js/app.js',
   './js/storage.js',
   './js/ui/uiRenderer.js',
@@ -22,7 +33,19 @@ const STATIC_ASSETS = [
   './js/fileManager.js',
   './js/mapRenderer.js',
   './js/searchManager.js',
-  './js/imageProcessor.js'
+  './js/imageProcessor.js',
+  './js/app-map-interactions.js',
+  './js/app-marker-photo-manager.js',
+  './js/app-search.js',
+  './js/app-settings.js',
+  './js/app-storage-manager.js',
+  './js/HtmlReportGenerator.js',
+  './js/MapDataExporterImporter.js',
+  './js/ui/marker-details-modal.js',
+  './js/ui/photo-gallery-modal.js',
+  './js/ui/search-modal.js',
+  './js/ui/settings-modal.js',
+  './js/ui/upload-modal.js'
 ]
 console.log('🚀 SERVICE WORKER SCRIPT LOADED - VERSION:', CACHE_NAME)
 
