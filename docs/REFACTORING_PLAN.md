@@ -77,7 +77,7 @@ We will move functionality in distinct phases, with each phase focusing on one m
 **Functionality to move:** `handleMapUpload` (image process/save), `exportHtmlReport/JsonMap`, `handleImportFile` + helpers (`_saveImportedData`, `_deleteMapAndImportNew`, `_showImportDecisionModal`) → static methods (e.g., `MapDataExporterImporter.handleMapUpload(app, mapData, file)`, `exportHtmlReport(app, mapId)`).
 **Update app.js:** Delegate calls (e.g., `await MapDataExporterImporter.handleMapUpload(this, mapData, file)`).
 **Expected reduction:** ~350 lines from app.js
-**Test:** Upload/export/import works identically; no regressions.
+**Test:** Upload/export/import works identically; no regressions. ✅
 **Impact:** 20% reduction. Leverages existing module.
 
 ## Phase 11: Storage/Display Extraction (~250L → app-storage-manager.js)

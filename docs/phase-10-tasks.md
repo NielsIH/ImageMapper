@@ -38,24 +38,24 @@ static async handleImportFile(app, file)
 ## Step-by-Step Tasks
 
 ### 1. Analyze & Document Current Code (~30 min)
-- [ ] Open `js/app.js` and search for: `handleMapUpload`, `exportHtmlReport`, `exportJsonMap`, `handleImportFile`, `_saveImportedData OR _deleteMapAndImportNew OR _showImportDecisionModal`
-- [ ] Note line ranges, dependencies (e.g., `this.storage`, `ImageProcessor.processImage`)
-- [ ] Open `js/MapDataExporterImporter.js` - review existing exports/imports
-- [ ] List exact call sites in `app.js` (e.g., from upload modal callback)
+- [✅] Open `js/app.js` and search for: `handleMapUpload`, `exportHtmlReport`, `exportJsonMap`, `handleImportFile`, `_saveImportedData OR _deleteMapAndImportNew OR _showImportDecisionModal`
+- [✅] Note line ranges, dependencies (e.g., `this.storage`, `ImageProcessor.processImage`)
+- [✅] Open `js/MapDataExporterImporter.js` - review existing exports/imports
+- [✅] List exact call sites in `app.js` (e.g., from upload modal callback)
 
 ### 2. Add Static Methods to `MapDataExporterImporter.js` (~60 min)
-- [ ] Import necessary modules if needed (e.g., `ImageProcessor`, `storage.js`)
-- [ ] Implement `static async handleMapUpload(app, file)`:
+- [✅] Import necessary modules if needed (e.g., `ImageProcessor`, `storage.js`)
+- [✅] Implement `static async handleMapUpload(app, file)`:
   - Copy logic from `app.handleMapUpload`
   - Replace `this.storage` → `app.storage`, `this.renderer` → `app.renderer`
   - Use `ImageProcessor.processImage(file)`
   - End with `app.switchToMap(newMapId)`
-- [ ] Implement `static exportHtmlReport(app, mapId)` & `exportJsonMap(app, mapId)`
-- [ ] Implement `static async handleImportFile(app, file)` + helpers
+- [✅] Implement `static exportHtmlReport(app, mapId)` & `exportJsonMap(app, mapId)`
+- [✅] Implement `static async handleImportFile(app, file)` + helpers
   - Decision modal: `app.modalManager.showImportDecision(...)` or new static modal creator
 
 ### 3. Refactor Calls in `app.js` (~45 min)
-- [ ] Replace each function body with delegation:
+- [✅] Replace each function body with delegation:
   ```js
   // Old:
   async handleMapUpload(file) { ... 100+ lines ... }
@@ -64,31 +64,31 @@ static async handleImportFile(app, file)
     await MapDataExporterImporter.handleMapUpload(this, file);
   }
   ```
-- [ ] Remove helper functions (`_saveImportedData`, etc.)
-- [ ] Add import: `import { MapDataExporterImporter } from './MapDataExporterImporter.js';`
-- [ ] Verify no other references remain (grep search)
+- [✅] Remove helper functions (`_saveImportedData`, etc.)
+- [✅] Add import: `import { MapDataExporterImporter } from './MapDataExporterImporter.js';`
+- [✅] Verify no other references remain (grep search)
 
 ### 4. Handle Dependencies & Edge Cases (~30 min)
-- [ ] Ensure access to `app.modalManager` for import decision modal
-- [ ] If `_showImportDecisionModal` creates raw HTML → refactor to use `ModalManager.createImportDecisionModal`
-- [ ] Blob handling: Reuse existing `ImageProcessor` for thumbs/full images
-- [ ] Error handling: Preserve try/catch and user notifications
+- [✅] Ensure access to `app.modalManager` for import decision modal
+- [✅] If `_showImportDecisionModal` creates raw HTML → refactor to use `ModalManager.createImportDecisionModal`
+- [✅] Blob handling: Reuse existing `ImageProcessor` for thumbs/full images
+- [✅] Error handling: Preserve try/catch and user notifications
 
 ### 5. Testing Checklist (~45 min)
-- [ ] **New Map Upload:** Upload image → compresses → saves → auto-switches/displays
-- [ ] **Export JSON:** From settings/search → downloads valid JSON with Blobs as base64
-- [ ] **Export HTML Report:** Generates self-contained HTML with images/markers
-- [ ] **Import New Data:** Import JSON → adds new map(s) → shows in list
-- [ ] **Import Replace:** Import matching mapId → shows decision → replaces markers/photos
-- [ ] **Offline:** All operations work without network
-- [ ] **Console:** No errors/warnings
-- [ ] **Line count:** `app.js` reduced by ~350 lines (verify with editor)
-- [ ] **No regressions:** Pan/zoom, markers, other modals, search unchanged
+- [✅] **New Map Upload:** Upload image → compresses → saves → auto-switches/displays
+- [✅] **Export JSON:** From settings/search → downloads valid JSON with Blobs as base64
+- [✅] **Export HTML Report:** Generates self-contained HTML with images/markers
+- [✅] **Import New Data:** Import JSON → adds new map(s) → shows in list
+- [✅] **Import Replace:** Import matching mapId → shows decision → replaces markers/photos
+- [✅] **Offline:** All operations work without network
+- [✅] **Console:** No errors/warnings
+- [✅] **Line count:** `app.js` reduced by ~350 lines (verify with editor)
+- [✅] **No regressions:** Pan/zoom, markers, other modals, search unchanged
 
 ### 6. Validation & Cleanup
-- [ ] Run full app smoke test (upload → marker → photo → export → import → report)
-- [ ] Update `REFACTORING_PLAN.md`: Mark Phase 10 ✅
-- [ ] Commit: "refactor(phase-10): extract export/import to MapDataExporterImporter.js"
+- [✅] Run full app smoke test (upload → marker → photo → export → import → report)
+- [✅] Update `REFACTORING_PLAN.md`: Mark Phase 10 ✅
+- [✅] Commit: "refactor(phase-10): extract export/import to MapDataExporterImporter.js"
 
 ## Potential Issues & Mitigations
 | Issue | Mitigation |

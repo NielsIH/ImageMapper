@@ -89,7 +89,7 @@ export async function showMarkerDetails (app, markerId) {
         const photosWereAdded = await addPhotosToMarker(app, marker.id)
         console.log('App: onAddPhotos photosWereAdded:', photosWereAdded)
 
-        if (photosWereAdded && app.getAutoCloseMarkerDetails()) {
+        if (photosWereAdded && app.autoCloseMarkerDetails) {
           app.showNotification('Marker details modal automatically closed after adding photos.', 'info')
         } else {
           await showMarkerDetails(app, marker.id)
@@ -275,7 +275,7 @@ export async function addPhotosToMarker (app, markerId) {
 
     for (const file of selectedFiles) {
       app.updateAppStatus(`Processing photo: ${file.name}...`)
-      const isDuplicateAllowedSetting = app.getAllowDuplicatePhotos()
+      const isDuplicateAllowedSetting = app.allowDuplicatePhotos
 
       if (!isDuplicateAllowedSetting) { // Only do check IF setting says NO duplicates
         const isDuplicateFound = allPhotosOnMap.some(p => p.fileName === file.name)
