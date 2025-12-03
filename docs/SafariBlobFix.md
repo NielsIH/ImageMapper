@@ -37,24 +37,12 @@ Certain versions of Safari (particularly on iPads) do not support storing `Blob`
 
 ### 2. Migration Strategy
 
-#### Automatic Migration on Data Access
-- When retrieving maps/photos, check if `imageData` is a `Blob`
-- If Blob, convert to Base64 and update the stored record
-- This ensures one-time migration without separate migration script
-
-#### Migration Code Pattern
-```javascript
-// In getMap() or similar methods
-if (map.imageData instanceof Blob) {
-  // Convert Blob to Base64
-  const base64Data = await imageProcessor.blobToBase64(map.imageData)
-  // Update storage with Base64
-  await this.updateMap(map.id, { imageData: base64Data })
-  // Convert back to Blob for return
-  map.imageData = ImageProcessor.base64ToBlob(base64Data, map.fileType)
-}
-```
-
+#### Proactive Migration During App Initialization
+- Migration is performed once during app startup via `storage.migrateBlobDataToBase64()`
+- The migration method iterates through all maps and photos in storage
+- For any record where `imageData` is a `Blob`, it is converted to a Base64 string and the record is updated in storage
+- This ensures all existing Blob data is migrated to Base64 format before normal app usage
+- After migration, getter methods simply convert Base64 strings back to Blobs for application use, without attempting to update storage
 ### 3. Update ImageProcessor Integration
 
 #### Add Base64 Conversion Methods

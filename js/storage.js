@@ -131,6 +131,9 @@ export class MapStorage {
 
     // Convert Blob to Base64 for Safari compatibility
     let imageDataBase64 = null
+    if (mapData.imageData && !this.imageProcessor) {
+      throw new Error('MapStorage: ImageProcessor is required to store image data')
+    }
     if (mapData.imageData && this.imageProcessor) {
       try {
         imageDataBase64 = await this.imageProcessor.blobToBase64(mapData.imageData)

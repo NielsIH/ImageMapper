@@ -153,6 +153,10 @@ export async function showMarkerDetails (app, markerId) {
           if (!thumbnailDataUrl && photo.thumbnailData) {
             if (photo.thumbnailData instanceof Blob) {
               thumbnailDataUrl = URL.createObjectURL(photo.thumbnailData)
+              // Track for cleanup with the gallery modal
+              if (app && app.modalManager && typeof app.modalManager.trackObjectUrl === 'function') {
+                app.modalManager.trackObjectUrl('photo-gallery-modal', thumbnailDataUrl)
+              }
             } else {
               thumbnailDataUrl = photo.thumbnailData // Assume it's a Data URL
             }
@@ -393,10 +397,15 @@ export async function showMapPhotoGallery (app) {
       const associatedMarker = markerMap.get(photo.markerId)
 
       let thumbnailDataUrl = photo.thumbnailDataUrl
+
       if (!thumbnailDataUrl && photo.thumbnailData) {
         if (photo.thumbnailData instanceof Blob) {
           console.log('[Gallery Enrich] Photo', photo.id, 'thumbnailData is a Blob, creating object URL.')
           thumbnailDataUrl = URL.createObjectURL(photo.thumbnailData)
+          // Track for cleanup with the gallery modal
+          if (app && app.modalManager && typeof app.modalManager.trackObjectUrl === 'function') {
+            app.modalManager.trackObjectUrl('photo-gallery-modal', thumbnailDataUrl)
+          }
         } else if (typeof photo.thumbnailData === 'string') {
           console.log('[Gallery Enrich] Photo', photo.id, 'thumbnailData is a string (Data URL).')
           thumbnailDataUrl = photo.thumbnailData
