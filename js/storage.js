@@ -1351,72 +1351,73 @@ export class MapStorage {
       return this.addMap(mapData)
     }
 
-    // Ensure imageData is a Blob if provided. This is crucial.
-    // An update might not provide imageData if it's just updating other metadata,
-    // so we get it from existingMap if not provided.
+    // Ensure imageData is a Blob if provided (or null/undefined)
     if (mapData.imageData !== null && mapData.imageData !== undefined && !(mapData.imageData instanceof Blob)) {
       throw new Error('MapStorage: imageData must be a Blob object if provided (or null/undefined).')
     }
 
-    const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
-    const store = transaction.objectStore(this.mapStoreName)
-
-    return new Promise((resolve, reject) => {
-      store.get(mapData.id).onsuccess = async (event) => {
-        const existingMap = event.target.result
-
-        // Handle imageData conversion for Safari compatibility
-        let imageDataToStore = mapData.imageData || (existingMap ? existingMap.imageData : null)
-        if (imageDataToStore && imageDataToStore instanceof Blob && this.imageProcessor) {
-          try {
-            imageDataToStore = await this.imageProcessor.blobToBase64(imageDataToStore)
-            console.log('MapStorage: Converted map image Blob to Base64 for Safari compatibility')
-          } catch (error) {
-            console.error('MapStorage: Failed to convert map image Blob to Base64:', error)
-            throw new Error(`Failed to convert map image to Base64: ${error.message}`)
-          }
-        }
-
-        const mapToSave = {
-          id: mapData.id,
-          name: mapData.name || (existingMap ? existingMap.name : 'Untitled Map'),
-          description: mapData.description || (existingMap ? existingMap.description : ''),
-          fileName: mapData.fileName || (existingMap ? existingMap.fileName : ''),
-          filePath: mapData.filePath || (existingMap ? existingMap.filePath : ''),
-          width: mapData.width || (existingMap ? existingMap.width : 0),
-          height: mapData.height || (existingMap ? existingMap.height : 0),
-          fileSize: mapData.fileSize || (existingMap ? existingMap.fileSize : 0),
-          fileType: mapData.fileType || (existingMap ? existingMap.fileType : ''),
-          createdDate: mapData.createdDate ? new Date(mapData.createdDate) : (existingMap ? existingMap.createdDate : new Date()),
-          lastModified: new Date(),
-          isActive: mapData.isActive !== undefined ? mapData.isActive : (existingMap ? existingMap.isActive : false),
-          imageHash: mapData.imageHash || (existingMap ? existingMap.imageHash : null),
-          imageData: imageDataToStore, // Store Base64 string instead of Blob
-          settings: {
-            defaultZoom: 1,
-            allowMarkers: true,
-            ...(existingMap ? existingMap.settings : {}), // Merge existing settings
-            ...mapData.settings
-          }
-        }
-
-        const request = store.put(mapToSave)
-
-        request.onsuccess = () => {
-          console.log('MapStorage: Map saved/updated successfully', mapToSave.id)
-          transaction.commit?.() // Commit if available
-          resolve(mapToSave)
-        }
-
-        request.onerror = () => {
-          console.error('MapStorage: Failed to save/update map', request.error)
-          transaction.abort?.() // Abort if available
-          reject(new Error(`Failed to save map: ${request.error}`))
-        }
+    // Get existing map synchronously first
+    const existingMap = await new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.mapStoreName], 'readonly')
+      const store = transaction.objectStore(this.mapStoreName)
+      const getRequest = store.get(mapData.id)
+      getRequest.onsuccess = (event) => {
+        resolve(event.target.result)
       }
-      store.get(mapData.id).onerror = (error) => {
+      getRequest.onerror = (error) => {
         console.error('MapStorage: Failed to retrieve existing map during saveMap', error)
         reject(new Error(`Failed to retrieve existing map for saving: ${error.message}`))
+      }
+    })
+
+    // Prepare imageData for storage (convert Blob to Base64 if needed)
+    let imageDataToStore = mapData.imageData || (existingMap ? existingMap.imageData : null)
+    if (imageDataToStore && imageDataToStore instanceof Blob && this.imageProcessor) {
+      try {
+        imageDataToStore = await this.imageProcessor.blobToBase64(imageDataToStore)
+        console.log('MapStorage: Converted map image Blob to Base64 for Safari compatibility')
+      } catch (error) {
+        console.error('MapStorage: Failed to convert map image Blob to Base64:', error)
+        throw new Error(`Failed to convert map image to Base64: ${error.message}`)
+      }
+    }
+
+    // Now start the transaction and put the map
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
+      const store = transaction.objectStore(this.mapStoreName)
+      const mapToSave = {
+        id: mapData.id,
+        name: mapData.name || (existingMap ? existingMap.name : 'Untitled Map'),
+        description: mapData.description || (existingMap ? existingMap.description : ''),
+        fileName: mapData.fileName || (existingMap ? existingMap.fileName : ''),
+        filePath: mapData.filePath || (existingMap ? existingMap.filePath : ''),
+        width: mapData.width || (existingMap ? existingMap.width : 0),
+        height: mapData.height || (existingMap ? existingMap.height : 0),
+        fileSize: mapData.fileSize || (existingMap ? existingMap.fileSize : 0),
+        fileType: mapData.fileType || (existingMap ? existingMap.fileType : ''),
+        createdDate: mapData.createdDate ? new Date(mapData.createdDate) : (existingMap ? existingMap.createdDate : new Date()),
+        lastModified: new Date(),
+        isActive: mapData.isActive !== undefined ? mapData.isActive : (existingMap ? existingMap.isActive : false),
+        imageHash: mapData.imageHash || (existingMap ? existingMap.imageHash : null),
+        imageData: imageDataToStore, // Store Base64 string instead of Blob
+        settings: {
+          defaultZoom: 1,
+          allowMarkers: true,
+          ...(existingMap ? existingMap.settings : {}), // Merge existing settings
+          ...mapData.settings
+        }
+      }
+      const request = store.put(mapToSave)
+      request.onsuccess = () => {
+        console.log('MapStorage: Map saved/updated successfully', mapToSave.id)
+        transaction.commit?.() // Commit if available
+        resolve(mapToSave)
+      }
+      request.onerror = () => {
+        console.error('MapStorage: Failed to save/update map', request.error)
+        transaction.abort?.() // Abort if available
+        reject(new Error(`Failed to save map: ${request.error}`))
       }
     })
   }

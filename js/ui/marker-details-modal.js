@@ -243,7 +243,9 @@ export function createMarkerDetailsModal (
           img.addEventListener('error', () => {
             // On error, try thumbnail as fallback
             if (photo.thumbnailData) {
-              img.src = photo.thumbnailData
+              const thumbnailUrl = URL.createObjectURL(photo.thumbnailData)
+              modalManager.trackObjectUrl(modalId, thumbnailUrl)
+              img.src = thumbnailUrl
             }
           }, { once: true })
 

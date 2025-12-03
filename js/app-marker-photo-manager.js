@@ -144,14 +144,18 @@ export async function showMarkerDetails (app, markerId) {
         const allMarkersForMap = await app.storage.getMarkersForMap(app.currentMap.id)
         const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
 
-        // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
+        // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is a valid URL or Data URL
         const enrichedPhotos = await Promise.all(markerPhotos.map(async photo => {
           const associatedMarker = markerMap.get(photo.markerId)
 
           let thumbnailDataUrl = photo.thumbnailDataUrl
           // If thumbnailDataUrl is not set but thumbnailData exists, convert it
           if (!thumbnailDataUrl && photo.thumbnailData) {
-            thumbnailDataUrl = photo.thumbnailData
+            if (photo.thumbnailData instanceof Blob) {
+              thumbnailDataUrl = URL.createObjectURL(photo.thumbnailData)
+            } else {
+              thumbnailDataUrl = photo.thumbnailData // Assume it's a Data URL
+            }
           } else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
             try {
               thumbnailDataUrl = await app.imageProcessor.generateThumbnailDataUrl(
