@@ -145,6 +145,13 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
 - ✅ Coordinate tracking (display in marker details)
 
 ### Phase 2: Export and Sync ✅
+- ✅ **Safari Blob Storage Fix (Base64 Migration):**
+  - All map and photo image data now stored as Base64 in IndexedDB for full Safari compatibility.
+  - Import/export logic updated to convert Base64 to Blob and vice versa as needed.
+  - Gallery and thumbnail handling robust for all imported/exported maps and photos.
+  - Data migration logic ensures legacy Blob data is converted automatically.
+  - Thorough cross-browser testing (Chrome, Firefox, Safari desktop/iOS).
+  - Service Worker cache version bumped for deployment.
 - ✅ Data export in multiple formats (HTML report implemented)
 - ✅ Import and export of maps with markers and images
 - ✅ **New: Merge Map Data functionality**:
@@ -157,6 +164,20 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
   -   Allows users to select specific days for marker and photo export.
   -   Option to export selected day(s) into a single combined JSON file.
   -   Option to export each selected day into separate JSON files.
+
+### Safari Blob Storage Fix: Implementation Tasks ✅
+
+See `docs/SafariBlobFix_Tasks.md` for full checklist. Key tasks now completed:
+
+- ✅ Storage layer now converts Blobs to Base64 and vice versa for all map/photo data
+- ✅ Import/export logic robust for Base64 and Blob formats
+- ✅ Gallery and thumbnail handling fixed for imported maps/photos
+- ✅ Data migration for legacy Blob data
+- ✅ Cross-browser testing (Chrome, Firefox, Safari desktop/iOS)
+- ✅ Service Worker cache version bump
+- ✅ Documentation and code comments updated
+
+All tasks for the Safari Blob Storage Fix are now complete.
 
 ### Phase 3: App Settings & Customization ✅
 - ✅ Comprehensive, tabbed settings modal for centralized configuration.
