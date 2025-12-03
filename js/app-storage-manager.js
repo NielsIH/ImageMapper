@@ -16,6 +16,11 @@ export const StorageManager = {
     try {
       await app.storage.init()
       console.log('Storage system initialized successfully')
+
+      // Migrate any existing Blob data to Base64 for Safari compatibility
+      app.updateAppStatus('Checking data compatibility...')
+      await app.storage.migrateBlobDataToBase64()
+
       return true
     } catch (error) {
       console.error('Failed to initialize storage:', error)

@@ -6,6 +6,8 @@
  * Phase 1C: IndexedDB wrapper for map metadata, markers, and photos
  */
 
+import { ImageProcessor } from './imageProcessor.js'
+
 /**
  * IndexedDB wrapper for managing map storage
  * Stores map metadata, marker data, and photo data (Base64 strings for Safari compatibility)
@@ -209,11 +211,14 @@ export class MapStorage {
       // Convert Base64 imageData back to Blob for compatibility
       if (map.imageData && this.imageProcessor) {
         try {
-          map.imageData = await this.imageProcessor.base64ToBlob(map.imageData)
+          if (typeof map.imageData === 'string') {
+            // Convert Base64 string to Blob
+            map.imageData = ImageProcessor.base64ToBlob(map.imageData, map.fileType)
+          }
           console.log('MapStorage: Converted map image Base64 to Blob in getAllMaps')
         } catch (error) {
           console.error('MapStorage: Failed to convert map image Base64 to Blob in getAllMaps:', error)
-          // Continue with Base64 data if conversion fails
+          // Continue with original data if conversion fails
         }
       }
 
@@ -246,12 +251,14 @@ export class MapStorage {
         const map = request.result
         if (map && map.imageData && this.imageProcessor) {
           try {
-            // Convert Base64 back to Blob for application compatibility
-            map.imageData = await this.imageProcessor.base64ToBlob(map.imageData)
+            if (typeof map.imageData === 'string') {
+              // Convert Base64 string to Blob
+              map.imageData = ImageProcessor.base64ToBlob(map.imageData, map.fileType)
+            }
             console.log('MapStorage: Converted map image Base64 to Blob for application use')
           } catch (error) {
             console.error('MapStorage: Failed to convert map image Base64 to Blob:', error)
-            // Continue with Base64 data if conversion fails
+            // Continue with original data if conversion fails
           }
         }
         console.log('MapStorage: Retrieved map', id, map ? 'found' : 'not found')
@@ -292,13 +299,14 @@ export class MapStorage {
         if (this.imageProcessor) {
           maps = await Promise.all(maps.map(async (map) => {
             try {
-              if (map.imageData) {
-                map.imageData = await this.imageProcessor.base64ToBlob(map.imageData)
+              if (typeof map.imageData === 'string') {
+                // Convert Base64 string to Blob
+                map.imageData = ImageProcessor.base64ToBlob(map.imageData, map.fileType)
               }
               return map
             } catch (error) {
               console.error('MapStorage: Failed to convert map image Base64 to Blob in getMapsByImageHash:', error)
-              return map // Return map with Base64 data if conversion fails
+              return map // Return map with original data if conversion fails
             }
           }))
           console.log('MapStorage: Converted map image Base64 to Blobs in getMapsByImageHash')
@@ -865,16 +873,19 @@ export class MapStorage {
         if (this.imageProcessor) {
           photos = await Promise.all(photos.map(async (photo) => {
             try {
-              if (photo.imageData) {
-                photo.imageData = await this.imageProcessor.base64ToBlob(photo.imageData)
+              if (typeof photo.imageData === 'string') {
+                // Convert Base64 string to Blob
+                photo.imageData = ImageProcessor.base64ToBlob(photo.imageData, photo.fileType)
               }
-              if (photo.thumbnailData) {
-                photo.thumbnailData = await this.imageProcessor.base64ToBlob(photo.thumbnailData)
+
+              if (typeof photo.thumbnailData === 'string') {
+                // Convert Base64 string to Blob
+                photo.thumbnailData = ImageProcessor.base64ToBlob(photo.thumbnailData, photo.fileType)
               }
               return photo
             } catch (error) {
               console.error('MapStorage: Failed to convert photo Base64 to Blob in getPhotosForMarker:', error)
-              return photo // Return photo with Base64 data if conversion fails
+              return photo // Return photo with original data if conversion fails
             }
           }))
           console.log('MapStorage: Converted photo Base64 data to Blobs in getPhotosForMarker')
@@ -909,17 +920,19 @@ export class MapStorage {
         const photo = request.result
         if (photo && this.imageProcessor) {
           try {
-            // Convert Base64 back to Blob for application compatibility
-            if (photo.imageData) {
-              photo.imageData = await this.imageProcessor.base64ToBlob(photo.imageData)
+            if (typeof photo.imageData === 'string') {
+              // Convert Base64 string to Blob
+              photo.imageData = ImageProcessor.base64ToBlob(photo.imageData, photo.fileType)
             }
-            if (photo.thumbnailData) {
-              photo.thumbnailData = await this.imageProcessor.base64ToBlob(photo.thumbnailData)
+
+            if (typeof photo.thumbnailData === 'string') {
+              // Convert Base64 string to Blob
+              photo.thumbnailData = ImageProcessor.base64ToBlob(photo.thumbnailData, photo.fileType)
             }
             console.log('MapStorage: Converted photo Base64 data to Blobs for application use')
           } catch (error) {
             console.error('MapStorage: Failed to convert photo Base64 to Blob:', error)
-            // Continue with Base64 data if conversion fails
+            // Continue with original data if conversion fails
           }
         }
         console.log('MapStorage: Retrieved photo', photoId, photo ? 'found' : 'not found')
@@ -1001,16 +1014,19 @@ export class MapStorage {
         if (this.imageProcessor) {
           photos = await Promise.all(photos.map(async (photo) => {
             try {
-              if (photo.imageData) {
-                photo.imageData = await this.imageProcessor.base64ToBlob(photo.imageData)
+              if (typeof photo.imageData === 'string') {
+                // Convert Base64 string to Blob
+                photo.imageData = ImageProcessor.base64ToBlob(photo.imageData, photo.fileType)
               }
-              if (photo.thumbnailData) {
-                photo.thumbnailData = await this.imageProcessor.base64ToBlob(photo.thumbnailData)
+
+              if (typeof photo.thumbnailData === 'string') {
+                // Convert Base64 string to Blob
+                photo.thumbnailData = ImageProcessor.base64ToBlob(photo.thumbnailData, photo.fileType)
               }
               return photo
             } catch (error) {
               console.error('MapStorage: Failed to convert photo Base64 to Blob in getAllPhotos:', error)
-              return photo // Return photo with Base64 data if conversion fails
+              return photo // Return photo with original data if conversion fails
             }
           }))
           console.log('MapStorage: Converted photo Base64 data to Blobs in getAllPhotos')
@@ -1057,16 +1073,18 @@ export class MapStorage {
             const processedPhoto = { ...photo }
             if (this.imageProcessor) {
               try {
-                if (processedPhoto.imageData) {
-                  processedPhoto.imageData = await this.imageProcessor.base64ToBlob(processedPhoto.imageData)
+                if (typeof processedPhoto.imageData === 'string') {
+                  // Convert Base64 string to Blob
+                  processedPhoto.imageData = ImageProcessor.base64ToBlob(processedPhoto.imageData, processedPhoto.fileType)
                 }
-                if (processedPhoto.thumbnailData) {
-                  processedPhoto.thumbnailData = await this.imageProcessor.base64ToBlob(processedPhoto.thumbnailData)
+                if (typeof processedPhoto.thumbnailData === 'string') {
+                  // Convert Base64 string to Blob
+                  processedPhoto.thumbnailData = ImageProcessor.base64ToBlob(processedPhoto.thumbnailData, processedPhoto.fileType)
                 }
                 console.log('MapStorage: Converted photo Base64 data to Blobs in getAllPhotosWithContext')
               } catch (error) {
                 console.error('MapStorage: Failed to convert photo Base64 to Blob in getAllPhotosWithContext:', error)
-                // Continue with Base64 data if conversion fails
+                // Continue with original data if conversion fails
               }
             }
 
@@ -1182,16 +1200,18 @@ export class MapStorage {
               if (!photo) return null
               try {
                 const processedPhoto = { ...photo }
-                if (processedPhoto.imageData) {
-                  processedPhoto.imageData = await this.imageProcessor.base64ToBlob(processedPhoto.imageData)
+                if (typeof processedPhoto.imageData === 'string') {
+                  // Convert Base64 string to Blob
+                  processedPhoto.imageData = ImageProcessor.base64ToBlob(processedPhoto.imageData, processedPhoto.fileType)
                 }
-                if (processedPhoto.thumbnailData) {
-                  processedPhoto.thumbnailData = await this.imageProcessor.base64ToBlob(processedPhoto.thumbnailData)
+                if (typeof processedPhoto.thumbnailData === 'string') {
+                  // Convert Base64 string to Blob
+                  processedPhoto.thumbnailData = ImageProcessor.base64ToBlob(processedPhoto.thumbnailData, processedPhoto.fileType)
                 }
                 return processedPhoto
               } catch (error) {
                 console.error('MapStorage: Failed to convert photo Base64 to Blob in getPhotosForMap:', error)
-                return photo // Return photo with Base64 data if conversion fails
+                return photo // Return photo with original data if conversion fails
               }
             }))
             console.log('MapStorage: Converted photo Base64 data to Blobs in getPhotosForMap')
@@ -1517,13 +1537,95 @@ export class MapStorage {
   }
 
   /**
-   * Check if storage is available and initialized, including new stores
-   * @returns {boolean} - Storage availability status
+   * Migrate existing Blob data to Base64 for Safari compatibility
+   * This should be called once during app initialization
+   * @returns {Promise<void>}
    */
-  isAvailable () {
-    return !!this.db &&
-           this.db.objectStoreNames.contains(this.mapStoreName) &&
-           this.db.objectStoreNames.contains(this.markerStoreName) &&
-           this.db.objectStoreNames.contains(this.photoStoreName)
+  async migrateBlobDataToBase64 () {
+    if (!this.db || !this.imageProcessor) {
+      console.warn('MapStorage: Cannot migrate data - storage not initialized or no image processor')
+      return
+    }
+
+    console.log('MapStorage: Starting Blob to Base64 migration for Safari compatibility...')
+
+    try {
+      // Get raw maps data without conversion
+      const rawMaps = await new Promise((resolve, reject) => {
+        const transaction = this.db.transaction([this.mapStoreName], 'readonly')
+        const store = transaction.objectStore(this.mapStoreName)
+        const request = store.getAll()
+        request.onsuccess = () => resolve(request.result || [])
+        request.onerror = () => reject(request.error)
+      })
+
+      // Migrate maps
+      let migratedMaps = 0
+      for (const map of rawMaps) {
+        if (map.imageData instanceof Blob) {
+          console.log(`MapStorage: Migrating map ${map.id} from Blob to Base64`)
+          const base64Data = await this.imageProcessor.blobToBase64(map.imageData)
+
+          // Direct database update to store Base64
+          await new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.mapStoreName], 'readwrite')
+            const store = transaction.objectStore(this.mapStoreName)
+            const updatedMap = { ...map, imageData: base64Data, lastModified: new Date() }
+            const request = store.put(updatedMap)
+            request.onsuccess = () => resolve()
+            request.onerror = () => reject(request.error)
+          })
+
+          migratedMaps++
+        }
+      }
+
+      // Get raw photos data without conversion
+      const rawPhotos = await new Promise((resolve, reject) => {
+        const transaction = this.db.transaction([this.photoStoreName], 'readonly')
+        const store = transaction.objectStore(this.photoStoreName)
+        const request = store.getAll()
+        request.onsuccess = () => resolve(request.result || [])
+        request.onerror = () => reject(request.error)
+      })
+
+      // Migrate photos
+      let migratedPhotos = 0
+      for (const photo of rawPhotos) {
+        let needsMigration = false
+        const updateData = { ...photo }
+
+        if (photo.imageData instanceof Blob) {
+          console.log(`MapStorage: Migrating photo ${photo.id} imageData from Blob to Base64`)
+          updateData.imageData = await this.imageProcessor.blobToBase64(photo.imageData)
+          needsMigration = true
+        }
+
+        if (photo.thumbnailData instanceof Blob) {
+          console.log(`MapStorage: Migrating photo ${photo.id} thumbnailData from Blob to Base64`)
+          updateData.thumbnailData = await this.imageProcessor.blobToBase64(photo.thumbnailData)
+          needsMigration = true
+        }
+
+        if (needsMigration) {
+          // Direct database update to store Base64
+          await new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.photoStoreName], 'readwrite')
+            const store = transaction.objectStore(this.photoStoreName)
+            updateData.lastModified = new Date()
+            const request = store.put(updateData)
+            request.onsuccess = () => resolve()
+            request.onerror = () => reject(request.error)
+          })
+
+          migratedPhotos++
+        }
+      }
+
+      console.log(`MapStorage: Migration complete - migrated ${migratedMaps} maps and ${migratedPhotos} photos`)
+    } catch (error) {
+      console.error('MapStorage: Migration failed:', error)
+      // Don't throw - migration failure shouldn't break the app
+    }
   }
 }
