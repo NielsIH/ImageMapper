@@ -362,8 +362,17 @@ export class MapDataExporterImporter {
 
       const newPhoto = { ...photo, id: currentPhotoNewId, markerId: newMarkerRefId }
 
+      // Convert imageData if needed
       if (newPhoto.imageData && typeof newPhoto.imageData === 'string' && newPhoto.imageData.startsWith('data:')) {
         newPhoto.imageData = await ImageProcessorClass.base64ToBlob(newPhoto.imageData, newPhoto.fileType)
+      }
+      // Convert thumbnailData if needed
+      if (newPhoto.thumbnailData && typeof newPhoto.thumbnailData === 'string' && newPhoto.thumbnailData.startsWith('data:')) {
+        newPhoto.thumbnailData = await ImageProcessorClass.base64ToBlob(newPhoto.thumbnailData, newPhoto.fileType)
+      }
+      // If thumbnailData is missing or invalid, set to null
+      if (!newPhoto.thumbnailData || (typeof newPhoto.thumbnailData === 'object' && !(newPhoto.thumbnailData instanceof Blob))) {
+        newPhoto.thumbnailData = null
       }
       if (newPhoto.createdDate) newPhoto.createdDate = new Date(newPhoto.createdDate)
 
@@ -399,6 +408,13 @@ export class MapDataExporterImporter {
       const newPhoto = { ...photo } // Clone to avoid modifying original
       if (typeof newPhoto.imageData === 'string' && newPhoto.imageData.startsWith('data:')) {
         newPhoto.imageData = await ImageProcessorClass.base64ToBlob(newPhoto.imageData, newPhoto.fileType)
+      }
+      if (newPhoto.thumbnailData && typeof newPhoto.thumbnailData === 'string' && newPhoto.thumbnailData.startsWith('data:')) {
+        newPhoto.thumbnailData = await ImageProcessorClass.base64ToBlob(newPhoto.thumbnailData, newPhoto.fileType)
+      }
+      // If thumbnailData is missing or invalid, set to null
+      if (!newPhoto.thumbnailData || (typeof newPhoto.thumbnailData === 'object' && !(newPhoto.thumbnailData instanceof Blob))) {
+        newPhoto.thumbnailData = null
       }
       if (newPhoto.createdDate) newPhoto.createdDate = new Date(newPhoto.createdDate)
       return newPhoto

@@ -388,24 +388,40 @@ export async function showMapPhotoGallery (app) {
     const allMarkersForMap = await app.storage.getMarkersForMap(app.currentMap.id)
     const markerMap = new Map(allMarkersForMap.map(marker => [marker.id, marker]))
 
-    // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is available
+    // Enrich photos with associated marker descriptions and ensure thumbnailDataUrl is a valid string (object URL or Data URL)
     const enrichedPhotos = await Promise.all(allPhotosForMap.map(async photo => {
       const associatedMarker = markerMap.get(photo.markerId)
 
       let thumbnailDataUrl = photo.thumbnailDataUrl
-      // If thumbnailDataUrl is not set but thumbnailData exists, convert it
       if (!thumbnailDataUrl && photo.thumbnailData) {
-        thumbnailDataUrl = photo.thumbnailData // thumbnailData should already be a data URL
-      // If neither exists but we have imageData, try to generate a thumbnail
+        if (photo.thumbnailData instanceof Blob) {
+          console.log('[Gallery Enrich] Photo', photo.id, 'thumbnailData is a Blob, creating object URL.')
+          thumbnailDataUrl = URL.createObjectURL(photo.thumbnailData)
+        } else if (typeof photo.thumbnailData === 'string') {
+          console.log('[Gallery Enrich] Photo', photo.id, 'thumbnailData is a string (Data URL).')
+          thumbnailDataUrl = photo.thumbnailData
+        } else {
+          // Robust: skip any object or unexpected type
+          console.warn('[Gallery Enrich] Photo', photo.id, 'thumbnailData is unexpected type (not Blob or string), skipping thumbnail. Type:', typeof photo.thumbnailData, photo.thumbnailData)
+          thumbnailDataUrl = null
+        }
       } else if (!thumbnailDataUrl && !photo.thumbnailData && photo.imageData) {
         try {
           thumbnailDataUrl = await app.imageProcessor.generateThumbnailDataUrl(
             photo.imageData,
             app.imageCompressionSettings.thumbnail.maxSize
           )
+          console.log('[Gallery Enrich] Photo', photo.id, 'generated thumbnailDataUrl from imageData.')
         } catch (error) {
           console.warn(`Failed to generate thumbnail for photo ${photo.id}:`, error)
         }
+      }
+
+      if (thumbnailDataUrl && typeof thumbnailDataUrl !== 'string') {
+        console.error('[Gallery Enrich] Photo', photo.id, 'thumbnailDataUrl is not a string! Value:', thumbnailDataUrl)
+        thumbnailDataUrl = null
+      } else {
+        console.log('[Gallery Enrich] Photo', photo.id, 'final thumbnailDataUrl:', thumbnailDataUrl)
       }
 
       return {
