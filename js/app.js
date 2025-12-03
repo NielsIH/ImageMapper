@@ -32,7 +32,6 @@ class SnapSpotApp {
   constructor () {
     this.isOnline = navigator.onLine
     this.serviceWorkerReady = false
-    this.storage = new MapStorage()
     this.fileManager = new FileManager()
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
@@ -53,6 +52,7 @@ class SnapSpotApp {
     this.uploadedFiles = new Map()
     this.thumbnailCache = new Map()
     this.imageProcessor = new ImageProcessor()
+    this.storage = new MapStorage(this.imageProcessor)
     const savedPhotoQuality = parseFloat(localStorage.getItem('defaultPhotoQuality'))
     const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality
 
