@@ -8,42 +8,50 @@ Implement Base64 storage for image data in IndexedDB to fix Safari compatibility
 - [ ] Ensure `ImageProcessor.blobToBase64()` and `ImageProcessor.base64ToBlob()` methods exist
 - [ ] Test current functionality on Safari to confirm the issue
 
-## Phase 1: Storage Layer Modifications (`js/storage.js`)
+## Phase 1: Storage Layer Modifications (`js/storage.js`) ✅ COMPLETED
 
-### Task 1.1: Update `addMap()` method
-- [ ] Modify `addMap()` to convert `imageData` Blob to Base64 before storing
-- [ ] Add conversion logic: `if (mapData.imageData instanceof Blob) { mapData.imageData = await imageProcessor.blobToBase64(mapData.imageData) }`
-- [ ] Update JSDoc comments to reflect Base64 storage
+### Task 1.1: Update `addMap()` method ✅
+- [x] Modify `addMap()` to convert `imageData` Blob to Base64 before storing
+- [x] Add conversion logic: `if (mapData.imageData instanceof Blob) { mapData.imageData = await imageProcessor.blobToBase64(mapData.imageData) }`
+- [x] Update JSDoc comments to reflect Base64 storage
 
-### Task 1.2: Update `saveMap()` method
-- [ ] Modify `saveMap()` to convert `imageData` Blob to Base64 before storing
-- [ ] Ensure conversion happens in the `mapToSave` object creation
-- [ ] Update validation logic if needed
+### Task 1.2: Update `saveMap()` method ✅
+- [x] Modify `saveMap()` to convert `imageData` Blob to Base64 before storing
+- [x] Ensure conversion happens in the `mapToSave` object creation
+- [x] Update validation logic if needed
 
-### Task 1.3: Update `getMap()` method
-- [ ] Add migration logic for existing Blob data
-- [ ] Convert Base64 strings back to Blobs for application use
-- [ ] Implement automatic migration: detect Blob data, convert to Base64, update storage, then convert back to Blob for return
+### Task 1.3: Update `getMap()` method ✅
+- [x] Convert Base64 strings back to Blobs for application use
+- [x] Add error handling for conversion failures
 
-### Task 1.4: Update `getAllMaps()` method
-- [ ] Apply same migration logic as `getMap()` to each map in the results
-- [ ] Ensure marker count enrichment still works
+### Task 1.4: Update `getAllMaps()` method ✅
+- [x] Apply Base64 to Blob conversion to each map in the results
+- [x] Ensure marker count enrichment still works
 
-### Task 1.5: Update `addPhoto()` method
-- [ ] Modify `addPhoto()` to convert `imageData` Blob to Base64 before storing
-- [ ] Update validation to accept Base64 strings for updates
+### Task 1.5: Update `addPhoto()` method ✅
+- [x] Modify `addPhoto()` to convert `imageData` Blob to Base64 before storing
+- [x] Handle thumbnail data conversion as well
 
-### Task 1.6: Update `savePhoto()` method
-- [ ] Modify `savePhoto()` to convert `imageData` Blob to Base64 before storing
-- [ ] Ensure thumbnail data handling remains compatible
+### Task 1.6: Update `savePhoto()` method ✅
+- [x] Modify `savePhoto()` to convert `imageData` Blob to Base64 before storing
+- [x] Ensure thumbnail data handling remains compatible
 
-### Task 1.7: Update `getPhoto()` method
-- [ ] Add migration logic for existing Blob data (same pattern as maps)
-- [ ] Convert Base64 strings back to Blobs for application use
+### Task 1.7: Update `getPhoto()` method ✅
+- [x] Convert Base64 strings back to Blobs for application use
+- [x] Handle thumbnail data conversion
 
-### Task 1.8: Update `getPhotosForMarker()` method
-- [ ] Apply migration logic to each photo in results
-- [ ] Ensure transaction handling works correctly
+### Task 1.8: Update `getPhotosForMarker()` method ✅
+- [x] Apply Base64 to Blob conversion to each photo in results
+- [x] Ensure transaction handling works correctly
+
+### Additional Tasks Completed ✅
+- [x] Updated `getAllPhotos()` method for Base64 conversion
+- [x] Updated `getAllPhotosWithContext()` method for Base64 conversion
+- [x] Updated `getPhotosForMap()` method for Base64 conversion
+- [x] Updated `getMapsByImageHash()` method for Base64 conversion
+- [x] Updated `updateMap()` method for Base64 conversion
+- [x] Modified MapStorage constructor to accept ImageProcessor instance
+- [x] Updated app.js to pass imageProcessor to MapStorage constructor
 
 ## Phase 2: Import/Export Compatibility (`js/MapDataExporterImporter.js`)
 
