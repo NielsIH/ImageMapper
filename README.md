@@ -1,5 +1,24 @@
 # SnapSpot PWA
 
+## 🚨 Safari Blob Storage Compatibility Fix (2025-12)
+
+**SnapSpot now supports all versions of Safari, including iOS/iPadOS, by migrating all map and photo image data in IndexedDB from Blob format to Base64 strings.**
+
+- **Why?** Older Safari browsers do not support storing Blob objects in IndexedDB, causing failures when saving or loading maps/photos.
+- **How?**
+  - All image data is now stored as Base64 strings in IndexedDB.
+  - On first launch after update, any legacy Blob data is automatically migrated to Base64 (one-time migration).
+  - A full-screen overlay blocks UI and shows "Updating maps, please stand by" during migration.
+  - Import/export, gallery, and thumbnails are fully compatible with both formats.
+  - Migration is robust and error-tolerant; errors are logged but do not block app startup.
+- **Result:** SnapSpot works seamlessly on Chrome, Firefox, Edge, and all Safari versions (desktop and mobile).
+
+See [docs/SafariBlobFix.md](docs/SafariBlobFix.md) and [docs/SafariBlobFix_Tasks.md](docs/SafariBlobFix_Tasks.md) for technical details and implementation notes.
+
+---
+
+# SnapSpot PWA
+
 A Progressive Web App for mapping photos and images to specific locations on any map or floor plan. Perfect for construction sites, archaeological surveys, property inspections, event planning, and more. Designed to work offline for use in any environment.
 
 ## Phase 1A: PWA Foundation ✅
