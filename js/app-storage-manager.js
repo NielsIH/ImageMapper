@@ -16,8 +16,17 @@ export const StorageManager = {
     try {
       await app.storage.init()
       console.log('Storage system initialized successfully')
+
+      // Only show migration overlay if migration is needed
+      if (window.localStorage.getItem('snapspot_blob_migration_done') !== 'true') {
+        app.showMigrationOverlay()
+        await app.storage.migrateBlobDataToBase64()
+        app.hideMigrationOverlay()
+      }
+
       return true
     } catch (error) {
+      app.hideMigrationOverlay && app.hideMigrationOverlay()
       console.error('Failed to initialize storage:', error)
       throw new Error(`Storage initialization failed: ${error.message}`)
     }

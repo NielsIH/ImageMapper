@@ -32,7 +32,6 @@ class SnapSpotApp {
   constructor () {
     this.isOnline = navigator.onLine
     this.serviceWorkerReady = false
-    this.storage = new MapStorage()
     this.fileManager = new FileManager()
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
@@ -53,6 +52,7 @@ class SnapSpotApp {
     this.uploadedFiles = new Map()
     this.thumbnailCache = new Map()
     this.imageProcessor = new ImageProcessor()
+    this.storage = new MapStorage(this.imageProcessor)
     const savedPhotoQuality = parseFloat(localStorage.getItem('defaultPhotoQuality'))
     const initialPhotoQuality = isNaN(savedPhotoQuality) ? 0.5 : savedPhotoQuality
 
@@ -1154,6 +1154,34 @@ class SnapSpotApp {
   toggleMapDebugInfo () {
     if (this.mapRenderer) {
       this.mapRenderer.toggleDebugInfo()
+    }
+  }
+
+  /**
+   * Show the migration overlay
+   */
+  showMigrationOverlay () {
+    let overlay = document.getElementById('migration-overlay')
+    if (!overlay) {
+      overlay = document.createElement('div')
+      overlay.id = 'migration-overlay'
+      overlay.className = 'migration-overlay'
+      overlay.innerHTML = `
+        <div class="migration-overlay__spinner"></div>
+        <div class="migration-overlay__message">Updating maps, please stand by</div>
+      `
+      document.body.appendChild(overlay)
+    }
+    overlay.style.display = 'flex'
+  }
+
+  /**
+   * Hide the migration overlay
+   */
+  hideMigrationOverlay () {
+    const overlay = document.getElementById('migration-overlay')
+    if (overlay) {
+      overlay.style.display = 'none'
     }
   }
 }
