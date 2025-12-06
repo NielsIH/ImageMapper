@@ -1551,6 +1551,12 @@ export class MapStorage {
       return
     }
 
+    // Check persistent migration flag
+    if (window.localStorage.getItem('snapspot_blob_migration_done') === 'true') {
+      console.log('MapStorage: Blob-to-Base64 migration already completed, skipping.')
+      return
+    }
+
     console.log('MapStorage: Starting Blob to Base64 migration for Safari compatibility...')
 
     try {
@@ -1626,10 +1632,13 @@ export class MapStorage {
         }
       }
 
+      // Set migration flag after successful migration
+      window.localStorage.setItem('snapspot_blob_migration_done', 'true')
       console.log(`MapStorage: Migration complete - migrated ${migratedMaps} maps and ${migratedPhotos} photos`)
     } catch (error) {
       console.error('MapStorage: Migration failed:', error)
       // Don't throw - migration failure shouldn't break the app
+      // Optionally, set a flag to avoid repeated attempts if desired
     }
   }
 }

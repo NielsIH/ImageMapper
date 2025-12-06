@@ -1156,6 +1156,34 @@ class SnapSpotApp {
       this.mapRenderer.toggleDebugInfo()
     }
   }
+
+  /**
+   * Show the migration overlay
+   */
+  showMigrationOverlay () {
+    let overlay = document.getElementById('migration-overlay')
+    if (!overlay) {
+      overlay = document.createElement('div')
+      overlay.id = 'migration-overlay'
+      overlay.className = 'migration-overlay'
+      overlay.innerHTML = `
+        <div class="migration-overlay__spinner"></div>
+        <div class="migration-overlay__message">Updating maps, please stand by</div>
+      `
+      document.body.appendChild(overlay)
+    }
+    overlay.style.display = 'flex'
+  }
+
+  /**
+   * Hide the migration overlay
+   */
+  hideMigrationOverlay () {
+    const overlay = document.getElementById('migration-overlay')
+    if (overlay) {
+      overlay.style.display = 'none'
+    }
+  }
 }
 
 // Initialize the app

@@ -1,0 +1,36 @@
+/* Full-screen migration overlay for SnapSpot */
+.migration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(30, 30, 30, 0.95);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 2rem;
+  font-family: inherit;
+  transition: opacity 0.3s;
+}
+.migration-overlay__message {
+  margin-top: 1.5rem;
+  font-size: 2.2rem;
+  font-weight: 600;
+  text-align: center;
+}
+.migration-overlay__spinner {
+  width: 64px;
+  height: 64px;
+  border: 8px solid #fff;
+  border-top: 8px solid #4caf50;
+  border-radius: 50%;
+  animation: migration-spin 1s linear infinite;
+}
+@keyframes migration-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
